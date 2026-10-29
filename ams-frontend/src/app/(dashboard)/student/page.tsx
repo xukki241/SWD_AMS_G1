@@ -15,7 +15,8 @@ import {
   Upload,
   ExternalLink,
   CheckCircle,
-  Clock,
+  QrCode,
+  X,
   AlertCircle
 } from "lucide-react"
 
@@ -27,6 +28,10 @@ export default function StudentDashboardPage() {
   const [uploading, setUploading] = useState(false)
   const [payLoadingId, setPayLoadingId] = useState<number | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+
+  // VietQR Modal State
+  const [activeQrReg, setActiveQrReg] = useState<any | null>(null)
+  const [confirmingQr, setConfirmingQr] = useState(false)
 
   // Stats
   const { data: stats } = useQuery({
@@ -73,11 +78,26 @@ export default function StudentDashboardPage() {
     try {
       const res = await api.post(`/payment/create/${registrationId}`)
       const paymentUrl = res.data.paymentUrl
-      // Redirect to VNPay Sandbox Payment Gateway
       window.location.href = paymentUrl
     } catch (err: any) {
       setMessage(err.response?.data?.message || "Failed to initiate payment")
       setPayLoadingId(null)
+    }
+  }
+
+  // Confirm VietQR Transfer
+  const handleConfirmVietQr = async (registrationId: number) => {
+    setConfirmingQr(true)
+    try {
+      await api.post(`/payment/confirm-vietqr/${registrationId}`)
+      queryClient.invalidateQueries({ queryKey: ["student-registrations"] })
+      queryClient.invalidateQueries({ queryKey: ["student-stats"] })
+      setActiveQrReg(null)
+      setMessage("VietQR payment confirmed successfully! Your class is now ACTIVE.")
+    } catch (err: any) {
+      setMessage(err.response?.data?.message || "Failed to confirm payment")
+    } finally {
+      setConfirmingQr(false)
     }
   }
 
@@ -113,7 +133,7 @@ export default function StudentDashboardPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Student Portal</h2>
-        <p className="text-muted-foreground">Enroll in courses, pay tuition via VNPay, submit coursework, and view results.</p>
+        <p className="text-muted-foreground">Enroll in courses, pay tuition via VietQR / VNPay, submit coursework, and view results.</p>
       </div>
 
       {message && (
@@ -145,7 +165,7 @@ export default function StudentDashboardPage() {
             <div className="text-2xl font-bold text-emerald-600">
               {stats?.activeClasses > 0 ? "Enrolled" : "Pending"}
             </div>
-            <p className="text-xs text-muted-foreground">VNPay Gateway verified</p>
+            <p className="text-xs text-muted-foreground">VietQR & VNPay supported</p>
           </CardContent>
         </Card>
 
@@ -174,7 +194,7 @@ export default function StudentDashboardPage() {
         </Card>
       </div>
 
-      {/* Section 1: My Registrations & Tuition Payment (VNPay) */}
+      {/* Section 1: My Registrations & Tuition Payment */}
       <Card className="border-primary/20 shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -184,7 +204,7 @@ export default function StudentDashboardPage() {
                 My Class Registrations & Tuition Payment
               </CardTitle>
               <CardDescription>
-                Pay tuition fees via VNPay Sandbox (Test Card: 9704198526191432198, OTP: 123456)
+                Pay via <strong>VietQR TPBank (0842561752 - NGUYEN XUAN KIEN)</strong> or <strong>VNPay Sandbox</strong>
               </CardDescription>
             </div>
           </div>
@@ -201,7 +221,7 @@ export default function StudentDashboardPage() {
                   <TableHead>Course Name</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Registration Date</TableHead>
-                  <TableHead>Tuition Payment</TableHead>
+                  <TableHead>Tuition Payment Options</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -222,18 +242,28 @@ export default function StudentDashboardPage() {
                       {reg.status === "ACTIVE" ? (
                         <div className="flex items-center gap-1 text-emerald-600 text-xs font-semibold">
                           <CheckCircle className="h-4 w-4" />
-                          <span>Paid (5,000,000 VND)</span>
+                          <span>Paid & Enrolled</span>
                         </div>
                       ) : (
-                        <Button
-                          size="sm"
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-1.5"
-                          onClick={() => handlePayVNPay(reg.id)}
-                          disabled={payLoadingId === reg.id}
-                        >
-                          <CreditCard className="h-3.5 w-3.5" />
-                          {payLoadingId === reg.id ? "Redirecting..." : "Pay with VNPay Sandbox"}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-1.5"
+                            onClick={() => setActiveQrReg(reg)}
+                          >
+                            <QrCode className="h-3.5 w-3.5" />
+                            Quét VietQR
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => handlePayVNPay(reg.id)}
+                            disabled={payLoadingId === reg.id}
+                          >
+                            {payLoadingId === reg.id ? "Redirecting..." : "VNPay Sandbox"}
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
@@ -243,6 +273,75 @@ export default function StudentDashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* VietQR Payment Modal */}
+      {activeQrReg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <Card className="w-full max-w-md bg-card shadow-2xl border-primary/30 animate-in fade-in zoom-in-95">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <QrCode className="h-5 w-5 text-indigo-600" />
+                  Quét mã VietQR chuyển khoản
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Mở app ngân hàng bất kỳ để quét mã thanh toán học phí
+                </CardDescription>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setActiveQrReg(null)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4 text-center">
+              {/* Dynamic VietQR Image */}
+              <div className="mx-auto flex justify-center p-2 rounded-xl bg-white shadow-inner border max-w-[280px]">
+                <img
+                  src={`https://img.vietqr.io/image/tpbank-0842561752-compact2.png?amount=5000000&addInfo=AMS%20${activeQrReg.registrationReference}&accountName=NGUYEN%20XUAN%20KIEN`}
+                  alt="VietQR Transfer"
+                  className="w-full h-auto rounded-lg"
+                />
+              </div>
+
+              {/* Account Details */}
+              <div className="rounded-lg bg-muted/50 p-3 text-xs text-left space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Ngân hàng:</span>
+                  <span className="font-bold text-foreground">TPBank (Tiên Phong)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Số tài khoản:</span>
+                  <span className="font-mono font-bold text-foreground">0842561752</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Chủ tài khoản:</span>
+                  <span className="font-bold text-foreground">NGUYEN XUAN KIEN</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Số tiền:</span>
+                  <span className="font-bold text-emerald-600">5,000,000 VND</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Nội dung CK:</span>
+                  <span className="font-mono font-semibold text-primary">AMS {activeQrReg.registrationReference}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="w-1/2" onClick={() => setActiveQrReg(null)}>
+                  Đóng
+                </Button>
+                <Button
+                  className="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                  onClick={() => handleConfirmVietQr(activeQrReg.id)}
+                  disabled={confirmingQr}
+                >
+                  {confirmingQr ? "Đang xác nhận..." : "Tôi đã chuyển tiền"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Section 2: Available Classes for Registration */}
       <Card>

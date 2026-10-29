@@ -15,7 +15,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/payment")
 @RequiredArgsConstructor
-@Tag(name = "Payments", description = "VNPay Payment Gateway Integration APIs")
+@Tag(name = "Payments", description = "VNPay & VietQR Payment Integration APIs")
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -28,6 +28,17 @@ public class PaymentController {
             HttpServletRequest request
     ) {
         return ResponseEntity.ok(paymentService.createPaymentUrl(registrationId, request));
+    }
+
+    @PostMapping("/confirm-vietqr/{registrationId}")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Confirm manual VietQR bank transfer payment")
+    public ResponseEntity<Map<String, Object>> confirmVietQrPayment(@PathVariable Long registrationId) {
+        paymentService.confirmVietQrPayment(registrationId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "VietQR transfer confirmed successfully! Class enrollment is now ACTIVE."
+        ));
     }
 
     @GetMapping("/vnpay-return")

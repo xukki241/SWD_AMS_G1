@@ -35,6 +35,32 @@ public class PaymentService {
     private final AuditLogService auditLogService;
 
     @Transactional
+    public void confirmVietQrPayment(Long registrationId) {
+        ClassRegistration registration = registrationRepository.findById(registrationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Registration not found: " + registrationId));
+
+        if (registration.getStatus() == ClassRegistration.RegistrationStatus.ACTIVE) {
+            return;
+        }
+
+        String txnRef = "VQR" + System.currentTimeMillis() + "-" + registration.getId();
+        BigDecimal amount = BigDecimal.valueOf(5000000);
+
+        PaymentTransaction txn = PaymentTransaction.builder()
+                .classRegistration(registration)
+                .provider("VIETQR")
+                .providerReference(txnRef)
+                .amount(amount)
+                .transactionStatus(PaymentTransaction.TransactionStatus.SUCCESS)
+                .createdAt(LocalDateTime.now())
+                .build();
+        paymentRepository.save(txn);
+
+        registrationService.activateRegistration(registration.getId());
+        auditLogService.log("PAYMENT_SUCCESS_VIETQR", "PaymentTransaction", txnRef);
+    }
+
+    @Transactional
     public PaymentDTO.PaymentUrlResponse createPaymentUrl(Long registrationId, HttpServletRequest req) {
         ClassRegistration registration = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Registration not found: " + registrationId));
