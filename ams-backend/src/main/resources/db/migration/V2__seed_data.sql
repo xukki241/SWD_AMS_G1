@@ -12,20 +12,20 @@ INSERT INTO roles (role_name, description) VALUES
 
 -- Users  (passwords are BCrypt of "Password@123")
 INSERT INTO users (username, email, password, full_name, account_status) VALUES
-('admin',    'admin@ams.edu.vn',            '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'System Admin',       'ACTIVE'),
-('expert1',  'expert1@ams.edu.vn',          '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Nguyen Van Expert',  'ACTIVE'),
-('expert2',  'expert2@ams.edu.vn',          '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Tran Thi Expert',    'ACTIVE'),
-('teacher1', 'teacher1@ams.edu.vn',         '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Le Van Teacher',     'ACTIVE'),
-('teacher2', 'teacher2@ams.edu.vn',         '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Pham Thi Teacher',   'ACTIVE'),
-('teacher3', 'teacher3@ams.edu.vn',         '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Hoang Van Teacher',  'ACTIVE'),
-('student1', 'student1@student.edu.vn',     '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Nguyen Thi Student', 'ACTIVE'),
-('student2', 'student2@student.edu.vn',     '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Tran Van Student',   'ACTIVE'),
-('student3', 'student3@student.edu.vn',     '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Le Thi Student',     'ACTIVE'),
-('student4', 'student4@student.edu.vn',     '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Pham Van Student',   'ACTIVE'),
-('student5', 'student5@student.edu.vn',     '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Hoang Thi Student',  'ACTIVE'),
-('student6', 'student6@student.edu.vn',     '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Vo Van Student',     'ACTIVE'),
-('student7', 'student7@student.edu.vn',     '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Dang Thi Student',   'ACTIVE'),
-('student8', 'student8@student.edu.vn',     '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iYqiSfFkAIkjv8zXzp0fv3IH3Gde', 'Bui Van Student',    'ACTIVE');
+('admin',    'admin@ams.edu.vn',            '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'System Admin',       'ACTIVE'),
+('expert1',  'expert1@ams.edu.vn',          '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Nguyen Van Expert',  'ACTIVE'),
+('expert2',  'expert2@ams.edu.vn',          '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Tran Thi Expert',    'ACTIVE'),
+('teacher1', 'teacher1@ams.edu.vn',         '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Le Van Teacher',     'ACTIVE'),
+('teacher2', 'teacher2@ams.edu.vn',         '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Pham Thi Teacher',   'ACTIVE'),
+('teacher3', 'teacher3@ams.edu.vn',         '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Hoang Van Teacher',  'ACTIVE'),
+('student1', 'student1@student.edu.vn',     '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Nguyen Thi Student', 'ACTIVE'),
+('student2', 'student2@student.edu.vn',     '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Tran Van Student',   'ACTIVE'),
+('student3', 'student3@student.edu.vn',     '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Le Thi Student',     'ACTIVE'),
+('student4', 'student4@student.edu.vn',     '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Pham Van Student',   'ACTIVE'),
+('student5', 'student5@student.edu.vn',     '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Hoang Thi Student',  'ACTIVE'),
+('student6', 'student6@student.edu.vn',     '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Vo Van Student',     'ACTIVE'),
+('student7', 'student7@student.edu.vn',     '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Dang Thi Student',   'ACTIVE'),
+('student8', 'student8@student.edu.vn',     '$2a$10$ShO9sVu4WVBMAsyIjkoiPui3aBWOt4p6aDuxaD7XMICofkVWb3Fi2', 'Bui Van Student',    'ACTIVE');
 
 -- UserRoles
 INSERT INTO user_roles (user_id, role_id) VALUES

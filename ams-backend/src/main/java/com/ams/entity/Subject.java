@@ -27,9 +27,9 @@ public class Subject {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private Status status = Status.ACTIVE;
+    private SubjectStatus status = SubjectStatus.ACTIVE;
 
-    public enum Status {
+    public enum SubjectStatus {
         ACTIVE, INACTIVE
     }
 }
