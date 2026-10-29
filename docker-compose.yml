@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ams-postgres
+    environment:
+      POSTGRES_DB: ams_db
+      POSTGRES_USER: ams_user
+      POSTGRES_PASSWORD: ams_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ams_user -d ams_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ams-network
+
+  backend:
+    build:
+      context: ./ams-backend
+      dockerfile: Dockerfile
+    container_name: ams-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/ams_db
+      DB_USERNAME: ams_user
+      DB_PASSWORD: ams_password
+      JWT_SECRET: ${JWT_SECRET:-ams-super-secret-jwt-key-for-development-only-minimum-256-bits-long}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-swd_g1_asm}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-515266116764594}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-zpX4FsnjTXRtK8p5BxzI3YQFnFY}
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-K815KFV6}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-XXRGOEBAEHIDULXFAPHQLAYVHAZEBEKC}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/payment/return}
+      VNPAY_IPN_URL: ${VNPAY_IPN_URL:-http://host.docker.internal:8080/api/payment/vnpay-ipn}
+      PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ams-network
+    restart: on-failure
+
+  frontend:
+    build:
+      context: ./ams-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080/api
+        NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: swd_g1_asm
+    container_name: ams-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: swd_g1_asm
+    depends_on:
+      - backend
+    networks:
+      - ams-network
+    restart: on-failure
+
+volumes:
+  postgres_data:
+
+networks:
+  ams-network:
+    driver: bridge

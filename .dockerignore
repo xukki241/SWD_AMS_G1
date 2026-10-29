@@ -1,0 +1,28 @@
+# Git
+.git/
+*.gitignore
+
+# Environment files (NEVER commit these)
+.env
+.env.local
+.env.production
+
+# Backend build artifacts
+ams-backend/target/
+ams-backend/.mvn/repository/
+ams-backend/*.log
+
+# Frontend build
+ams-frontend/.next/
+ams-frontend/node_modules/
+ams-frontend/out/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
