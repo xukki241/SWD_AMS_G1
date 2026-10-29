@@ -9,10 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { FileText, CheckCircle2, Clock, ExternalLink, Award, Plus } from "lucide-react"
+import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
+import { useToast } from "@/lib/use-toast"
+import { FileText, CheckCircle2, Clock, ExternalLink, Award, Plus, Loader2 } from "lucide-react"
 
 export default function TeacherDashboardPage() {
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null)
 
   // Grading form state
@@ -66,8 +69,21 @@ export default function TeacherDashboardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] })
+      queryClient.invalidateQueries({ queryKey: ["teacher-stats"] })
       setTitle("")
       setInstructions("")
+      toast({
+        title: "Đã tạo bài tập",
+        description: "Bài tập được phát thành công.",
+        variant: "success",
+      })
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Tạo bài tập thất bại",
+        description: err.response?.data?.message || "Kiểm tra lại thông tin",
+        variant: "destructive",
+      })
     },
   })
 
@@ -86,6 +102,18 @@ export default function TeacherDashboardPage() {
       setEvalSubmissionId(null)
       setEvalScore("")
       setEvalFeedback("")
+      toast({
+        title: "Đã chấm điểm",
+        description: `Điểm của bài nộp #${evalSubmissionId} đã được lưu.`,
+        variant: "success",
+      })
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Chấm điểm thất bại",
+        description: err.response?.data?.message || "Không thể lưu đánh giá",
+        variant: "destructive",
+      })
     },
   })
 
@@ -98,6 +126,8 @@ export default function TeacherDashboardPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
+        {stats ? (
+          <>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">My Assignments</CardTitle>
@@ -141,6 +171,15 @@ export default function TeacherDashboardPage() {
             <p className="text-xs text-muted-foreground">Evaluations published</p>
           </CardContent>
         </Card>
+          </>
+        ) : (
+          <>
+            <StatSkeleton />
+            <StatSkeleton />
+            <StatSkeleton />
+            <StatSkeleton />
+          </>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -151,6 +190,9 @@ export default function TeacherDashboardPage() {
             <CardDescription>Select an assignment to inspect and grade student submissions</CardDescription>
           </CardHeader>
           <CardContent>
+            {assignments === undefined ? (
+              <TableSkeleton rows={4} cols={3} />
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -185,6 +227,7 @@ export default function TeacherDashboardPage() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
 
@@ -246,7 +289,14 @@ export default function TeacherDashboardPage() {
               onClick={() => createAssignmentMutation.mutate()}
               disabled={!title || createAssignmentMutation.isPending}
             >
-              {createAssignmentMutation.isPending ? "Publishing..." : "Create Assignment"}
+              {createAssignmentMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Đang phát bài...
+                </>
+              ) : (
+                "Create Assignment"
+              )}
             </Button>
           </CardContent>
         </Card>
@@ -365,7 +415,14 @@ export default function TeacherDashboardPage() {
                     onClick={() => gradeMutation.mutate()}
                     disabled={!evalScore || gradeMutation.isPending}
                   >
-                    {gradeMutation.isPending ? "Submitting..." : "Save Grade & Feedback"}
+                    {gradeMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                        Đang lưu...
+                      </>
+                    ) : (
+                      "Lưu điểm & nhận xét"
+                    )}
                   </Button>
                 </div>
               </div>

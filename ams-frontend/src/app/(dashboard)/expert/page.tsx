@@ -9,10 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { FileText, Plus, BookOpen, Clock } from "lucide-react"
+import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
+import { useToast } from "@/lib/use-toast"
+import { FileText, Plus, BookOpen, Clock, Loader2 } from "lucide-react"
 
 export default function ExpertDashboardPage() {
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [subjectId, setSubjectId] = useState<string>("")
   const [title, setTitle] = useState("")
   const [instructions, setInstructions] = useState("")
@@ -48,8 +51,21 @@ export default function ExpertDashboardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expert-templates"] })
+      queryClient.invalidateQueries({ queryKey: ["expert-stats"] })
       setTitle("")
       setInstructions("")
+      toast({
+        title: "Đã công bố template",
+        description: `Template "${title}" sẵn sàng cho giáo viên.`,
+        variant: "success",
+      })
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Công bố template thất bại",
+        description: err.response?.data?.message || "Kiểm tra lại thông tin",
+        variant: "destructive",
+      })
     },
   })
 
@@ -62,6 +78,8 @@ export default function ExpertDashboardPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2">
+        {stats ? (
+          <>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Assignment Templates</CardTitle>
@@ -83,6 +101,13 @@ export default function ExpertDashboardPage() {
             <p className="text-xs text-muted-foreground">Classes operating with expert content</p>
           </CardContent>
         </Card>
+          </>
+        ) : (
+          <>
+            <StatSkeleton />
+            <StatSkeleton />
+          </>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -93,6 +118,9 @@ export default function ExpertDashboardPage() {
             <CardDescription>Blueprints designed for subject courses</CardDescription>
           </CardHeader>
           <CardContent>
+            {templates === undefined ? (
+              <TableSkeleton rows={4} cols={4} />
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -121,6 +149,7 @@ export default function ExpertDashboardPage() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
 
@@ -182,7 +211,14 @@ export default function ExpertDashboardPage() {
               onClick={() => createTemplateMutation.mutate()}
               disabled={!subjectId || !title || createTemplateMutation.isPending}
             >
-              {createTemplateMutation.isPending ? "Saving..." : "Publish Template"}
+              {createTemplateMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Đang lưu...
+                </>
+              ) : (
+                "Publish Template"
+              )}
             </Button>
           </CardContent>
         </Card>

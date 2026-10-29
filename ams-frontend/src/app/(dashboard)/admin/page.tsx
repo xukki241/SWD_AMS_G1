@@ -9,10 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Users, BookOpen, Layers, ShieldAlert, Plus, CheckCircle, RefreshCw } from "lucide-react"
+import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
+import { useToast } from "@/lib/use-toast"
+import { Users, BookOpen, Layers, ShieldAlert, Plus, Loader2 } from "lucide-react"
 
 export default function AdminDashboardPage() {
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<"users" | "subjects" | "classes" | "audit">("users")
 
   // New subject state
@@ -62,9 +65,22 @@ export default function AdminDashboardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-subjects"] })
+      queryClient.invalidateQueries({ queryKey: ["admin-stats"] })
       setNewSubCode("")
       setNewSubName("")
       setNewSubDesc("")
+      toast({
+        title: "Đã thêm môn học",
+        description: `${newSubCode} - ${newSubName} đã được tạo.`,
+        variant: "success",
+      })
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Thêm môn học thất bại",
+        description: err.response?.data?.message || "Mã môn học có thể đã tồn tại",
+        variant: "destructive",
+      })
     },
   })
 
@@ -77,13 +93,15 @@ export default function AdminDashboardPage() {
 
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-4">
+        {stats ? (
+          <>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Accounts</CardTitle>
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statsLoading ? "..." : stats?.totalUsers || 0}</div>
+            <div className="text-2xl font-bold">{stats.totalUsers}</div>
             <p className="text-xs text-muted-foreground">{stats?.totalStudents || 0} Students, {stats?.totalTeachers || 0} Teachers</p>
           </CardContent>
         </Card>
@@ -94,7 +112,7 @@ export default function AdminDashboardPage() {
             <BookOpen className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statsLoading ? "..." : stats?.totalSubjects || 0}</div>
+            <div className="text-2xl font-bold">{stats.totalSubjects}</div>
             <p className="text-xs text-muted-foreground">Active academic courses</p>
           </CardContent>
         </Card>
@@ -105,8 +123,8 @@ export default function AdminDashboardPage() {
             <Layers className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statsLoading ? "..." : stats?.totalClasses || 0}</div>
-            <p className="text-xs text-muted-foreground">{stats?.totalRegistrations || 0} Total registrations</p>
+            <div className="text-2xl font-bold">{stats.totalClasses}</div>
+            <p className="text-xs text-muted-foreground">{stats.totalRegistrations} Total registrations</p>
           </CardContent>
         </Card>
 
@@ -120,6 +138,15 @@ export default function AdminDashboardPage() {
             <p className="text-xs text-muted-foreground">All actions recorded</p>
           </CardContent>
         </Card>
+          </>
+        ) : (
+          <>
+            <StatSkeleton />
+            <StatSkeleton />
+            <StatSkeleton />
+            <StatSkeleton />
+          </>
+        )}
       </div>
 
       {/* Tabs */}
@@ -146,6 +173,9 @@ export default function AdminDashboardPage() {
             <CardDescription>All registered users and their assigned roles</CardDescription>
           </CardHeader>
           <CardContent>
+            {users === undefined ? (
+              <TableSkeleton rows={5} cols={4} />
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -180,6 +210,7 @@ export default function AdminDashboardPage() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
       )}
@@ -193,6 +224,9 @@ export default function AdminDashboardPage() {
               <CardDescription>Academic courses defined in AMS</CardDescription>
             </CardHeader>
             <CardContent>
+              {subjects === undefined ? (
+                <TableSkeleton rows={3} cols={4} />
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -203,7 +237,7 @@ export default function AdminDashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {subjects?.map((s: any) => (
+                  {subjects.map((s: any) => (
                     <TableRow key={s.id}>
                       <TableCell className="font-mono font-bold text-primary">{s.subjectCode}</TableCell>
                       <TableCell className="font-semibold">{s.subjectName}</TableCell>
@@ -215,6 +249,7 @@ export default function AdminDashboardPage() {
                   ))}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
 
@@ -244,7 +279,14 @@ export default function AdminDashboardPage() {
                 onClick={() => createSubjectMutation.mutate()}
                 disabled={!newSubCode || !newSubName || createSubjectMutation.isPending}
               >
-                {createSubjectMutation.isPending ? "Creating..." : "Save Subject"}
+                {createSubjectMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    Đang tạo...
+                  </>
+                ) : (
+                  "Save Subject"
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -259,6 +301,9 @@ export default function AdminDashboardPage() {
             <CardDescription>Scheduled classes, assigned teachers, and academic terms</CardDescription>
           </CardHeader>
           <CardContent>
+            {classes === undefined ? (
+              <TableSkeleton rows={4} cols={5} />
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -271,7 +316,7 @@ export default function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {classes?.map((c: any) => (
+                {classes.map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-mono font-bold text-primary">{c.classCode}</TableCell>
                     <TableCell className="font-semibold">{c.className}</TableCell>
@@ -283,6 +328,7 @@ export default function AdminDashboardPage() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
       )}
@@ -295,6 +341,11 @@ export default function AdminDashboardPage() {
             <CardDescription>Append-only audit log of critical system operations</CardDescription>
           </CardHeader>
           <CardContent>
+            {auditLogs === undefined ? (
+              <TableSkeleton rows={5} cols={4} />
+            ) : auditLogs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Chưa có hành động nào được ghi nhận.</p>
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -305,7 +356,7 @@ export default function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {auditLogs?.map((log: any) => (
+                {auditLogs.map((log: any) => (
                   <TableRow key={log.id}>
                     <TableCell className="text-xs font-mono text-muted-foreground">
                       {new Date(log.occurredAt).toLocaleString()}
@@ -323,6 +374,7 @@ export default function AdminDashboardPage() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
       )}

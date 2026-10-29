@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
+import { useToast } from "@/lib/use-toast"
 import {
   GraduationCap,
   CreditCard,
@@ -27,7 +29,7 @@ export default function StudentDashboardPage() {
   const [uploadAssignId, setUploadAssignId] = useState<number | null>(null)
   const [uploading, setUploading] = useState(false)
   const [payLoadingId, setPayLoadingId] = useState<number | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const { toast } = useToast()
 
   // VietQR Modal State
   const [activeQrReg, setActiveQrReg] = useState<any | null>(null)
@@ -57,6 +59,15 @@ export default function StudentDashboardPage() {
     queryFn: async () => (await api.get("/submissions/my")).data,
   })
 
+  // Assignments of the selected class (for the upload form)
+  const uploadReg = myRegistrations?.find((r: any) => r.id === uploadRegId) as any
+  const { data: uploadAssignments } = useQuery({
+    queryKey: ["upload-assignments", uploadReg?.subjectClassId],
+    queryFn: async () =>
+      (await api.get(`/assignments/class/${uploadReg?.subjectClassId}`)).data,
+    enabled: !!uploadReg?.subjectClassId,
+  })
+
   // Register for a class
   const registerMutation = useMutation({
     mutationFn: async (subjectClassId: number) => {
@@ -65,10 +76,18 @@ export default function StudentDashboardPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["student-registrations"] })
       queryClient.invalidateQueries({ queryKey: ["student-stats"] })
-      setMessage("Class registered successfully! Please proceed to payment to activate access.")
+      toast({
+        title: "Đăng ký thành công",
+        description: "Vui lòng tiến hành thanh toán để kích hoạt lớp học.",
+        variant: "success",
+      })
     },
     onError: (err: any) => {
-      setMessage(err.response?.data?.message || "Registration failed")
+      toast({
+        title: "Đăng ký thất bại",
+        description: err.response?.data?.message || "Không thể đăng ký lớp",
+        variant: "destructive",
+      })
     },
   })
 
@@ -80,7 +99,11 @@ export default function StudentDashboardPage() {
       const paymentUrl = res.data.paymentUrl
       window.location.href = paymentUrl
     } catch (err: any) {
-      setMessage(err.response?.data?.message || "Failed to initiate payment")
+      toast({
+        title: "Lỗi khởi tạo thanh toán",
+        description: err.response?.data?.message || "Không thể kết nối VNPay",
+        variant: "destructive",
+      })
       setPayLoadingId(null)
     }
   }
@@ -93,9 +116,17 @@ export default function StudentDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["student-registrations"] })
       queryClient.invalidateQueries({ queryKey: ["student-stats"] })
       setActiveQrReg(null)
-      setMessage("VietQR payment confirmed successfully! Your class is now ACTIVE.")
+      toast({
+        title: "Xác nhận VietQR thành công",
+        description: "Lớp học của bạn đã được kích hoạt.",
+        variant: "success",
+      })
     } catch (err: any) {
-      setMessage(err.response?.data?.message || "Failed to confirm payment")
+      toast({
+        title: "Xác nhận thanh toán thất bại",
+        description: err.response?.data?.message || "Không thể xác nhận chuyển khoản",
+        variant: "destructive",
+      })
     } finally {
       setConfirmingQr(false)
     }
@@ -121,9 +152,17 @@ export default function StudentDashboardPage() {
       setSelectedFile(null)
       setUploadRegId(null)
       setUploadAssignId(null)
-      setMessage("Assignment successfully submitted and uploaded to Cloudinary!")
+      toast({
+        title: "Nộp bài thành công",
+        description: "Tệp đã được tải lên Cloudinary.",
+        variant: "success",
+      })
     } catch (err: any) {
-      setMessage(err.response?.data?.message || "Submission failed")
+      toast({
+        title: "Nộp bài thất bại",
+        description: err.response?.data?.message || "Không thể tải tệp lên",
+        variant: "destructive",
+      })
     } finally {
       setUploading(false)
     }
@@ -136,15 +175,10 @@ export default function StudentDashboardPage() {
         <p className="text-muted-foreground">Enroll in courses, pay tuition via VietQR / VNPay, submit coursework, and view results.</p>
       </div>
 
-      {message && (
-        <div className="flex items-center justify-between rounded-lg bg-primary/10 p-3 text-sm text-primary">
-          <span>{message}</span>
-          <button onClick={() => setMessage(null)} className="text-xs font-bold hover:underline">Dismiss</button>
-        </div>
-      )}
-
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
+        {stats ? (
+          <>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Registered Classes</CardTitle>
@@ -192,6 +226,15 @@ export default function StudentDashboardPage() {
             <p className="text-xs text-muted-foreground">Based on evaluations</p>
           </CardContent>
         </Card>
+          </>
+        ) : (
+          <>
+            <StatSkeleton />
+            <StatSkeleton />
+            <StatSkeleton />
+            <StatSkeleton />
+          </>
+        )}
       </div>
 
       {/* Section 1: My Registrations & Tuition Payment */}
@@ -210,7 +253,9 @@ export default function StudentDashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {myRegistrations?.length === 0 ? (
+          {myRegistrations === undefined ? (
+            <TableSkeleton rows={3} cols={5} />
+          ) : myRegistrations.length === 0 ? (
             <p className="text-sm text-muted-foreground">You have not registered for any classes yet. Browse classes below.</p>
           ) : (
             <Table>
@@ -353,6 +398,9 @@ export default function StudentDashboardPage() {
           <CardDescription>Select an open class section to enroll</CardDescription>
         </CardHeader>
         <CardContent>
+          {availableClasses === undefined ? (
+            <TableSkeleton rows={4} cols={6} />
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -393,6 +441,7 @@ export default function StudentDashboardPage() {
               })}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -408,7 +457,9 @@ export default function StudentDashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {mySubmissions?.length === 0 ? (
+          {mySubmissions === undefined ? (
+            <TableSkeleton rows={4} cols={5} />
+          ) : mySubmissions.length === 0 ? (
             <p className="text-sm text-muted-foreground">No submissions recorded yet.</p>
           ) : (
             <Table>
@@ -467,14 +518,17 @@ export default function StudentDashboardPage() {
             </h4>
             <form onSubmit={handleUploadSubmission} className="grid grid-cols-4 gap-4 items-end">
               <div className="space-y-1">
-                <label className="text-xs font-medium">Select Class</label>
+                <label className="text-xs font-medium">Chọn lớp đã trả học phí</label>
                 <select
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
                   value={uploadRegId || ""}
-                  onChange={(e) => setUploadRegId(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    setUploadRegId(parseInt(e.target.value))
+                    setUploadAssignId(null)
+                  }}
                   required
                 >
-                  <option value="">-- Paid Class --</option>
+                  <option value="">-- Lớp đã thanh toán --</option>
                   {myRegistrations?.filter((r: any) => r.status === "ACTIVE").map((r: any) => (
                     <option key={r.id} value={r.id}>{r.classCode} ({r.subjectName})</option>
                   ))}
@@ -482,15 +536,25 @@ export default function StudentDashboardPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-medium">Assignment ID</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 1"
+                <label className="text-xs font-medium">Chọn bài tập</label>
+                <select
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
                   value={uploadAssignId || ""}
                   onChange={(e) => setUploadAssignId(parseInt(e.target.value))}
                   required
-                />
+                  disabled={!uploadRegId}
+                >
+                  <option value="">
+                    {uploadRegId
+                      ? (uploadAssignments?.length ? "-- Chọn bài tập --" : "Lớp chưa có bài tập")
+                      : "Chọn lớp trước"}
+                  </option>
+                  {uploadAssignments?.map((a: any) => (
+                    <option key={a.id} value={a.id}>
+                      {a.title}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1">
