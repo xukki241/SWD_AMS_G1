@@ -41,3 +41,8 @@ target/
 # OS files
 .DS_Store
 Thumbs.db
+-
+# local DB dump (not for git)
+
+# local DB dump (not for git)
+ams-db-backup-*.sql
