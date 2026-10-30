@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/axios"
 import { useToast } from "@/lib/use-toast"
@@ -13,9 +13,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Upload, File as FileIcon, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Upload, Loader2 } from "lucide-react"
 import { formatDate, isPastDue } from "@/components/classroom/format"
+import { UploadDropzone } from "@/components/classroom/UploadDropzone"
 
 export function SubmitDialog({
   open,
@@ -77,61 +78,52 @@ export function SubmitDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Submit work</DialogTitle>
+          <DialogTitle className="font-semibold">Submit work</DialogTitle>
           <DialogDescription>
             {assignmentTitle} · due {formatDate(assignment?.dueAt)}
             {late && (
-              <span className="ml-1 font-semibold text-amber-600">(this is past the deadline — it will be marked late)</span>
+              <span className="ml-1 font-medium text-warning">
+                (this is past the deadline — it will be marked late)
+              </span>
             )}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label>File to submit</Label>
-            <label
-              className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed p-5 text-sm ${
-                file ? "border-primary bg-primary/5 text-foreground" : "text-muted-foreground hover:border-primary/50"
-              }`}
-            >
-              {file ? (
-                <>
-                  <FileIcon className="h-4 w-4 text-primary" />
-                  <span className="truncate">{file.name}</span>
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4" />
-                  <span>Choose a file (PDF, DOCX, ZIP…)</span>
-                </>
-              )}
-              <input
-                type="file"
-                className="hidden"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-              />
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              File to submit
             </label>
+            <UploadDropzone file={file} onChange={setFile} />
           </div>
 
-          <div className="space-y-1">
-            <Label>Note (optional)</Label>
-            <input
-              type="text"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          <div className="space-y-1.5">
+            <label htmlFor="submission-note" className="text-xs font-medium text-muted-foreground">
+              Note (optional)
+            </label>
+            <Input
+              id="submission-note"
               placeholder="Anything the teacher should know"
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              className="rounded-full"
             />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={submitting || !file}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-full">
+            Cancel
+          </Button>
+          <Button
+            onClick={submit}
+            disabled={submitting || !file}
+            className="rounded-full shadow-gc hover:shadow-gc-lg"
+          >
             {submitting ? (
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
             ) : (
-              <Upload className="h-4 w-4 mr-1.5" />
+              <Upload className="mr-1.5 h-4 w-4" />
             )}
             Submit
           </Button>

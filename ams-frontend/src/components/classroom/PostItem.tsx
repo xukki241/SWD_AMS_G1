@@ -4,10 +4,11 @@ import React, { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/axios"
 import { useToast } from "@/lib/use-toast"
-import { useAuthStore } from "@/stores/authStore"
 import { Button } from "@/components/ui/button"
-import { Paperclip, Trash2, Loader2, Clock } from "lucide-react"
-import { timeAgo, avatarColor } from "@/components/classroom/format"
+import { Avatar } from "@/components/ui/avatar"
+import { FileChip } from "@/components/classroom/FileChip"
+import { Trash2, Loader2, Clock } from "lucide-react"
+import { timeAgo, formatBytes } from "@/components/classroom/format"
 import type { Post } from "@/components/classroom/classroomTypes"
 
 export function PostItem({
@@ -46,21 +47,11 @@ export function PostItem({
     }
   }
 
-  const sizeLabel = post.attachmentSize
-    ? post.attachmentSize > 1024 * 1024
-      ? `${(post.attachmentSize / 1024 / 1024).toFixed(1)} MB`
-      : `${Math.max(1, Math.round(post.attachmentSize / 1024))} KB`
-    : null
+  const sizeLabel = formatBytes(post.attachmentSize)
 
   return (
-    <div className="flex gap-3 rounded-lg border bg-card p-4 shadow-sm">
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${avatarColor(
-          post.authorName
-        )}`}
-      >
-        {post.authorName?.trim().charAt(0).toUpperCase() || "?"}
-      </div>
+    <div className="flex gap-3 rounded-lg border bg-card p-4 shadow-gc">
+      <Avatar name={post.authorName} size="md" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3">
           <span className="text-sm font-semibold text-foreground">{post.authorName}</span>
@@ -71,33 +62,27 @@ export function PostItem({
         </div>
         {post.body && <p className="mt-1 whitespace-pre-wrap break-words text-sm">{post.body}</p>}
         {post.attachmentReference && (
-          <a
-            href={post.attachmentReference}
-            target="_blank"
-            rel="noopener noreferrer"
-            download
-            className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
-          >
-            <Paperclip className="h-3.5 w-3.5" />
-            <span className="max-w-[240px] truncate">
-              {post.attachmentFilename || "attachment"}
-            </span>
-            {sizeLabel && <span className="text-muted-foreground">{sizeLabel}</span>}
-          </a>
+          <div className="mt-2">
+            <FileChip
+              href={post.attachmentReference}
+              name={post.attachmentFilename}
+              sizeLabel={sizeLabel}
+            />
+          </div>
         )}
         {(canDelete || isMine) && (
           <div className="mt-2">
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+              className="h-7 rounded-full px-2 text-xs text-muted-foreground hover:text-destructive"
               onClick={deletePost}
               disabled={deleting}
             >
               {deleting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                <Trash2 className="mr-1 h-3.5 w-3.5" />
               )}
               Delete
             </Button>

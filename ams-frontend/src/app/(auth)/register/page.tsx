@@ -7,9 +7,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { authService } from "@/services/auth.service"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, AlertCircle } from "lucide-react"
+import { BookOpen } from "lucide-react"
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -39,87 +37,70 @@ export default function RegisterPage() {
     }
   }
 
+  const field = (
+    id: keyof typeof formData,
+    label: string,
+    type: string,
+    placeholder: string,
+    required = true
+  ) => (
+    <div className="space-y-1">
+      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+        {label}
+      </label>
+      <Input
+        id={id}
+        type={type}
+        placeholder={placeholder}
+        value={formData[id]}
+        onChange={(e) => setFormData({ ...formData, [id]: e.target.value })}
+        className="h-10 rounded-full"
+        required={required}
+      />
+    </div>
+  )
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md shadow-lg border-primary/20">
-        <CardHeader className="text-center space-y-1">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow">
-            <BookOpen className="h-6 w-6" />
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="w-full max-w-[400px] rounded-lg border bg-card p-8 shadow-gc">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <BookOpen className="h-5 w-5" />
           </div>
-          <CardTitle className="text-2xl font-bold mt-2">Create Student Account</CardTitle>
-          <CardDescription>
+          <h1 className="text-[28px] font-light tracking-tight text-foreground">
+            Create your account
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Register to enroll in courses and submit assignments
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+          </p>
+        </div>
 
-          <form onSubmit={handleRegister} className="space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                type="text"
-                placeholder="Nguyen Van A"
-                value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                required
-              />
-            </div>
+        {error && (
+          <p className="mb-3 text-sm font-medium text-destructive">{error}</p>
+        )}
 
-            <div className="space-y-1">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="student_code"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                required
-              />
-            </div>
+        <form onSubmit={handleRegister} className="space-y-4">
+          {field("fullName", "Full name", "text", "Nguyen Van A")}
+          {field("username", "Username", "text", "student_code")}
+          {field("email", "Email", "email", "example@student.edu.vn")}
+          {field("password", "Password", "password", "Minimum 6 characters")}
 
-            <div className="space-y-1">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="example@student.edu.vn"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
-            </div>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="h-10 w-full rounded-full shadow-gc hover:shadow-gc-lg"
+          >
+            {loading ? "Creating account…" : "Create account"}
+          </Button>
+        </form>
 
-            <div className="space-y-1">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Minimum 6 characters"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-              />
-            </div>
-
-            <Button type="submit" className="w-full mt-4" disabled={loading}>
-              {loading ? "Creating account..." : "Register"}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex justify-center border-t py-4 text-xs text-muted-foreground">
-          Already have an account?&nbsp;
-          <Link href="/login" className="font-semibold text-primary hover:underline">
-            Sign In
+        <div className="mt-6 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-primary hover:underline">
+            Sign in
           </Link>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

@@ -53,6 +53,18 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "#fff",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "#fff",
+        },
+      },
+      boxShadow: {
+        gc: "0 1px 2px 0 rgb(60 64 67 / 0.30), 0 1px 3px 1px rgb(60 64 67 / 0.15)",
+        "gc-lg": "0 1px 3px 0 rgb(60 64 67 / 0.30), 0 6px 10px 0 rgb(60 64 67 / 0.15)",
       },
       borderRadius: {
         lg: "var(--radius)",

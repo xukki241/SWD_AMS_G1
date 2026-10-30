@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/axios"
 import { useToast } from "@/lib/use-toast"
@@ -13,10 +13,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Award, Loader2 } from "lucide-react"
+import { Award, Loader2, CheckCircle2 } from "lucide-react"
+import { ScoreInput } from "@/components/classroom/ScoreInput"
 
 export function GradeDialog({
   open,
@@ -40,14 +40,11 @@ export function GradeDialog({
   const { toast } = useToast()
 
   const existing = submission?.evaluation
-  const scoreValid =
-    score !== "" &&
-    !isNaN(Number(score)) &&
-    Number(score) >= 0 &&
-    Number(score) <= maxScore
+  // Grades are final: backend 400s on re-grade, so a graded submission is read-only.
+  const isGraded = existing?.score != null
 
   const save = async () => {
-    if (!submission || !scoreValid) return
+    if (!submission || isGraded) return
     setSaving(true)
     try {
       await api.post("/evaluations", {
@@ -95,59 +92,99 @@ export function GradeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Grade submission</DialogTitle>
+          <DialogTitle className="font-semibold">
+            {isGraded ? "View grade" : "Grade submission"}
+          </DialogTitle>
           <DialogDescription>
             {submission?.studentName ? `${submission.studentName} · ` : ""}
             {assignmentTitle}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label>Score (0 – {maxScore})</Label>
-            <Input
-              type="number"
-              min={0}
-              max={maxScore}
-              step={0.1}
-              placeholder={`e.g. ${maxScore === 10 ? 8.5 : maxScore * 0.8}`}
-              value={score}
-              onChange={(e) => setScore(e.target.value)}
-            />
-            {score !== "" && !scoreValid && (
-              <p className="text-xs text-destructive">
-                Enter a number between 0 and {maxScore}.
-              </p>
+        {isGraded ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 rounded-lg bg-success/10 p-4">
+              <CheckCircle2 className="h-8 w-8 shrink-0 text-success" />
+              <div>
+                <div className="text-2xl font-semibold text-success">
+                  {existing.score} <span className="text-base text-muted-foreground">/ {maxScore}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Graded by {existing.evaluatorName || "teacher"}
+                </p>
+              </div>
+            </div>
+            {existing.feedback && (
+              <div className="rounded-lg bg-muted/60 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Feedback
+                </p>
+                <p className="mt-1 text-sm italic text-foreground">
+                  &ldquo;{existing.feedback}&rdquo;
+                </p>
+              </div>
             )}
-          </div>
-          <div className="space-y-1">
-            <Label>Feedback</Label>
-            <Textarea
-              placeholder="Constructive feedback for the student…"
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-            />
-          </div>
-          {existing?.score != null && (
             <p className="text-xs text-muted-foreground">
-              Currently graded: <strong>{existing.score}</strong>
-              {existing.feedback ? ` · ${existing.feedback}` : ""} — saving will update it.
+              Grades are final — re-grading is not supported.
             </p>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Score (0 – {maxScore})
+              </Label>
+              <ScoreInput
+                value={score}
+                onValueChange={setScore}
+                max={maxScore}
+                placeholder={`e.g. ${maxScore === 10 ? 8.5 : maxScore * 0.8}`}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="grade-feedback" className="text-xs font-medium text-muted-foreground">
+                Feedback
+              </Label>
+              <Textarea
+                id="grade-feedback"
+                placeholder="Constructive feedback for the student…"
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={save} disabled={saving || !scoreValid}>
-            {saving ? (
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-            ) : (
-              <Award className="h-4 w-4 mr-1.5" />
-            )}
-            Save &amp; grade
-          </Button>
+          {isGraded ? (
+            <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-full">
+              Close
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-full">
+                Cancel
+              </Button>
+              <Button
+                onClick={save}
+                disabled={
+                  saving ||
+                  score === "" ||
+                  Number.isNaN(Number(score)) ||
+                  Number(score) < 0 ||
+                  Number(score) > maxScore
+                }
+                className="rounded-full shadow-gc hover:shadow-gc-lg"
+              >
+                {saving ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <Award className="mr-1.5 h-4 w-4" />
+                )}
+                Save &amp; grade
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

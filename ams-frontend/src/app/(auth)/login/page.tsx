@@ -7,9 +7,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { authService } from "@/services/auth.service"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, KeyRound, AlertCircle } from "lucide-react"
+import { BookOpen } from "lucide-react"
 
 export default function LoginPage() {
   const [username, setUsername] = useState("")
@@ -45,103 +43,104 @@ export default function LoginPage() {
     setPassword("Password@123")
   }
 
+  const demoAccounts = [
+    { label: "Admin", value: "admin" },
+    { label: "Teacher", value: "teacher1" },
+    { label: "Student", value: "student1" },
+    { label: "Expert", value: "expert1" },
+  ]
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md shadow-lg border-primary/20">
-        <CardHeader className="text-center space-y-1">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow">
-            <BookOpen className="h-6 w-6" />
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="w-full max-w-[400px] rounded-lg border bg-card p-8 shadow-gc">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <BookOpen className="h-5 w-5" />
           </div>
-          <CardTitle className="text-2xl font-bold mt-2">Sign in to AMS</CardTitle>
-          <CardDescription>
-            Assignments Management System — Group 1 POC
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+          <h1 className="text-[28px] font-light tracking-tight text-foreground">
+            Sign in
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Use your AMS account</p>
+        </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="e.g. student1, teacher1, admin"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-            </div>
+        {error && (
+          <p className="mb-3 text-sm font-medium text-destructive">{error}</p>
+        )}
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Authenticating..." : "Sign In"}
-            </Button>
-          </form>
-
-          <div className="mt-6 border-t pt-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Quick demo accounts (Password: Password@123):
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => quickFill("admin")}
-                className="rounded border bg-card p-2 text-left hover:border-primary transition"
-              >
-                <div className="font-semibold text-foreground">Admin</div>
-                <div className="text-muted-foreground">admin</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => quickFill("teacher1")}
-                className="rounded border bg-card p-2 text-left hover:border-primary transition"
-              >
-                <div className="font-semibold text-foreground">Teacher</div>
-                <div className="text-muted-foreground">teacher1</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => quickFill("student1")}
-                className="rounded border bg-card p-2 text-left hover:border-primary transition"
-              >
-                <div className="font-semibold text-foreground">Student</div>
-                <div className="text-muted-foreground">student1</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => quickFill("expert1")}
-                className="rounded border bg-card p-2 text-left hover:border-primary transition"
-              >
-                <div className="font-semibold text-foreground">Expert</div>
-                <div className="text-muted-foreground">expert1</div>
-              </button>
-            </div>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-1">
+            <label
+              htmlFor="username"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Username
+            </label>
+            <Input
+              id="username"
+              type="text"
+              placeholder="e.g. student1, teacher1, admin"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="h-10 rounded-full"
+              required
+            />
           </div>
-        </CardContent>
-        <CardFooter className="flex justify-center border-t py-4 text-xs text-muted-foreground">
-          Don&apos;t have an account?&nbsp;
-          <Link href="/register" className="font-semibold text-primary hover:underline">
-            Register as Student
+
+          <div className="space-y-1">
+            <label
+              htmlFor="password"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Password
+            </label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-10 rounded-full"
+              required
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="h-10 w-full rounded-full shadow-gc hover:shadow-gc-lg"
+          >
+            {loading ? "Authenticating…" : "Sign in"}
+          </Button>
+        </form>
+
+        <div className="mt-6 border-t pt-5">
+          <p className="mb-2 text-center text-xs font-medium text-muted-foreground">
+            Demo accounts · password Password@123
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {demoAccounts.map((a) => (
+              <button
+                key={a.value}
+                type="button"
+                onClick={() => quickFill(a.value)}
+                className="rounded-full border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary hover:bg-accent hover:text-primary"
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6 text-center text-sm text-muted-foreground">
+          New to AMS?{" "}
+          <Link
+            href="/register"
+            className="font-medium text-primary hover:underline"
+          >
+            Create account
           </Link>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
