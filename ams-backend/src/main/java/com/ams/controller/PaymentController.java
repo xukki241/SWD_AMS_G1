@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -39,6 +40,13 @@ public class PaymentController {
                 "success", true,
                 "message", "VietQR transfer confirmed successfully! Class enrollment is now ACTIVE."
         ));
+    }
+
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Payment history for the current student (Payment History screen)")
+    public ResponseEntity<List<PaymentDTO.PaymentTransactionResponse>> getMyPayments() {
+        return ResponseEntity.ok(paymentService.getMyPayments());
     }
 
     @GetMapping("/vnpay-return")

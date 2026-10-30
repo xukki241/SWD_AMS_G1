@@ -9,7 +9,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,6 +23,9 @@ public class AssignmentService {
     private final AssignmentTemplateRepository templateRepository;
     private final SubjectClassRepository subjectClassRepository;
     private final AssignmentClassRepository assignmentClassRepository;
+    private final ClassRegistrationRepository registrationRepository;
+    private final SubmissionRepository submissionRepository;
+    private final AssignmentEvaluationRepository evaluationRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
@@ -64,6 +69,7 @@ public class AssignmentService {
                 .title(request.title())
                 .instructions(request.instructions())
                 .dueAt(request.dueAt())
+                .maxScore(request.maxScore() != null ? request.maxScore() : BigDecimal.TEN)
                 .build();
 
         assignment = assignmentRepository.save(assignment);
@@ -106,6 +112,62 @@ public class AssignmentService {
         auditLogService.log("ALLOCATE_ASSIGNMENT", "AssignmentClass", assignment.getTitle() + " -> " + sc.getClassCode());
     }
 
+    /**
+     * STUDENT "pending work" view (spec 4.4): for each of the student's ACTIVE
+     * registrations, list the class's ACTIVE assignments with the student's own
+     * work state (NOT_STARTED / DRAFT / SUBMITTED / LATE / GRADED).
+     */
+    @Transactional(readOnly = true)
+    public List<AssignmentDTO.AssignmentOverviewItem> getMyAssignmentsOverview() {
+        User student = currentUser();
+        List<AssignmentDTO.AssignmentOverviewItem> items = new ArrayList<>();
+
+        for (ClassRegistration reg : registrationRepository.findByStudentId(student.getId())) {
+            if (reg.getStatus() != ClassRegistration.RegistrationStatus.ACTIVE) {
+                continue;
+            }
+            SubjectClass sc = reg.getSubjectClass();
+
+            for (AssignmentClass ac : assignmentClassRepository.findBySubjectClassId(sc.getId())) {
+                if (ac.getAllocationStatus() != AssignmentClass.AllocationStatus.ACTIVE) {
+                    continue;
+                }
+                Assignment a = ac.getAssignment();
+
+                Submission submission =
+                        submissionRepository.findByClassRegistrationIdAndAssignmentId(reg.getId(), a.getId()).orElse(null);
+                String workState = "NOT_STARTED";
+                Long submissionId = null;
+                BigDecimal score = null;
+
+                if (submission != null) {
+                    workState = submission.getSubmissionStatus().name();
+                    submissionId = submission.getId();
+                    AssignmentEvaluation eval =
+                            evaluationRepository.findBySubmissionId(submission.getId()).orElse(null);
+                    if (eval != null && eval.getScore() != null) {
+                        score = eval.getScore();
+                    }
+                }
+
+                items.add(new AssignmentDTO.AssignmentOverviewItem(
+                        sc.getId(),
+                        sc.getClassCode(),
+                        sc.getClassName(),
+                        a.getId(),
+                        a.getTitle(),
+                        a.getInstructions(),
+                        a.getDueAt(),
+                        a.getMaxScore(),
+                        workState,
+                        submissionId,
+                        score
+                ));
+            }
+        }
+        return items;
+    }
+
     private AssignmentDTO.AssignmentResponse mapToResponse(Assignment a) {
         return new AssignmentDTO.AssignmentResponse(
                 a.getId(),
@@ -114,7 +176,14 @@ public class AssignmentService {
                 a.getTemplate() != null ? a.getTemplate().getId() : null,
                 a.getTitle(),
                 a.getInstructions(),
-                a.getDueAt()
+                a.getDueAt(),
+                a.getMaxScore()
         );
+    }
+
+    private User currentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
     }
 }

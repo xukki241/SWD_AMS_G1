@@ -3,105 +3,151 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/axios"
+import { useToast } from "@/lib/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
-import { useToast } from "@/lib/use-toast"
-import { FileText, Plus, BookOpen, Clock, Loader2 } from "lucide-react"
+import { ClassCard } from "@/components/classroom/ClassCard"
+import { ErrorState } from "@/components/classroom/ErrorState"
+import { EmptyState } from "@/components/classroom/EmptyState"
+import { MyClass, Subject, TemplateItem } from "@/components/classroom/classroomTypes"
+import {
+  FolderKanban,
+  Layers,
+  Plus,
+  Loader2,
+  FileText,
+  ScrollText,
+} from "lucide-react"
 
 export default function ExpertDashboardPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+
+  const [open, setOpen] = useState(false)
   const [subjectId, setSubjectId] = useState<string>("")
   const [title, setTitle] = useState("")
   const [instructions, setInstructions] = useState("")
-  const [defaultDueRule, setDefaultDueRule] = useState("14 days after release")
+  const [defaultDueRule, setDefaultDueRule] = useState("Weekly")
 
-  // Stats
-  const { data: stats } = useQuery({
+  const { data: stats, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["expert-stats"],
     queryFn: async () => (await api.get("/dashboard/expert")).data,
   })
 
-  // Subjects
-  const { data: subjects } = useQuery({
-    queryKey: ["expert-subjects"],
-    queryFn: async () => (await api.get("/subjects")).data,
+  const {
+    data: myClasses,
+    isLoading: classesLoading,
+    isError: classesError,
+    refetch: refetchClasses,
+  } = useQuery({
+    queryKey: ["expert-my-classes"],
+    queryFn: async () => (await api.get("/subject-classes/my")).data as MyClass[],
   })
 
-  // Templates
-  const { data: templates } = useQuery({
+  const {
+    data: templates,
+    isLoading: templatesLoading,
+    isError: templatesError,
+    refetch: refetchTemplates,
+  } = useQuery({
     queryKey: ["expert-templates"],
-    queryFn: async () => (await api.get("/assignment-templates")).data,
+    queryFn: async () => (await api.get("/assignment-templates")).data as TemplateItem[],
   })
 
-  // Create Template Mutation
-  const createTemplateMutation = useMutation({
+  const { data: subjects } = useQuery({
+    queryKey: ["subjects"],
+    queryFn: async () => (await api.get("/subjects")).data as Subject[],
+    enabled: open,
+  })
+
+  const createTemplate = useMutation({
     mutationFn: async () => {
       await api.post("/assignment-templates", {
         subjectId: parseInt(subjectId),
-        title,
-        instructions,
-        defaultDueRule,
+        title: title.trim(),
+        instructions: instructions.trim() || undefined,
+        defaultDueRule: defaultDueRule.trim() || undefined,
       })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expert-templates"] })
-      queryClient.invalidateQueries({ queryKey: ["expert-stats"] })
+      toast({ title: "Template created", variant: "success" })
+      setOpen(false)
       setTitle("")
       setInstructions("")
-      toast({
-        title: "Đã công bố template",
-        description: `Template "${title}" sẵn sàng cho giáo viên.`,
-        variant: "success",
-      })
+      setDefaultDueRule("Weekly")
+      setSubjectId("")
     },
     onError: (err: any) => {
       toast({
-        title: "Công bố template thất bại",
-        description: err.response?.data?.message || "Kiểm tra lại thông tin",
+        title: "Could not create template",
+        description: err.response?.data?.message || "Please check the form.",
         variant: "destructive",
       })
     },
   })
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Subject Matter Expert Workspace</h2>
-        <p className="text-muted-foreground">Standardize academic curriculum with reusable Assignment Templates.</p>
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Expert dashboard</h2>
+          <p className="text-muted-foreground">
+            Manage your classes and build reusable assignment blueprints.
+          </p>
+        </div>
+        <Button onClick={() => setOpen(true)}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          New template
+        </Button>
       </div>
 
-      {/* Stats */}
+      {/* KPI cards */}
       <div className="grid gap-4 md:grid-cols-2">
         {stats ? (
           <>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Assignment Templates</CardTitle>
-            <FileText className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalTemplates || 0}</div>
-            <p className="text-xs text-muted-foreground">Standardized blueprints available to teachers</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Under Supervision</CardTitle>
-            <BookOpen className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.managedClasses || 0}</div>
-            <p className="text-xs text-muted-foreground">Classes operating with expert content</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Managed Classes</CardTitle>
+                <FolderKanban className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.managedClasses}</div>
+                <p className="text-xs text-muted-foreground">class sections you oversee</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Templates</CardTitle>
+                <Layers className="h-4 w-4 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalTemplates}</div>
+                <p className="text-xs text-muted-foreground">reusable assignment blueprints</p>
+              </CardContent>
+            </Card>
           </>
+        ) : statsError ? (
+          <ErrorState onRetry={() => refetchStats()} />
         ) : (
           <>
             <StatSkeleton />
@@ -110,119 +156,168 @@ export default function ExpertDashboardPage() {
         )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Template List */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Standard Assignment Templates</CardTitle>
-            <CardDescription>Blueprints designed for subject courses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {templates === undefined ? (
-              <TableSkeleton rows={4} cols={4} />
-            ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Template Title</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Default Schedule</TableHead>
-                  <TableHead>Expert Author</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {templates?.map((t: any) => (
-                  <TableRow key={t.id}>
-                    <TableCell>
-                      <div className="font-semibold text-foreground">{t.title}</div>
-                      <div className="text-xs text-muted-foreground line-clamp-1">{t.instructions}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{t.subjectName}</Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      <Clock className="inline h-3 w-3 mr-1" />
-                      {t.defaultDueRule}
-                    </TableCell>
-                    <TableCell className="text-xs">{t.expertName}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            )}
-          </CardContent>
-        </Card>
+      {/* My classes */}
+      <section id="classes">
+        <div className="mb-4">
+          <h3 className="text-xl font-bold tracking-tight">My classes</h3>
+          <p className="text-sm text-muted-foreground">
+            Open a class to review its stream, assignments, and people.
+          </p>
+        </div>
+        {classesError ? (
+          <ErrorState onRetry={() => refetchClasses()} />
+        ) : classesLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <StatSkeleton key={i} />
+            ))}
+          </div>
+        ) : myClasses && myClasses.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {myClasses.map((c) => (
+              <ClassCard key={c.classId ?? c.id} data={c} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="No classes yet"
+            description="Admins can assign class sections to you from the admin dashboard."
+          />
+        )}
+      </section>
 
-        {/* Create Template */}
+      {/* Templates manager */}
+      <section id="templates">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5 text-primary" />
-              New Assignment Blueprint
+              <ScrollText className="h-5 w-5 text-primary" /> Assignment templates
             </CardTitle>
-            <CardDescription>Author a reusable assignment guideline</CardDescription>
+            <CardDescription>
+              Blueprints your teachers can reuse when publishing classwork
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-1">
-              <Label>Target Subject</Label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={subjectId}
-                onChange={(e) => setSubjectId(e.target.value)}
-              >
-                <option value="">-- Choose Subject --</option>
-                {subjects?.map((s: any) => (
-                  <option key={s.id} value={s.id}>
-                    {s.subjectCode} - {s.subjectName}
-                  </option>
+          <CardContent>
+            {templatesError ? (
+              <ErrorState onRetry={() => refetchTemplates()} />
+            ) : templatesLoading ? (
+              <TableSkeleton rows={3} cols={3} />
+            ) : templates && templates.length > 0 ? (
+              <ul className="space-y-2">
+                {templates.map((t) => (
+                  <li key={t.id} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 font-medium text-foreground">
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{t.title}</span>
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {t.subjectName} · by {t.expertName}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        {t.defaultDueRule || "Custom due date"}
+                      </span>
+                    </div>
+                    {t.instructions && (
+                      <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                        {t.instructions}
+                      </p>
+                    )}
+                  </li>
                 ))}
-              </select>
-            </div>
+              </ul>
+            ) : (
+              <EmptyState
+                title="No templates yet"
+                description="Create your first assignment blueprint."
+              />
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
+      {/* Create template dialog */}
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o)
+          if (!o) {
+            setTitle("")
+            setInstructions("")
+            setDefaultDueRule("Weekly")
+            setSubjectId("")
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New assignment template</DialogTitle>
+            <DialogDescription>
+              A reusable blueprint: subject, instructions, and a default due rule.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Template Title</Label>
+              <Label>Subject *</Label>
+              <Select value={subjectId} onValueChange={setSubjectId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(subjects || []).map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.subjectCode} · {s.subjectName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Title *</Label>
               <Input
-                placeholder="e.g. Midterm Sprint Report"
+                placeholder="e.g. Lab report #1"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>
-
             <div className="space-y-1">
-              <Label>Detailed Instructions</Label>
-              <Input
-                placeholder="Requirement details..."
+              <Label>Instructions</Label>
+              <Textarea
+                placeholder="Guidance students should follow…"
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
+                rows={3}
               />
             </div>
-
             <div className="space-y-1">
-              <Label>Default Due Rule</Label>
+              <Label>Default due rule</Label>
               <Input
-                placeholder="e.g. 14 days after assignment"
+                placeholder="e.g. Weekly, 2 weeks, End of term"
                 value={defaultDueRule}
                 onChange={(e) => setDefaultDueRule(e.target.value)}
               />
             </div>
-
-            <Button
-              className="w-full mt-2"
-              onClick={() => createTemplateMutation.mutate()}
-              disabled={!subjectId || !title || createTemplateMutation.isPending}
-            >
-              {createTemplateMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  Đang lưu...
-                </>
-              ) : (
-                "Publish Template"
-              )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
             </Button>
-          </CardContent>
-        </Card>
-      </div>
+            <Button
+              onClick={() => createTemplate.mutate()}
+              disabled={!subjectId || !title.trim() || createTemplate.isPending}
+            >
+              {createTemplate.isPending ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-1.5" />
+              )}
+              Create template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

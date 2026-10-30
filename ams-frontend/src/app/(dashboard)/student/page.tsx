@@ -1,232 +1,171 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useMemo, useState } from "react"
+import Link from "next/link"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/axios"
+import { useToast } from "@/lib/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
-import { useToast } from "@/lib/use-toast"
 import {
+  ClassCard,
+} from "@/components/classroom/ClassCard"
+import { JoinClassDialog } from "@/components/classroom/JoinClassDialog"
+import { VietQrDialog } from "@/components/classroom/VietQrDialog"
+import { ErrorState } from "@/components/classroom/ErrorState"
+import { EmptyState } from "@/components/classroom/EmptyState"
+import { StatusBadge } from "@/components/classroom/StatusBadge"
+import {
+  formatVnd,
+  formatDate,
+  formatDateTime,
+} from "@/components/classroom/format"
+import {
+  MyClass,
+  Registration,
+  PaymentTransaction,
+  AssignmentOverviewItem,
+} from "@/components/classroom/classroomTypes"
+import {
+  FolderKanban,
   GraduationCap,
+  Clock,
   CreditCard,
-  FileText,
-  Award,
-  Upload,
   ExternalLink,
-  CheckCircle,
+  Wallet,
+  Loader2,
   QrCode,
-  X,
-  AlertCircle
+  CheckCircle2,
 } from "lucide-react"
 
 export default function StudentDashboardPage() {
   const queryClient = useQueryClient()
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [uploadRegId, setUploadRegId] = useState<number | null>(null)
-  const [uploadAssignId, setUploadAssignId] = useState<number | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [payLoadingId, setPayLoadingId] = useState<number | null>(null)
   const { toast } = useToast()
 
-  // VietQR Modal State
-  const [activeQrReg, setActiveQrReg] = useState<any | null>(null)
-  const [confirmingQr, setConfirmingQr] = useState(false)
+  const [vnPayBusyId, setVnPayBusyId] = useState<number | null>(null)
+  const [qrRegistration, setQrRegistration] = useState<Registration | null>(null)
 
-  // Stats
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["student-stats"],
     queryFn: async () => (await api.get("/dashboard/student")).data,
   })
 
-  // Available Classes
-  const { data: availableClasses } = useQuery({
-    queryKey: ["student-available-classes"],
-    queryFn: async () => (await api.get("/subject-classes")).data,
+  const { data: myClasses, isLoading: classesLoading, isError: classesError, refetch: refetchClasses } = useQuery({
+    queryKey: ["student-my-classes"],
+    queryFn: async () => (await api.get("/subject-classes/my")).data as MyClass[],
   })
 
-  // My Registrations
-  const { data: myRegistrations } = useQuery({
+  const { data: registrations, isLoading: regsLoading, isError: regsError, refetch: refetchRegs } = useQuery({
     queryKey: ["student-registrations"],
-    queryFn: async () => (await api.get("/registrations/my")).data,
+    queryFn: async () => (await api.get("/registrations/my")).data as Registration[],
   })
 
-  // My Submissions
-  const { data: mySubmissions } = useQuery({
-    queryKey: ["student-submissions"],
-    queryFn: async () => (await api.get("/submissions/my")).data,
+  const { data: payments, isLoading: payLoading, isError: payError, refetch: refetchPay } = useQuery({
+    queryKey: ["student-payments"],
+    queryFn: async () => (await api.get("/payment/my")).data as PaymentTransaction[],
   })
 
-  // Assignments of the selected class (for the upload form)
-  const uploadReg = myRegistrations?.find((r: any) => r.id === uploadRegId) as any
-  const { data: uploadAssignments } = useQuery({
-    queryKey: ["upload-assignments", uploadReg?.subjectClassId],
+  const { data: overview, isLoading: overviewLoading, isError: overviewError, refetch: refetchOverview } = useQuery({
+    queryKey: ["student-assignments-overview"],
     queryFn: async () =>
-      (await api.get(`/assignments/class/${uploadReg?.subjectClassId}`)).data,
-    enabled: !!uploadReg?.subjectClassId,
+      (await api.get("/assignments/overview")).data as AssignmentOverviewItem[],
   })
 
-  // Register for a class
-  const registerMutation = useMutation({
-    mutationFn: async (subjectClassId: number) => {
-      return (await api.post("/registrations", { subjectClassId })).data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["student-registrations"] })
-      queryClient.invalidateQueries({ queryKey: ["student-stats"] })
-      toast({
-        title: "Đăng ký thành công",
-        description: "Vui lòng tiến hành thanh toán để kích hoạt lớp học.",
-        variant: "success",
-      })
-    },
-    onError: (err: any) => {
-      toast({
-        title: "Đăng ký thất bại",
-        description: err.response?.data?.message || "Không thể đăng ký lớp",
-        variant: "destructive",
-      })
-    },
-  })
+  const pendingRegs = useMemo(
+    () => (registrations || []).filter((r) => r.status === "PENDING_PAYMENT"),
+    [registrations]
+  )
 
-  // Initiate VNPay Sandbox Payment
-  const handlePayVNPay = async (registrationId: number) => {
-    setPayLoadingId(registrationId)
+  const upcoming = useMemo(
+    () =>
+      [...(overview || [])]
+        .filter((o) => new Date(o.dueAt).getTime() >= Date.now() - 365 * 24 * 3600 * 1000)
+        .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()),
+    [overview]
+  )
+
+  const payVnPay = async (reg: Registration) => {
+    setVnPayBusyId(reg.id)
     try {
-      const res = await api.post(`/payment/create/${registrationId}`)
-      const paymentUrl = res.data.paymentUrl
-      window.location.href = paymentUrl
+      const res = await api.post(`/payment/create/${reg.id}`)
+      window.location.href = res.data.paymentUrl
     } catch (err: any) {
       toast({
-        title: "Lỗi khởi tạo thanh toán",
-        description: err.response?.data?.message || "Không thể kết nối VNPay",
-        variant: "destructive",
-      })
-      setPayLoadingId(null)
-    }
-  }
-
-  // Confirm VietQR Transfer
-  const handleConfirmVietQr = async (registrationId: number) => {
-    setConfirmingQr(true)
-    try {
-      await api.post(`/payment/confirm-vietqr/${registrationId}`)
-      queryClient.invalidateQueries({ queryKey: ["student-registrations"] })
-      queryClient.invalidateQueries({ queryKey: ["student-stats"] })
-      setActiveQrReg(null)
-      toast({
-        title: "Xác nhận VietQR thành công",
-        description: "Lớp học của bạn đã được kích hoạt.",
-        variant: "success",
-      })
-    } catch (err: any) {
-      toast({
-        title: "Xác nhận thanh toán thất bại",
-        description: err.response?.data?.message || "Không thể xác nhận chuyển khoản",
+        title: "Could not start payment",
+        description: err.response?.data?.message || "Please try again.",
         variant: "destructive",
       })
     } finally {
-      setConfirmingQr(false)
-    }
-  }
-
-  // Upload Assignment Submission to Cloudinary
-  const handleUploadSubmission = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedFile || !uploadRegId || !uploadAssignId) return
-
-    setUploading(true)
-    const formData = new FormData()
-    formData.append("classRegistrationId", uploadRegId.toString())
-    formData.append("assignmentId", uploadAssignId.toString())
-    formData.append("file", selectedFile)
-
-    try {
-      await api.post("/submissions", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-      queryClient.invalidateQueries({ queryKey: ["student-submissions"] })
-      queryClient.invalidateQueries({ queryKey: ["student-stats"] })
-      setSelectedFile(null)
-      setUploadRegId(null)
-      setUploadAssignId(null)
-      toast({
-        title: "Nộp bài thành công",
-        description: "Tệp đã được tải lên Cloudinary.",
-        variant: "success",
-      })
-    } catch (err: any) {
-      toast({
-        title: "Nộp bài thất bại",
-        description: err.response?.data?.message || "Không thể tải tệp lên",
-        variant: "destructive",
-      })
-    } finally {
-      setUploading(false)
+      setVnPayBusyId(null)
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Student Portal</h2>
-        <p className="text-muted-foreground">Enroll in courses, pay tuition via VietQR / VNPay, submit coursework, and view results.</p>
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Hi, welcome back 👋</h2>
+          <p className="text-muted-foreground">
+            Join classes, track deadlines, and manage your tuition in one place.
+          </p>
+        </div>
+        <div id="find" className="flex gap-2">
+          <JoinClassDialog />
+        </div>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         {stats ? (
           <>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Registered Classes</CardTitle>
-            <GraduationCap className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalRegistrations || 0}</div>
-            <p className="text-xs text-muted-foreground">{stats?.activeClasses || 0} active & paid</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tuition Status</CardTitle>
-            <CreditCard className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">
-              {stats?.activeClasses > 0 ? "Enrolled" : "Pending"}
-            </div>
-            <p className="text-xs text-muted-foreground">VietQR & VNPay supported</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Coursework Submitted</CardTitle>
-            <FileText className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.submittedAssignments || 0}</div>
-            <p className="text-xs text-muted-foreground">{stats?.gradedAssignments || 0} Graded</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cumulative GPA</CardTitle>
-            <Award className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600">
-              {stats?.averageScore ? `${stats.averageScore}/10` : "N/A"}
-            </div>
-            <p className="text-xs text-muted-foreground">Based on evaluations</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">My Classes</CardTitle>
+                <FolderKanban className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.activeClasses}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.totalRegistrations} total enrollments
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Submitted</CardTitle>
+                <GraduationCap className="h-4 w-4 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.submittedAssignments}</div>
+                <p className="text-xs text-muted-foreground">works handed in</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Graded</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.gradedAssignments}</div>
+                <p className="text-xs text-muted-foreground">with final scores</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                <Wallet className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats.averageScore != null ? Number(stats.averageScore).toFixed(1) : "—"}
+                </div>
+                <p className="text-xs text-muted-foreground">across graded work</p>
+              </CardContent>
+            </Card>
           </>
+        ) : statsError ? (
+          <ErrorState onRetry={() => refetchStats()} />
         ) : (
           <>
             <StatSkeleton />
@@ -237,343 +176,206 @@ export default function StudentDashboardPage() {
         )}
       </div>
 
-      {/* Section 1: My Registrations & Tuition Payment */}
-      <Card className="border-primary/20 shadow">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
-                My Class Registrations & Tuition Payment
-              </CardTitle>
-              <CardDescription>
-                Pay via <strong>VietQR TPBank (0842561752 - NGUYEN XUAN KIEN)</strong> or <strong>VNPay Sandbox</strong>
-              </CardDescription>
-            </div>
+      {/* My classes */}
+      <section id="classes">
+        <div className="mb-4 flex items-end justify-between">
+          <div>
+            <h3 className="text-xl font-bold tracking-tight">My classes</h3>
+            <p className="text-sm text-muted-foreground">
+              Open a class to see its stream, assignments, and people.
+            </p>
           </div>
-        </CardHeader>
-        <CardContent>
-          {myRegistrations === undefined ? (
-            <TableSkeleton rows={3} cols={5} />
-          ) : myRegistrations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">You have not registered for any classes yet. Browse classes below.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Reference ID</TableHead>
-                  <TableHead>Class Code</TableHead>
-                  <TableHead>Course Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Registration Date</TableHead>
-                  <TableHead>Tuition Payment Options</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {myRegistrations?.map((reg: any) => (
-                  <TableRow key={reg.id}>
-                    <TableCell className="font-mono text-xs font-bold">{reg.registrationReference}</TableCell>
-                    <TableCell className="font-semibold text-primary">{reg.classCode}</TableCell>
-                    <TableCell>{reg.subjectName}</TableCell>
-                    <TableCell>
-                      <Badge variant={reg.status === "ACTIVE" ? "success" : "warning"}>
-                        {reg.status === "ACTIVE" ? "PAID & ACTIVE" : "PENDING PAYMENT"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(reg.registeredAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {reg.status === "ACTIVE" ? (
-                        <div className="flex items-center gap-1 text-emerald-600 text-xs font-semibold">
-                          <CheckCircle className="h-4 w-4" />
-                          <span>Paid & Enrolled</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-1.5"
-                            onClick={() => setActiveQrReg(reg)}
-                          >
-                            <QrCode className="h-3.5 w-3.5" />
-                            Quét VietQR
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                            onClick={() => handlePayVNPay(reg.id)}
-                            disabled={payLoadingId === reg.id}
-                          >
-                            {payLoadingId === reg.id ? "Redirecting..." : "VNPay Sandbox"}
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+        {classesError ? (
+          <ErrorState onRetry={() => refetchClasses()} />
+        ) : classesLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <StatSkeleton key={i} />
+            ))}
+          </div>
+        ) : myClasses && myClasses.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {myClasses.map((c) => (
+              <ClassCard key={c.classId ?? c.id} data={c} showMyStatus />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="No classes yet"
+            description="Use “Join a class” to enroll with a 6-character join code."
+          />
+        )}
+      </section>
 
-      {/* VietQR Payment Modal */}
-      {activeQrReg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <Card className="w-full max-w-md bg-card shadow-2xl border-primary/30 animate-in fade-in zoom-in-95">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <QrCode className="h-5 w-5 text-indigo-600" />
-                  Quét mã VietQR chuyển khoản
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Mở app ngân hàng bất kỳ để quét mã thanh toán học phí
-                </CardDescription>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setActiveQrReg(null)}>
-                <X className="h-4 w-4" />
-              </Button>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Upcoming deadlines */}
+        <section id="work">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" /> Upcoming deadlines
+              </CardTitle>
+              <CardDescription>Your classwork sorted by due date</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 text-center">
-              {/* Dynamic VietQR Image */}
-              <div className="mx-auto flex justify-center p-2 rounded-xl bg-white shadow-inner border max-w-[280px]">
-                <img
-                  src={`https://img.vietqr.io/image/tpbank-0842561752-compact2.png?amount=5000000&addInfo=AMS%20${activeQrReg.registrationReference}&accountName=NGUYEN%20XUAN%20KIEN`}
-                  alt="VietQR Transfer"
-                  className="w-full h-auto rounded-lg"
+            <CardContent>
+              {overviewError ? (
+                <ErrorState onRetry={() => refetchOverview()} />
+              ) : overviewLoading ? (
+                <TableSkeleton rows={3} cols={3} />
+              ) : upcoming.length > 0 ? (
+                <ul className="space-y-2">
+                  {upcoming.map((o) => {
+                    const pastDue = new Date(o.dueAt).getTime() < Date.now()
+                    return (
+                      <li
+                        key={`${o.classId}-${o.assignmentId}`}
+                        className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate font-medium text-foreground">{o.title}</div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {o.className} · due {formatDate(o.dueAt)}
+                            {pastDue && o.workState !== "GRADED" && (
+                              <span className="ml-1 text-amber-600">(past due)</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <StatusBadge status={o.workState} />
+                          <Link
+                            href={`/classes/${o.classId}`}
+                            className="text-xs font-medium text-primary hover:underline"
+                          >
+                            Open
+                          </Link>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <EmptyState
+                  title="No pending work"
+                  description="Deadlines will appear here once your teachers assign classwork."
                 />
-              </div>
-
-              {/* Account Details */}
-              <div className="rounded-lg bg-muted/50 p-3 text-xs text-left space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Ngân hàng:</span>
-                  <span className="font-bold text-foreground">TPBank (Tiên Phong)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Số tài khoản:</span>
-                  <span className="font-mono font-bold text-foreground">0842561752</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Chủ tài khoản:</span>
-                  <span className="font-bold text-foreground">NGUYEN XUAN KIEN</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Số tiền:</span>
-                  <span className="font-bold text-emerald-600">5,000,000 VND</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Nội dung CK:</span>
-                  <span className="font-mono font-semibold text-primary">AMS {activeQrReg.registrationReference}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" className="w-1/2" onClick={() => setActiveQrReg(null)}>
-                  Đóng
-                </Button>
-                <Button
-                  className="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                  onClick={() => handleConfirmVietQr(activeQrReg.id)}
-                  disabled={confirmingQr}
-                >
-                  {confirmingQr ? "Đang xác nhận..." : "Tôi đã chuyển tiền"}
-                </Button>
-              </div>
+              )}
             </CardContent>
           </Card>
-        </div>
-      )}
+        </section>
 
-      {/* Section 2: Available Classes for Registration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center gap-2">
-            <GraduationCap className="h-5 w-5 text-primary" />
-            Available Courses for Registration
-          </CardTitle>
-          <CardDescription>Select an open class section to enroll</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {availableClasses === undefined ? (
-            <TableSkeleton rows={4} cols={6} />
-          ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Class Code</TableHead>
-                <TableHead>Class Title</TableHead>
-                <TableHead>Term</TableHead>
-                <TableHead>Assigned Teacher</TableHead>
-                <TableHead>Tuition Fee</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {availableClasses?.map((c: any) => {
-                const isRegistered = myRegistrations?.some((r: any) => r.subjectClassId === c.id)
-                return (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-mono font-bold">{c.classCode}</TableCell>
-                    <TableCell>{c.className}</TableCell>
-                    <TableCell><Badge variant="outline">{c.term}</Badge></TableCell>
-                    <TableCell>{c.teacherName || "Assigned Faculty"}</TableCell>
-                    <TableCell className="font-semibold text-emerald-600">5,000,000 VND</TableCell>
-                    <TableCell>
-                      {isRegistered ? (
-                        <Badge variant="secondary">Already Enrolled</Badge>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => registerMutation.mutate(c.id)}
-                          disabled={registerMutation.isPending}
-                        >
-                          Enroll Now
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section 3: My Submissions & Results */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            My Course Submissions & Grades
-          </CardTitle>
-          <CardDescription>
-            Files uploaded to Cloudinary, evaluated by course teachers
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {mySubmissions === undefined ? (
-            <TableSkeleton rows={4} cols={5} />
-          ) : mySubmissions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No submissions recorded yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Assignment</TableHead>
-                  <TableHead>Submitted Time</TableHead>
-                  <TableHead>Cloudinary Artifact</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Feedback</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mySubmissions?.map((s: any) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-semibold">{s.assignmentTitle}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(s.submittedAt).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      {s.secureFileReference && (
-                        <a
-                          href={s.secureFileReference}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-mono"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          <span>View on Cloudinary</span>
-                        </a>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={s.submissionStatus === "GRADED" ? "success" : "secondary"}>
-                        {s.submissionStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-bold text-primary">
-                      {s.evaluation?.score !== undefined ? `${s.evaluation.score}/10` : "Pending"}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {s.evaluation?.feedback || "Evaluation in progress"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {/* Quick Submit File Form */}
-          <div className="mt-6 rounded-lg border bg-muted/30 p-4 space-y-3">
-            <h4 className="font-semibold text-sm flex items-center gap-2">
-              <Upload className="h-4 w-4 text-primary" />
-              Upload Assignment Work (Direct to Cloudinary)
-            </h4>
-            <form onSubmit={handleUploadSubmission} className="grid grid-cols-4 gap-4 items-end">
-              <div className="space-y-1">
-                <label className="text-xs font-medium">Chọn lớp đã trả học phí</label>
-                <select
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
-                  value={uploadRegId || ""}
-                  onChange={(e) => {
-                    setUploadRegId(parseInt(e.target.value))
-                    setUploadAssignId(null)
+        {/* Payments */}
+        <section id="payments">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-primary" /> Tuition & payments
+              </CardTitle>
+              <CardDescription>
+                Pay pending enrollments (sandbox — no real money moves)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {regsError || payError ? (
+                <ErrorState
+                  onRetry={() => {
+                    refetchRegs()
+                    refetchPay()
                   }}
-                  required
-                >
-                  <option value="">-- Lớp đã thanh toán --</option>
-                  {myRegistrations?.filter((r: any) => r.status === "ACTIVE").map((r: any) => (
-                    <option key={r.id} value={r.id}>{r.classCode} ({r.subjectName})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium">Chọn bài tập</label>
-                <select
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
-                  value={uploadAssignId || ""}
-                  onChange={(e) => setUploadAssignId(parseInt(e.target.value))}
-                  required
-                  disabled={!uploadRegId}
-                >
-                  <option value="">
-                    {uploadRegId
-                      ? (uploadAssignments?.length ? "-- Chọn bài tập --" : "Lớp chưa có bài tập")
-                      : "Chọn lớp trước"}
-                  </option>
-                  {uploadAssignments?.map((a: any) => (
-                    <option key={a.id} value={a.id}>
-                      {a.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium">Choose File</label>
-                <input
-                  type="file"
-                  className="w-full text-xs"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                  required
                 />
-              </div>
+              ) : regsLoading || payLoading ? (
+                <TableSkeleton rows={3} cols={3} />
+              ) : (
+                <>
+                  {pendingRegs.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold text-foreground">Awaiting payment</p>
+                      {pendingRegs.map((reg) => (
+                        <div
+                          key={reg.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-amber-500/5 p-3"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-foreground">
+                              {reg.className}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Ref: {reg.registrationReference}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => payVnPay(reg)}
+                              disabled={vnPayBusyId === reg.id}
+                            >
+                              {vnPayBusyId === reg.id ? (
+                                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                              ) : (
+                                <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                              )}
+                              Pay via VNPay (Sandbox)
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setQrRegistration(reg)}
+                            >
+                              <QrCode className="h-3.5 w-3.5 mr-1" />
+                              VietQR (Sandbox)
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-              <Button type="submit" size="sm" disabled={uploading}>
-                {uploading ? "Uploading to Cloudinary..." : "Submit File"}
-              </Button>
-            </form>
-          </div>
-        </CardContent>
-      </Card>
+                  <div>
+                    <p className="mb-2 text-sm font-semibold text-foreground">
+                      Payment history
+                    </p>
+                    {payments && payments.length > 0 ? (
+                      <ul className="space-y-1.5">
+                        {payments.map((p) => (
+                          <li
+                            key={p.id}
+                            className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm"
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {p.provider}
+                              </span>
+                              <span className="truncate text-muted-foreground">
+                                {formatDateTime(p.createdAt)}
+                              </span>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span className="font-medium text-foreground">
+                                {formatVnd(Number(p.amount))}
+                              </span>
+                              <StatusBadge status={p.transactionStatus} />
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No payments yet.</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+      </div>
+
+      {qrRegistration && (
+        <VietQrDialog
+          open={!!qrRegistration}
+          onOpenChange={(o) => !o && setQrRegistration(null)}
+          registration={qrRegistration}
+        />
+      )}
     </div>
   )
 }

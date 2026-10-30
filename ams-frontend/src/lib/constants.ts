@@ -25,23 +25,26 @@ export type AllocationStatus = (typeof ALLOCATION_STATUSES)[number];
 export const NAV_ITEMS = {
   ADMIN: [
     { label: 'Dashboard', href: '/admin', icon: 'LayoutDashboard' },
-    { label: 'Users', href: '/admin/users', icon: 'Users' },
-    { label: 'Subjects', href: '/admin/subjects', icon: 'BookOpen' },
-    { label: 'Classes', href: '/admin/classes', icon: 'School' },
+    { label: 'Users & Roles', href: '/admin#users', icon: 'Users' },
+    { label: 'Subjects', href: '/admin#subjects', icon: 'BookOpen' },
+    { label: 'Classes', href: '/admin#classes', icon: 'School' },
+    { label: 'Audit Trail', href: '/admin#audit', icon: 'ShieldCheck' },
   ],
   EXPERT: [
     { label: 'Dashboard', href: '/expert', icon: 'LayoutDashboard' },
-    { label: 'Templates', href: '/expert/templates', icon: 'FileText' },
+    { label: 'My Classes', href: '/expert#classes', icon: 'School' },
+    { label: 'Templates', href: '/expert#templates', icon: 'FileText' },
   ],
   TEACHER: [
     { label: 'Dashboard', href: '/teacher', icon: 'LayoutDashboard' },
-    { label: 'Assignments', href: '/teacher/assignments', icon: 'ClipboardList' },
-    { label: 'Evaluations', href: '/teacher/evaluations', icon: 'Star' },
+    { label: 'My Classes', href: '/teacher#classes', icon: 'School' },
+    { label: 'New Classwork', href: '/teacher#new-assignment', icon: 'ClipboardList' },
   ],
   STUDENT: [
-    { label: 'Dashboard', href: '/student', icon: 'LayoutDashboard' },
-    { label: 'My Classes', href: '/student/classes', icon: 'School' },
-    { label: 'Assignments', href: '/student/assignments', icon: 'ClipboardList' },
-    { label: 'Submissions', href: '/student/submissions', icon: 'Upload' },
+    { label: 'Home', href: '/student', icon: 'LayoutDashboard' },
+    { label: 'My Classes', href: '/student#classes', icon: 'School' },
+    { label: 'Find a Class', href: '/student#find', icon: 'KeyRound' },
+    { label: 'Payments', href: '/student#payments', icon: 'CreditCard' },
+    { label: 'My Work', href: '/student#work', icon: 'Upload' },
   ],
 } as const;

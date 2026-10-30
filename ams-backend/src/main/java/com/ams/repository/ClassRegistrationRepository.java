@@ -14,4 +14,5 @@ public interface ClassRegistrationRepository extends JpaRepository<ClassRegistra
     Optional<ClassRegistration> findByRegistrationReference(String registrationReference);
     Optional<ClassRegistration> findByStudentIdAndSubjectClassId(Long studentId, Long subjectClassId);
     boolean existsByStudentIdAndSubjectClassId(Long studentId, Long subjectClassId);
+    long countBySubjectClassIdAndStatus(Long subjectClassId, ClassRegistration.RegistrationStatus status);
 }

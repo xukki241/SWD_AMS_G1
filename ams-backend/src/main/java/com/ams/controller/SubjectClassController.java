@@ -21,9 +21,22 @@ public class SubjectClassController {
     private final SubjectClassService classService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT', 'STUDENT')")
     @Operation(summary = "Get all subject classes")
     public ResponseEntity<List<SubjectClassDTO.SubjectClassResponse>> getAllClasses() {
         return ResponseEntity.ok(classService.getAllClasses());
+    }
+
+    @GetMapping("/public")
+    @Operation(summary = "Public class catalog for the guest landing page (no auth)")
+    public ResponseEntity<List<SubjectClassDTO.SubjectClassResponse>> getPublicCatalog() {
+        return ResponseEntity.ok(classService.getPublicCatalog());
+    }
+
+    @GetMapping("/my")
+    @Operation(summary = "Classes the current user belongs to (staff FK or own registration)")
+    public ResponseEntity<List<SubjectClassDTO.MyClassResponse>> getMyClasses() {
+        return ResponseEntity.ok(classService.getMyClasses());
     }
 
     @GetMapping("/{id}")
@@ -39,8 +52,8 @@ public class SubjectClassController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXPERT')")
-    @Operation(summary = "Create subject class")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXPERT', 'TEACHER')")
+    @Operation(summary = "Create subject class (join code auto-generated when not supplied)")
     public ResponseEntity<SubjectClassDTO.SubjectClassResponse> createClass(@Valid @RequestBody SubjectClassDTO.CreateSubjectClassRequest request) {
         return ResponseEntity.ok(classService.createClass(request));
     }

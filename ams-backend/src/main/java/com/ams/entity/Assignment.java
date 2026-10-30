@@ -3,6 +3,7 @@ package com.ams.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -33,4 +34,8 @@ public class Assignment {
 
     @Column(name = "due_at", nullable = false)
     private LocalDateTime dueAt;
+
+    @Column(name = "max_score", nullable = false, precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal maxScore = BigDecimal.TEN;
 }

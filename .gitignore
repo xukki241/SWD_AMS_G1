@@ -46,3 +46,9 @@ Thumbs.db
 
 # local DB dump (not for git)
 ams-db-backup-*.sql
+
+# Next.js build info
+*.tsbuildinfo
+
+# local file-upload storage (when running backend outside docker)
+ams-backend/storage/

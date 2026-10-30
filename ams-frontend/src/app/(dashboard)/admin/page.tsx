@@ -1,383 +1,575 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/axios"
+import { useToast } from "@/lib/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
-import { useToast } from "@/lib/use-toast"
-import { Users, BookOpen, Layers, ShieldAlert, Plus, Loader2 } from "lucide-react"
+import { ClassCard } from "@/components/classroom/ClassCard"
+import { CreateClassDialog } from "@/components/classroom/CreateClassDialog"
+import { ErrorState } from "@/components/classroom/ErrorState"
+import { EmptyState } from "@/components/classroom/EmptyState"
+import { formatDateTime, formatVnd } from "@/components/classroom/format"
+import {
+  AdminDashboard,
+  AuditLogEntry,
+  MyClass,
+  Subject,
+  UserInfo,
+} from "@/components/classroom/classroomTypes"
+import {
+  Users,
+  BookMarked,
+  FolderKanban,
+  Loader2,
+  Plus,
+  ScrollText,
+} from "lucide-react"
+
+const ROLE_OPTIONS = ["ROLE_STUDENT", "ROLE_TEACHER", "ROLE_EXPERT", "ROLE_ADMIN"]
 
 export default function AdminDashboardPage() {
+  const [tab, setTab] = useState("users")
+
+  // Keep the sidebar hash links (#users, #subjects, …) and the tabs in sync.
+  useEffect(() => {
+    const syncFromHash = () => {
+      const hash = window.location.hash.replace("#", "")
+      if (["users", "subjects", "classes", "audit"].includes(hash)) setTab(hash)
+    }
+    syncFromHash()
+    window.addEventListener("hashchange", syncFromHash)
+    return () => window.removeEventListener("hashchange", syncFromHash)
+  }, [])
+
+  const changeTab = (value: string) => {
+    setTab(value)
+    if (window.history.replaceState) {
+      window.history.replaceState(null, "", `${window.location.pathname}#${value}`)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Admin dashboard</h2>
+        <p className="text-muted-foreground">
+          Manage users, subjects, classes, and review the audit trail.
+        </p>
+      </div>
+
+      <AdminKpis />
+
+      <Tabs value={tab} onValueChange={changeTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="users">
+            <Users className="h-4 w-4 mr-1.5" /> Users
+          </TabsTrigger>
+          <TabsTrigger value="subjects">
+            <BookMarked className="h-4 w-4 mr-1.5" /> Subjects
+          </TabsTrigger>
+          <TabsTrigger value="classes">
+            <FolderKanban className="h-4 w-4 mr-1.5" /> Classes
+          </TabsTrigger>
+          <TabsTrigger value="audit">
+            <ScrollText className="h-4 w-4 mr-1.5" /> Audit trail
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users">
+          <UsersTab />
+        </TabsContent>
+        <TabsContent value="subjects">
+          <SubjectsTab />
+        </TabsContent>
+        <TabsContent value="classes">
+          <ClassesTab />
+        </TabsContent>
+        <TabsContent value="audit">
+          <AuditTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+
+/* ---------------- KPI cards ---------------- */
+
+function AdminKpis() {
+  const {
+    data: stats,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: async () =>
+      (await api.get("/dashboard/admin")).data as AdminDashboard,
+  })
+
+  if (isError) return <ErrorState onRetry={() => refetch()} />
+
+  const cards = stats
+    ? [
+        {
+          label: "Users",
+          value: stats.totalUsers,
+          hint: `${stats.totalStudents} students · ${stats.totalTeachers} teachers · ${stats.totalExperts} experts`,
+        },
+        { label: "Subjects", value: stats.totalSubjects, hint: "catalog entries" },
+        { label: "Classes", value: stats.totalClasses, hint: "class sections" },
+        { label: "Registrations", value: stats.totalRegistrations, hint: "enrollments" },
+      ]
+    : null
+
+  return (
+    <div className="grid gap-4 md:grid-cols-4">
+      {cards ? (
+        cards.map((c) => (
+          <Card key={c.label}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {c.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{c.value}</div>
+              <p className="text-xs text-muted-foreground">{c.hint}</p>
+            </CardContent>
+          </Card>
+        ))
+      ) : (
+        <>
+          <StatSkeleton />
+          <StatSkeleton />
+          <StatSkeleton />
+          <StatSkeleton />
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ---------------- Users tab ---------------- */
+
+function UsersTab() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState<"users" | "subjects" | "classes" | "audit">("users")
+  const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({})
 
-  // New subject state
-  const [newSubCode, setNewSubCode] = useState("")
-  const [newSubName, setNewSubName] = useState("")
-  const [newSubDesc, setNewSubDesc] = useState("")
-
-  // Fetch Dashboard Stats
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["admin-stats"],
-    queryFn: async () => (await api.get("/dashboard/admin")).data,
-  })
-
-  // Fetch Users
-  const { data: users, isLoading: usersLoading } = useQuery({
+  const {
+    data: users,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["admin-users"],
-    queryFn: async () => (await api.get("/users")).data,
+    queryFn: async () => (await api.get("/users")).data as UserInfo[],
   })
 
-  // Fetch Subjects
-  const { data: subjects, isLoading: subjectsLoading } = useQuery({
-    queryKey: ["admin-subjects"],
-    queryFn: async () => (await api.get("/subjects")).data,
-  })
-
-  // Fetch Classes
-  const { data: classes, isLoading: classesLoading } = useQuery({
-    queryKey: ["admin-classes"],
-    queryFn: async () => (await api.get("/subject-classes")).data,
-  })
-
-  // Fetch Audit Logs
-  const { data: auditLogs, isLoading: logsLoading } = useQuery({
-    queryKey: ["admin-audit-logs"],
-    queryFn: async () => (await api.get("/audit-logs")).data,
-    enabled: activeTab === "audit",
-  })
-
-  // Create Subject Mutation
-  const createSubjectMutation = useMutation({
-    mutationFn: async () => {
-      await api.post("/subjects", {
-        subjectCode: newSubCode,
-        subjectName: newSubName,
-        description: newSubDesc,
-      })
+  const assignRole = useMutation({
+    mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
+      await api.post(`/users/${userId}/roles`, { role })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-subjects"] })
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] })
-      setNewSubCode("")
-      setNewSubName("")
-      setNewSubDesc("")
-      toast({
-        title: "Đã thêm môn học",
-        description: `${newSubCode} - ${newSubName} đã được tạo.`,
-        variant: "success",
-      })
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] })
+      toast({ title: "Role assigned", variant: "success" })
     },
     onError: (err: any) => {
       toast({
-        title: "Thêm môn học thất bại",
-        description: err.response?.data?.message || "Mã môn học có thể đã tồn tại",
+        title: "Could not assign role",
+        description: err.response?.data?.message || "Please try again.",
         variant: "destructive",
       })
     },
   })
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Admin Administration Dashboard</h2>
-        <p className="text-muted-foreground">Manage user accounts, academic curricula, classes, and system audit logs.</p>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-4">
-        {stats ? (
-          <>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Accounts</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">{stats?.totalStudents || 0} Students, {stats?.totalTeachers || 0} Teachers</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Curriculum Subjects</CardTitle>
-            <BookOpen className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSubjects}</div>
-            <p className="text-xs text-muted-foreground">Active academic courses</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Class Offerings</CardTitle>
-            <Layers className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalClasses}</div>
-            <p className="text-xs text-muted-foreground">{stats.totalRegistrations} Total registrations</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Audit Governance</CardTitle>
-            <ShieldAlert className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Immutable</div>
-            <p className="text-xs text-muted-foreground">All actions recorded</p>
-          </CardContent>
-        </Card>
-          </>
+    <Card>
+      <CardHeader>
+        <CardTitle>Users &amp; roles</CardTitle>
+        <CardDescription>
+          Assign a role to a user — the role is added alongside any existing roles.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isError ? (
+          <ErrorState onRetry={() => refetch()} />
+        ) : isLoading ? (
+          <TableSkeleton rows={5} cols={5} />
         ) : (
-          <>
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-          </>
-        )}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 border-b pb-2">
-        <Button variant={activeTab === "users" ? "default" : "outline"} onClick={() => setActiveTab("users")} size="sm">
-          Users & Roles
-        </Button>
-        <Button variant={activeTab === "subjects" ? "default" : "outline"} onClick={() => setActiveTab("subjects")} size="sm">
-          Subjects
-        </Button>
-        <Button variant={activeTab === "classes" ? "default" : "outline"} onClick={() => setActiveTab("classes")} size="sm">
-          Subject Classes
-        </Button>
-        <Button variant={activeTab === "audit" ? "default" : "outline"} onClick={() => setActiveTab("audit")} size="sm">
-          Audit Trail
-        </Button>
-      </div>
-
-      {/* Tab: Users */}
-      {activeTab === "users" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>System Accounts</CardTitle>
-            <CardDescription>All registered users and their assigned roles</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {users === undefined ? (
-              <TableSkeleton rows={5} cols={4} />
-            ) : (
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Full Name</TableHead>
+                  <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Roles</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Assign role</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.map((u: any) => (
+                {(users || []).map((u) => (
                   <TableRow key={u.id}>
-                    <TableCell className="font-mono text-xs">{u.id}</TableCell>
-                    <TableCell className="font-semibold">{u.username}</TableCell>
-                    <TableCell>{u.fullName}</TableCell>
+                    <TableCell className="text-muted-foreground">{u.id}</TableCell>
+                    <TableCell className="font-medium text-foreground">
+                      {u.fullName}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{u.email}</TableCell>
                     <TableCell>
-                      <Badge variant={u.accountStatus === "ACTIVE" ? "success" : "destructive"}>
+                      <div className="flex flex-wrap gap-1">
+                        {(u.roles || []).map((r) => (
+                          <Badge key={r} variant="secondary" className="text-xs">
+                            {r.replace("ROLE_", "")}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          u.accountStatus === "ACTIVE" ? "success" : "destructive"
+                        }
+                        className="text-xs"
+                      >
                         {u.accountStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell className="flex gap-1">
-                      {u.roles?.map((r: string) => (
-                        <Badge key={r} variant="secondary" className="text-[10px]">
-                          {r.replace("ROLE_", "")}
-                        </Badge>
-                      ))}
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Select
+                          value={selectedRoles[u.id] || ""}
+                          onValueChange={(v) =>
+                            setSelectedRoles((s) => ({ ...s, [u.id]: v }))
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-36">
+                            <SelectValue placeholder="Pick a role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ROLE_OPTIONS.map((r) => (
+                              <SelectItem key={r} value={r}>
+                                {r.replace("ROLE_", "")}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            assignRole.mutate({ userId: u.id, role: selectedRoles[u.id] })
+                          }
+                          disabled={!selectedRoles[u.id] || assignRole.isPending}
+                        >
+                          {assignRole.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            "Apply"
+                          )}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
 
-      {/* Tab: Subjects */}
-      {activeTab === "subjects" && (
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Subject Catalog</CardTitle>
-              <CardDescription>Academic courses defined in AMS</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {subjects === undefined ? (
-                <TableSkeleton rows={3} cols={4} />
-              ) : (
+/* ---------------- Subjects tab ---------------- */
+
+function SubjectsTab() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const [code, setCode] = useState("")
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [status, setStatus] = useState<string>("ACTIVE")
+
+  const {
+    data: subjects,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["admin-subjects"],
+    queryFn: async () => (await api.get("/subjects")).data as Subject[],
+  })
+
+  const createSubject = useMutation({
+    mutationFn: async () => {
+      await api.post("/subjects", {
+        subjectCode: code.trim(),
+        subjectName: name.trim(),
+        description: description.trim() || undefined,
+        status: status as "ACTIVE" | "INACTIVE",
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-subjects"] })
+      queryClient.invalidateQueries({ queryKey: ["subjects"] })
+      toast({ title: "Subject created", variant: "success" })
+      setCode("")
+      setName("")
+      setDescription("")
+      setStatus("ACTIVE")
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Could not create subject",
+        description: err.response?.data?.message || "Please check the form.",
+        variant: "destructive",
+      })
+    },
+  })
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-3">
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Subjects</CardTitle>
+          <CardDescription>The subject catalog available to class creators</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isError ? (
+            <ErrorState onRetry={() => refetch()} />
+          ) : isLoading ? (
+            <TableSkeleton rows={4} cols={3} />
+          ) : subjects && subjects.length > 0 ? (
+            <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Code</TableHead>
                     <TableHead>Name</TableHead>
-                    <TableHead>Description</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {subjects.map((s: any) => (
+                  {subjects.map((s) => (
                     <TableRow key={s.id}>
-                      <TableCell className="font-mono font-bold text-primary">{s.subjectCode}</TableCell>
-                      <TableCell className="font-semibold">{s.subjectName}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{s.description}</TableCell>
+                      <TableCell className="font-mono text-sm">{s.subjectCode}</TableCell>
+                      <TableCell className="font-medium text-foreground">
+                        {s.subjectName}
+                      </TableCell>
                       <TableCell>
-                        <Badge variant="success">{s.status}</Badge>
+                        <Badge
+                          variant={s.status === "ACTIVE" ? "success" : "secondary"}
+                          className="text-xs"
+                        >
+                          {s.status}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+          ) : (
+            <EmptyState title="No subjects yet" description="Add the first subject to get started." />
+          )}
+        </CardContent>
+      </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-primary" />
-                Add New Subject
-              </CardTitle>
-              <CardDescription>Register a new academic subject</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1">
-                <Label>Subject Code</Label>
-                <Input placeholder="e.g. PRN231" value={newSubCode} onChange={(e) => setNewSubCode(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label>Subject Name</Label>
-                <Input placeholder="Building Distributed Apps" value={newSubName} onChange={(e) => setNewSubName(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label>Description</Label>
-                <Input placeholder="Course description..." value={newSubDesc} onChange={(e) => setNewSubDesc(e.target.value)} />
-              </div>
-              <Button
-                className="w-full mt-2"
-                onClick={() => createSubjectMutation.mutate()}
-                disabled={!newSubCode || !newSubName || createSubjectMutation.isPending}
-              >
-                {createSubjectMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    Đang tạo...
-                  </>
-                ) : (
-                  "Save Subject"
-                )}
-              </Button>
-            </CardContent>
-          </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="h-4 w-4 text-primary" /> Add subject
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label>Code *</Label>
+            <Input placeholder="e.g. CS402" value={code} onChange={(e) => setCode(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label>Name *</Label>
+            <Input
+              placeholder="e.g. Web Development"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Description</Label>
+            <Input
+              placeholder="Short description (optional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="INACTIVE">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            className="w-full"
+            onClick={() => createSubject.mutate()}
+            disabled={!code.trim() || !name.trim() || createSubject.isPending}
+          >
+            {createSubject.isPending ? (
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4 mr-1.5" />
+            )}
+            Create subject
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+/* ---------------- Classes tab ---------------- */
+
+function ClassesTab() {
+  const {
+    data: allClasses,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["admin-classes"],
+    queryFn: async () => (await api.get("/subject-classes")).data as MyClass[],
+  })
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Every class section, with its join code, capacity, and tuition fee.
+        </p>
+        <CreateClassDialog />
+      </div>
+      {isError ? (
+        <ErrorState onRetry={() => refetch()} />
+      ) : isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <StatSkeleton key={i} />
+          ))}
         </div>
-      )}
-
-      {/* Tab: Classes */}
-      {activeTab === "classes" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Subject Classes</CardTitle>
-            <CardDescription>Scheduled classes, assigned teachers, and academic terms</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {classes === undefined ? (
-              <TableSkeleton rows={4} cols={5} />
-            ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Class Code</TableHead>
-                  <TableHead>Class Name</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Term</TableHead>
-                  <TableHead>Lecturer</TableHead>
-                  <TableHead>Expert</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {classes.map((c: any) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-mono font-bold text-primary">{c.classCode}</TableCell>
-                    <TableCell className="font-semibold">{c.className}</TableCell>
-                    <TableCell>{c.subjectCode} - {c.subjectName}</TableCell>
-                    <TableCell><Badge variant="outline">{c.term}</Badge></TableCell>
-                    <TableCell>{c.teacherName || "Unassigned"}</TableCell>
-                    <TableCell>{c.expertName || "Unassigned"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Tab: Audit Log */}
-      {activeTab === "audit" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Security & Governance Audit Trail</CardTitle>
-            <CardDescription>Append-only audit log of critical system operations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {auditLogs === undefined ? (
-              <TableSkeleton rows={5} cols={4} />
-            ) : auditLogs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Chưa có hành động nào được ghi nhận.</p>
-            ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Resource Type</TableHead>
-                  <TableHead>Reference / Details</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {auditLogs.map((log: any) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="text-xs font-mono text-muted-foreground">
-                      {new Date(log.occurredAt).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {log.action}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-semibold">{log.resourceType}</TableCell>
-                    <TableCell className="text-sm font-mono text-muted-foreground">
-                      {log.resourceReference}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            )}
-          </CardContent>
-        </Card>
+      ) : allClasses && allClasses.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {allClasses.map((c) => (
+            <div key={c.id} className="relative">
+              <ClassCard data={c} />
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="rounded bg-muted px-2 py-0.5 font-mono">
+                  join: {c.joinCode}
+                </span>
+                <span>
+                  capacity {c.capacity > 0 ? c.capacity : "unlimited"}
+                </span>
+                <span>fee {formatVnd(c.registrationFee)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="No classes yet"
+          description="Create the first class section."
+        />
       )}
     </div>
+  )
+}
+
+/* ---------------- Audit tab ---------------- */
+
+function AuditTab() {
+  const {
+    data: logs,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["admin-audit-logs"],
+    queryFn: async () => (await api.get("/audit-logs")).data as AuditLogEntry[],
+  })
+
+  const shown = (logs || []).slice(0, 50)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Audit trail</CardTitle>
+        <CardDescription>
+          The most recent {shown.length} system events (newest first)
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isError ? (
+          <ErrorState onRetry={() => refetch()} />
+        ) : isLoading ? (
+          <TableSkeleton rows={5} cols={4} />
+        ) : shown.length > 0 ? (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>When</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Resource</TableHead>
+                  <TableHead>Ref</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shown.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {formatDateTime(l.occurredAt)}
+                    </TableCell>
+                    <TableCell className="font-medium text-foreground">{l.action}</TableCell>
+                    <TableCell className="text-muted-foreground">{l.resourceType}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {l.resourceReference || "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <EmptyState title="No audit events" description="Actions will appear here as they happen." />
+        )}
+      </CardContent>
+    </Card>
   )
 }

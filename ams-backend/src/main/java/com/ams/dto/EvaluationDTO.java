@@ -1,7 +1,6 @@
 package com.ams.dto;
 
 import com.ams.entity.AssignmentEvaluation;
-import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
@@ -19,9 +18,10 @@ public class EvaluationDTO {
             AssignmentEvaluation.EvaluationStatus evaluationStatus
     ) {}
 
+    // Upper bound on score is the assignment's own maxScore (checked in EvaluationService), so no fixed @DecimalMax.
     public record CreateEvaluationRequest(
             @NotNull Long submissionId,
-            @NotNull @DecimalMin("0.0") @DecimalMax("10.0") BigDecimal score,
+            @NotNull @DecimalMin("0.0") BigDecimal score,
             String feedback
     ) {}
 }

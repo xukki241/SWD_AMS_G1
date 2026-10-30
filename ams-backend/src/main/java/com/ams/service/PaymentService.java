@@ -4,13 +4,16 @@ import com.ams.config.VnPayConfig;
 import com.ams.dto.PaymentDTO;
 import com.ams.entity.ClassRegistration;
 import com.ams.entity.PaymentTransaction;
+import com.ams.entity.User;
 import com.ams.exception.BadRequestException;
 import com.ams.exception.ResourceNotFoundException;
 import com.ams.repository.ClassRegistrationRepository;
 import com.ams.repository.PaymentTransactionRepository;
+import com.ams.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,8 +34,37 @@ public class PaymentService {
     private final VnPayConfig vnPayConfig;
     private final ClassRegistrationRepository registrationRepository;
     private final PaymentTransactionRepository paymentRepository;
+    private final UserRepository userRepository;
     private final ClassRegistrationService registrationService;
     private final AuditLogService auditLogService;
+
+    /** Payment amount is always the class's registration fee — no hardcoded values. */
+    private BigDecimal feeOf(ClassRegistration registration) {
+        var fee = registration.getSubjectClass().getRegistrationFee();
+        return fee == null ? BigDecimal.ZERO : fee;
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentDTO.PaymentTransactionResponse> getMyPayments() {
+        User user = userRepository.findByUsername(
+                        SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: "
+                        + SecurityContextHolder.getContext().getAuthentication().getName()));
+        List<Long> registrationIds = registrationRepository.findByStudentId(user.getId()).stream()
+                .map(ClassRegistration::getId)
+                .toList();
+        return registrationIds.stream()
+                .flatMap(id -> paymentRepository.findByClassRegistrationId(id).stream())
+                .map(t -> new PaymentDTO.PaymentTransactionResponse(
+                        t.getId(),
+                        t.getClassRegistration().getId(),
+                        t.getProvider(),
+                        t.getProviderReference(),
+                        t.getAmount(),
+                        t.getTransactionStatus(),
+                        t.getCreatedAt()))
+                .toList();
+    }
 
     @Transactional
     public void confirmVietQrPayment(Long registrationId) {
@@ -44,7 +76,7 @@ public class PaymentService {
         }
 
         String txnRef = "VQR" + System.currentTimeMillis() + "-" + registration.getId();
-        BigDecimal amount = BigDecimal.valueOf(5000000);
+        BigDecimal amount = feeOf(registration);
 
         PaymentTransaction txn = PaymentTransaction.builder()
                 .classRegistration(registration)
@@ -69,7 +101,7 @@ public class PaymentService {
             throw new BadRequestException("Registration is already paid and active");
         }
 
-        BigDecimal amount = BigDecimal.valueOf(5000000); // 5,000,000 VND
+        BigDecimal amount = feeOf(registration);
         String txnRef = "TXN" + System.currentTimeMillis() + "-" + registration.getId();
 
         PaymentTransaction txn = PaymentTransaction.builder()
@@ -89,7 +121,7 @@ public class PaymentService {
         vnp_Params.put("vnp_Amount", String.valueOf(amount.multiply(BigDecimal.valueOf(100)).longValue()));
         vnp_Params.put("vnp_CurrCode", "VND");
         vnp_Params.put("vnp_TxnRef", txnRef);
-        vnp_Params.put("vnp_OrderInfo", "Thanh toan hoc phi lop " + registration.getSubjectClass().getClassCode());
+        vnp_Params.put("vnp_OrderInfo", "Tuition payment for class " + registration.getSubjectClass().getClassCode());
         vnp_Params.put("vnp_OrderType", "other");
         vnp_Params.put("vnp_Locale", "vn");
         vnp_Params.put("vnp_ReturnUrl", vnPayConfig.getReturnUrl());

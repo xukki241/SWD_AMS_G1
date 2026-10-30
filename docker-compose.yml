@@ -39,12 +39,16 @@ services:
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-XXRGOEBAEHIDULXFAPHQLAYVHAZEBEKC}
       VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/payment/return}
       VNPAY_IPN_URL: ${VNPAY_IPN_URL:-http://host.docker.internal:8080/api/payment/vnpay-ipn}
+      FILE_STORAGE_PATH: /app/storage/files
+      FILE_STORAGE_BASE_URL: http://localhost:8080
       PORT: 8080
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - ams-network
+    volumes:
+      - ams_storage:/app/storage
     restart: on-failure
 
   frontend:
@@ -68,6 +72,7 @@ services:
 
 volumes:
   postgres_data:
+  ams_storage:
 
 networks:
   ams-network:

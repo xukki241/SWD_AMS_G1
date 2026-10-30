@@ -54,59 +54,59 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 
 -- Subjects
 INSERT INTO subjects (subject_code, subject_name, description, status) VALUES
-('SWD392', 'Dự án Phát triển Phần mềm',
-           'Môn dự án tốt nghiệp: làm việc nhóm theo Agile, quản lý sản phẩm phần mềm đầu-cuối (full-stack).', 'ACTIVE'),
-('PRJ301', 'Ứng dụng Web Java',
-           'Xây dựng ứng dụng web với JSP/Servlet và Spring MVC, tích hợp cơ sở dữ liệu quan hệ.', 'ACTIVE'),
-('DBI202', 'Hệ thống Cơ sở dữ liệu',
-           'Thiết kế quan hệ, chuẩn hoá (1NF–3NF), viết truy vấn SQL tối ưu và bảo trì CSDL.', 'ACTIVE'),
-('MAE101', 'Toán ứng dụng cho Kỹ sư',
-           'Đại số tuyến tính, phương trình vi phân và giải tích rời rạc áp dụng trong kỹ thuật.', 'ACTIVE');
+('SWD392', 'Software Development Project',
+           'Capstone project course: team-based Agile delivery and full-stack product lifecycle management.', 'ACTIVE'),
+('PRJ301', 'Java Web Applications',
+           'Building web applications with JSP/Servlet and Spring MVC, integrating relational databases.', 'ACTIVE'),
+('DBI202', 'Database Systems',
+           'Relational design, normalization (1NF-3NF), writing and optimizing SQL queries.', 'ACTIVE'),
+('MAE101', 'Applied Mathematics for Engineers',
+           'Linear algebra, differential equations, and discrete analysis applied to engineering.', 'ACTIVE');
 
 -- SubjectClasses
--- teacher 1 (bao.pham) dạy G1701, G1702 · teacher 2 (mai.hoang) dạy G1801 ·
--- teacher 3 (tuan.vu) dạy G1703, G1704 · chuyên gia expert1 phụ trách SWD392/DBI202, expert2 phụ trách PRJ301/MAE101
+-- teacher 1 (bao.pham) teaches G1701, G1702 - teacher 2 (mai.hoang) teaches G1801 -
+-- teacher 3 (tuan.vu) teaches G1703, G1704 - expert1 (ha.tran) owns SWD392/DBI202, expert2 (duc.le) owns PRJ301/MAE101
 INSERT INTO subject_classes (subject_id, expert_id, teacher_id, class_code, class_name, term) VALUES
-(1, 2, 4, 'SWD392-G1701', 'SWD392 — Nhóm 1701 (Agile)', 'Fall2026'),
-(1, 2, 4, 'SWD392-G1702', 'SWD392 — Nhóm 1702 (Agile)', 'Fall2026'),
-(1, 3, 5, 'SWD392-G1801', 'SWD392 — Nhóm 1801 (Agile)', 'Fall2026'),
-(2, 3, 5, 'PRJ301-G1703', 'PRJ301 — Lớp 1703',         'Fall2026'),
-(2, 3, 6, 'PRJ301-G1704', 'PRJ301 — Lớp 1704',         'Fall2026'),
-(3, 2, 6, 'DBI202-G1705', 'DBI202 — Lớp 1705',         'Fall2026'),
-(4, 3, 6, 'MAE101-G1806', 'MAE101 — Lớp 1806',         'Fall2026'),
-(3, 2, 5, 'DBI202-G1807', 'DBI202 — Lớp 1807',         'Fall2026');
+(1, 2, 4, 'SWD392-G1701', 'SWD392 - Group 1701 (Agile)', 'Fall2026'),
+(1, 2, 4, 'SWD392-G1702', 'SWD392 - Group 1702 (Agile)', 'Fall2026'),
+(1, 3, 5, 'SWD392-G1801', 'SWD392 - Group 1801 (Agile)', 'Fall2026'),
+(2, 3, 5, 'PRJ301-G1703', 'PRJ301 - Class 1703',         'Fall2026'),
+(2, 3, 6, 'PRJ301-G1704', 'PRJ301 - Class 1704',         'Fall2026'),
+(3, 2, 6, 'DBI202-G1705', 'DBI202 - Class 1705',         'Fall2026'),
+(4, 3, 6, 'MAE101-G1806', 'MAE101 - Class 1806',         'Fall2026'),
+(3, 2, 5, 'DBI202-G1807', 'DBI202 - Class 1807',         'Fall2026');
 
 -- AssignmentTemplates
 INSERT INTO assignment_templates (subject_id, expert_id, title, instructions, default_due_rule) VALUES
-(1, 2, 'Đề án dự án (Project Proposal)',
-   'Đưa ra mục tiêu, phạm vi, timeline, phân công vai trò trong nhóm. Tối thiểu 5 trang, có Gantt chart và danh sách rủi ro.', '14 ngày sau khi phát bài'),
-(1, 2, 'Báo cáo Sprint 1',
-   'Tài liệu hoá tiến độ Sprint 1: user stories đã hoàn thành, burndown chart, kết luận retrospective.',               '21 ngày sau khi phát bài'),
-(1, 2, 'Trình bày cuối kỳ (Final Presentation)',
-   'Chuẩn bị bài thuyết trình 15 phút demo toàn bộ hệ thống, kèm mã nguồn đã code-review.',                           '60 ngày sau khi phát bài'),
-(2, 3, 'Lab Servlet CRUD',
-   'Thực hiện ứng dụng CRUD với Java Servlet + JSP, triển khai trên Tomcat, kèm hướng dẫn chạy.',                   '7 ngày sau khi phát bài'),
-(2, 3, 'Ứng dụng Spring MVC',
-   'Xây dựng web app theo mẫu MVC với Spring, tích hợp JPA/PostgreSQL và upload tệp đính kèm.',                       '14 ngày sau khi phát bài'),
-(3, 2, 'Thiết kế ERD bệnh viện',
-   'Thiết kế ERD cho hệ thống quản lý bệnh viện, chuẩn hoá tối thiểu 3NF, kèm script tạo bảng SQL.',                 '7 ngày sau khi phát bài'),
-(3, 2, 'Bộ 20 truy vấn SQL',
-   'Viết 20 truy vấn SQL tăng dần độ khó trên schema được cung cấp, giải thích kế hoạch truy vấn (EXPLAIN).',        '10 ngày sau khi phát bài'),
-(4, 3, 'Bộ bài tập Đại số tuyến tính',
-   'Giải 30 bài toán về phép toán ma trận, giá trị riêng và không gian vectơ.',                                       '7 ngày sau khi phát bài');
+(1, 2, 'Project Proposal',
+   'Define goals, scope, timeline, and team role breakdown. Minimum 5 pages, include a Gantt chart and a risk list.', '14 days after publication'),
+(1, 2, 'Sprint 1 Report',
+   'Document Sprint 1 progress: completed user stories, burndown chart, and retrospective conclusions.',               '21 days after publication'),
+(1, 2, 'Final Presentation',
+   'Prepare a 15-minute presentation demoing the complete system, with code-reviewed source code attached.',           '60 days after publication'),
+(2, 3, 'Servlet CRUD Lab',
+   'Implement a CRUD application with Java Servlet + JSP, deploy on Tomcat, and include run instructions.',          '7 days after publication'),
+(2, 3, 'Spring MVC Application',
+   'Build a web app following the MVC pattern with Spring, integrating JPA/PostgreSQL and file upload.',               '14 days after publication'),
+(3, 2, 'Hospital ERD Design',
+   'Design the ERD for a hospital management system, normalized to at least 3NF, with SQL table creation scripts.',  '7 days after publication'),
+(3, 2, 'Set of 20 SQL Queries',
+   'Write 20 SQL queries of increasing difficulty on the provided schema, explaining the query plan (EXPLAIN).',      '10 days after publication'),
+(4, 3, 'Linear Algebra Exercise Set',
+   'Solve 30 problems on matrix operations, eigenvalues, and vector spaces.',                                        '7 days after publication');
 
 -- Assignments
 INSERT INTO assignments (teacher_id, template_id, title, instructions, due_at) VALUES
-(4, 1, 'Đề án dự án — G1701',   'Báo cáo đề án nhóm cho SWD392. Chi tiết xem trong template chuẩn.',           NOW() + INTERVAL '14 days'),
-(4, 2, 'Sprint 1 Report — G1701','Tài liệu hoá sprint 1, kèm burndown chart và retrospective.',                 NOW() + INTERVAL '21 days'),
-(4, 1, 'Đề án dự án — G1702',   'Tương tự G1701, tham chiếu template.',                                         NOW() + INTERVAL '14 days'),
-(5, 3, 'Final Demo — G1801',    'Trình bày 15 phút/group demo hệ thống hoàn chỉnh.',                           NOW() + INTERVAL '60 days'),
-(5, 4, 'Lab Servlet — G1703',   'CRUD với Servlet, deploy trên Tomcat.',                                        NOW() + INTERVAL '7 days'),
-(5, 5, 'Spring MVC App — G1703','Web app Spring MVC tích hợp PostgreSQL.',                                      NOW() + INTERVAL '14 days'),
-(6, 4, 'Lab Servlet — G1704',   'Tương tự Lab Servlet G1703.',                                                 NOW() + INTERVAL '7 days'),
-(6, 6, 'ERD Bệnh viện — G1705', 'Thiết kế ERD hệ thống quản lý bệnh viện, chuẩn hoá 3NF.',                     NOW() + INTERVAL '7 days'),
-(6, 7, 'Truy vấn SQL — G1705',  'Bộ 20 câu SQL trên schema bệnh viện.',                                         NOW() + INTERVAL '10 days'),
-(6, 8, 'Đại số tuyến tính — G1806', 'Bộ bài tập số 1 (ma trận, giá trị riêng).',                               NOW() - INTERVAL '2 days');
+(4, 1, 'Project Proposal - G1701',   'Group project proposal for SWD392. See the standard template for details.',              NOW() + INTERVAL '14 days'),
+(4, 2, 'Sprint 1 Report - G1701',   'Document Sprint 1 with burndown chart and retrospective.',                                NOW() + INTERVAL '21 days'),
+(4, 1, 'Project Proposal - G1702',   'Same as G1701, refer to the template.',                                                   NOW() + INTERVAL '14 days'),
+(5, 3, 'Final Demo - G1801',        'Present the complete system in 15 minutes per group.',                                     NOW() + INTERVAL '60 days'),
+(5, 4, 'Servlet Lab - G1703',        'Servlet CRUD, deploy on Tomcat.',                                                          NOW() + INTERVAL '7 days'),
+(5, 5, 'Spring MVC App - G1703',     'Spring MVC web app integrated with PostgreSQL.',                                           NOW() + INTERVAL '14 days'),
+(6, 4, 'Servlet Lab - G1704',        'Same as Servlet Lab G1703.',                                                              NOW() + INTERVAL '7 days'),
+(6, 6, 'Hospital ERD - G1705',       'Design the ERD for the hospital management system, normalized to 3NF.',                   NOW() + INTERVAL '7 days'),
+(6, 7, 'SQL Queries - G1705',        'Set of 20 SQL queries on the hospital schema.',                                            NOW() + INTERVAL '10 days'),
+(6, 8, 'Linear Algebra - G1806',     'Exercise set 1 (matrices, eigenvalues).',                                                  NOW() - INTERVAL '2 days');
 
 -- AssignmentClasses
 INSERT INTO assignment_classes (assignment_id, subject_class_id, allocation_status, allocated_at) VALUES
@@ -121,7 +121,7 @@ INSERT INTO assignment_classes (assignment_id, subject_class_id, allocation_stat
 (9,  6, 'ACTIVE',    NOW() - INTERVAL '5 days'),
 (10, 7, 'ACTIVE',    NOW() - INTERVAL '12 days');
 
--- ClassRegistrations (12 sinh viên, phân bổ đa lớp)
+-- ClassRegistrations (12 students, distributed across classes)
 INSERT INTO class_registrations (student_id, subject_class_id, registration_reference, status, activated_at) VALUES
 (7,  1, 'REG-F26-1001', 'ACTIVE',          NOW() - INTERVAL '9 days'),
 (8,  1, 'REG-F26-1002', 'ACTIVE',          NOW() - INTERVAL '8 days'),
@@ -139,7 +139,7 @@ INSERT INTO class_registrations (student_id, subject_class_id, registration_refe
 (7,  6, 'REG-F26-1014', 'ACTIVE',          NOW() - INTERVAL '4 days'),
 (17, 7, 'REG-F26-1015', 'ACTIVE',          NOW() - INTERVAL '3 days');
 
--- PaymentTransactions (đủ các trạng thái: SUCCESS / PENDING / FAILED / REFUNDED)
+-- PaymentTransactions (covering all statuses: SUCCESS / PENDING / FAILED / REFUNDED)
 INSERT INTO payment_transactions (class_registration_id, provider, provider_reference, amount, transaction_status, created_at) VALUES
 (1,  'VNPAY', 'VNPAY20261015000001', 5000000, 'SUCCESS',  NOW() - INTERVAL '9 days'),
 (2,  'VNPAY', 'VNPAY20261015000002', 5000000, 'SUCCESS',  NOW() - INTERVAL '8 days'),
@@ -158,43 +158,43 @@ INSERT INTO payment_transactions (class_registration_id, provider, provider_refe
 (14, 'VNPAY', 'VNPAY20261022000014', 5000000, 'SUCCESS',  NOW() - INTERVAL '4 days'),
 (15, 'VNPAY', 'VNPAY20261024000015', 5000000, 'SUCCESS',  NOW() - INTERVAL '3 days');
 
--- Submissions (SUBMITTED / LATE / GRADED; tệp thật kiểu Cloudinary)
+-- Submissions (SUBMITTED / LATE / GRADED; Cloudinary-style file references)
 INSERT INTO submissions (class_registration_id, assignment_id, submitted_at, secure_file_reference, file_metadata, submission_status) VALUES
-(1,  1,  NOW() - INTERVAL '5 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759248000/submissions/g1701_denan_han.pdf',     '{"name":"de_an_du_an_g1701.pdf","size":1245184,"type":"application/pdf"}', 'GRADED'),
-(2,  1,  NOW() - INTERVAL '4 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759334400/submissions/g1701_denan_linh.pdf',    '{"name":"de_an_Nhom1701.pdf","size":2150400,"type":"application/pdf"}',    'GRADED'),
+(1,  1,  NOW() - INTERVAL '5 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759248000/submissions/g1701_denan_han.pdf',     '{"name":"project_proposal_g1701.pdf","size":1245184,"type":"application/pdf"}', 'GRADED'),
+(2,  1,  NOW() - INTERVAL '4 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759334400/submissions/g1701_denan_linh.pdf',    '{"name":"project_proposal_g1701.pdf","size":2150400,"type":"application/pdf"}',    'GRADED'),
 (3,  1,  NOW() - INTERVAL '6 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759161600/submissions/g1701_denan_dat.pdf',     '{"name":"project_proposal.pdf","size":890880,"type":"application/pdf"}',   'GRADED'),
-(4,  3,  NOW() - INTERVAL '3 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759420800/submissions/g1702_denan_anh.pdf',    '{"name":"de_an_nhom_1702.pdf","size":1572864,"type":"application/pdf"}',   'SUBMITTED'),
+(4,  3,  NOW() - INTERVAL '3 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759420800/submissions/g1702_denan_anh.pdf',    '{"name":"project_proposal_g1702.pdf","size":1572864,"type":"application/pdf"}',   'SUBMITTED'),
 (5,  2,  NOW() - INTERVAL '2 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759507200/submissions/g1701_sprint1_baochau.docx', '{"name":"sprint1_report.docx","size":348160,"type":"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}', 'SUBMITTED'),
 (6,  5,  NOW() - INTERVAL '2 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759507201/submissions/g1703_servlet_long.zip', '{"name":"servlet-lab-tomcat.zip","size":4194304,"type":"application/zip"}','GRADED'),
 (7,  5,  NOW() - INTERVAL '1 day',  'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759593600/submissions/g1703_servlet_ngocanh.zip', '{"name":"servlet_crud.zip","size":1048576,"type":"application/zip"}', 'SUBMITTED'),
 (8,  7,  NOW() - INTERVAL '1 day',  'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759593601/submissions/g1704_servlet_minhanh.zip', '{"name":"servlet-lab.zip","size":983040,"type":"application/zip"}',   'SUBMITTED'),
-(12, 10, NOW() - INTERVAL '1 day',  'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759593602/submissions/g1806_daistuyen_tuongvi.pdf', '{"name":"baitap_daistuyen.pdf","size":189440,"type":"application/pdf"}','SUBMITTED'),
-(14, 8,  NOW() - INTERVAL '1 day',  'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759593603/submissions/g1705_erd_han.pdf',       '{"name":"erd_benh_vien_3nf.pdf","size":327680,"type":"application/pdf"}','SUBMITTED'),
-(10, 8,  NOW() - INTERVAL '3 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759420801/submissions/g1705_erd_thanhha.pdf',   '{"name":"erd_hospital.pdf","size":294912,"type":"application/pdf"}',      'GRADED'),
+(12, 10, NOW() - INTERVAL '1 day',  'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759593602/submissions/g1806_daistuyen_tuongvi.pdf', '{"name":"linear_algebra_ex1.pdf","size":189440,"type":"application/pdf"}','SUBMITTED'),
+(14, 8,  NOW() - INTERVAL '1 day',  'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759593603/submissions/g1705_erd_han.pdf',       '{"name":"hospital_erd_3nf.pdf","size":327680,"type":"application/pdf"}','SUBMITTED'),
+(10, 8,  NOW() - INTERVAL '3 days', 'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759420801/submissions/g1705_erd_thanhha.pdf',   '{"name":"hospital_erd.pdf","size":294912,"type":"application/pdf"}',      'GRADED'),
 (9,  7,  NOW() - INTERVAL '1 day',  'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759593604/submissions/g1704_spring_hang.zip',   '{"name":"spring-mvc-app.zip","size":5242880,"type":"application/zip"}',   'SUBMITTED'),
-(15, 10, NOW() - INTERVAL '1 day',  'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759593605/submissions/g1806_daistuyen_hoangphuc.pdf', '{"name":"baitap_daistuyen_b1.pdf","size":208896,"type":"application/pdf"}','LATE');
+(15, 10, NOW() - INTERVAL '1 day',  'https://res.cloudinary.com/swd_g1_asm/raw/upload/v1/1759593605/submissions/g1806_daistuyen_hoangphuc.pdf', '{"name":"linear_algebra_ex1.pdf","size":208896,"type":"application/pdf"}','LATE');
 
 -- AssignmentEvaluations
 INSERT INTO assignment_evaluations (submission_id, evaluator_id, score, feedback, evaluation_status) VALUES
-(1,  4, 8.5, 'Đề án rõ mục tiêu và phạm vi. Cần bổ sung timeline chi tiết cho từng tuần.',                 'COMPLETED'),
-(2,  4, 9.0, 'Đề án xuất sắc: scope rõ ràng, có đánh giá rủi ro và Gantt chart đầy đủ.',                   'COMPLETED'),
-(3,  4, 7.5, 'Nội dung ổn, nhưng thiếu phân công vai trò trong nhóm. Nên bổ sung RACI matrix.',           'COMPLETED'),
-(6,  5, 8.0, 'Servlet chạy được trên Tomcat. Chất lượng code cần cải thiện: tách business logic khỏi servlet, thêm javadoc.', 'COMPLETED'),
-(11, 6, 9.2, 'ERD chuẩn hoá 3NF đầy đủ, kèm script DDL rõ ràng và EXPLAIN cho từng câu. Xuất sắc.',      'COMPLETED');
+(1,  4, 8.5, 'Clear goals and scope. Add a detailed weekly timeline.',                                        'COMPLETED'),
+(2,  4, 9.0, 'Excellent proposal: clear scope, risk assessment, and a complete Gantt chart.',                'COMPLETED'),
+(3,  4, 7.5, 'Solid content, but team roles are missing. Add a RACI matrix.',                                 'COMPLETED'),
+(6,  5, 8.0, 'Servlet runs on Tomcat. Improve code quality: separate business logic from the servlet and add javadoc.', 'COMPLETED'),
+(11, 6, 9.2, 'Fully 3NF-normalized ERD, with clear DDL scripts and EXPLAIN plans for each query. Excellent.', 'COMPLETED');
 
--- AuditLogs (các nghiệp vụ hệ thống mẫu)
+-- AuditLogs (sample system actions)
 INSERT INTO audit_logs (actor_id, action, resource_type, resource_reference, occurred_at) VALUES
 (4,  'SUBJECT_CLASS_CREATED',  'SUBJECT_CLASS', 'SWD392-G1701',            NOW() - INTERVAL '30 days'),
 (4,  'SUBJECT_CLASS_CREATED',  'SUBJECT_CLASS', 'SWD392-G1702',            NOW() - INTERVAL '30 days'),
-(4,  'ASSIGNMENT_PUBLISHED',   'ASSIGNMENT',    'Đề án dự án — G1701',     NOW() - INTERVAL '10 days'),
+(4,  'ASSIGNMENT_PUBLISHED',   'ASSIGNMENT',    'Project Proposal - G1701', NOW() - INTERVAL '10 days'),
 (7,  'CLASS_REGISTERED',       'REGISTRATION',  'REG-F26-1001',            NOW() - INTERVAL '9 days'),
 (7,  'PAYMENT_SUCCESS',        'PAYMENT',       'VNPAY20261015000001',     NOW() - INTERVAL '9 days'),
 (18, 'PAYMENT_FAILED',         'PAYMENT',       'VNPAY20261022000012',     NOW() - INTERVAL '1 day'),
 (18, 'REGISTRATION_CANCELLED', 'REGISTRATION',  'REG-F26-1013',            NOW() - INTERVAL '15 days'),
 (18, 'REFUND_ISSUED',         'PAYMENT',       'VNPAY20261010000013',     NOW() - INTERVAL '15 days'),
-(4,  'SUBMISSION_GRADED',      'EVALUATION',    'Sprint 1 Report — G1701', NOW() - INTERVAL '4 days'),
+(4,  'SUBMISSION_GRADED',      'EVALUATION',    'Sprint 1 Report - G1701', NOW() - INTERVAL '4 days'),
 (1,  'USER_SUSPENDED',        'USER',          'student11',               NOW() - INTERVAL '60 days'),
-(2,  'TEMPLATE_CREATED',       'TEMPLATE',      'Đề án dự án (Project Proposal)', NOW() - INTERVAL '45 days'),
+(2,  'TEMPLATE_CREATED',       'TEMPLATE',      'Project Proposal',        NOW() - INTERVAL '45 days'),
 (7,  'PAYMENT_SUCCESS',        'PAYMENT',       'VNPAY20261022000014',     NOW() - INTERVAL '4 days');
 
 -- SystemConfigurations

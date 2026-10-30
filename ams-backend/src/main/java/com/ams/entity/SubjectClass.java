@@ -3,6 +3,8 @@ package com.ams.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "subject_classes")
 @Data
@@ -35,4 +37,15 @@ public class SubjectClass {
 
     @Column(nullable = false, length = 20)
     private String term;
+
+    @Column(name = "join_code", length = 6)
+    private String joinCode;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer capacity = 0;
+
+    @Column(name = "registration_fee", nullable = false, precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal registrationFee = BigDecimal.ZERO;
 }

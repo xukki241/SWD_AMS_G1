@@ -28,7 +28,7 @@ public class ClassRegistrationController {
     }
 
     @GetMapping("/class/{classId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT')")
     @Operation(summary = "Get all registrations for a class")
     public ResponseEntity<List<RegistrationDTO.RegistrationResponse>> getRegistrationsByClass(@PathVariable Long classId) {
         return ResponseEntity.ok(registrationService.getRegistrationsByClass(classId));
@@ -39,5 +39,12 @@ public class ClassRegistrationController {
     @Operation(summary = "Register for a subject class")
     public ResponseEntity<RegistrationDTO.RegistrationResponse> register(@Valid @RequestBody RegistrationDTO.CreateRegistrationRequest request) {
         return ResponseEntity.ok(registrationService.register(request));
+    }
+
+    @PostMapping("/join")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Join a class by its 6-character join code (Find a class)")
+    public ResponseEntity<RegistrationDTO.RegistrationResponse> join(@Valid @RequestBody RegistrationDTO.JoinRequest request) {
+        return ResponseEntity.ok(registrationService.joinByCode(request));
     }
 }

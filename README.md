@@ -2,30 +2,41 @@
 
 > POC Demo Project · Group 1 · SWD392
 
-## 🚀 Quick Start (Docker — 1 lệnh)
+## 🚀 Quick Start (Docker — one command)
 
 ```bash
 # Clone repo
 git clone https://github.com/xukki241/SWD_AMS_G1.git
 cd SWD_AMS_G1
 
-# Chạy toàn bộ stack (DB + Backend + Frontend)
+# Run the full stack (DB + Backend + Frontend)
 docker compose up --build
 
-# Truy cập:
+# Open:
 # Frontend: http://localhost:3000
 # Backend API: http://localhost:8080/api
 # Swagger UI: http://localhost:8080/swagger-ui.html
 ```
 
-## 🔐 Test Accounts
+## 🏫 How it works (Google-Classroom model)
 
-| Role | Username | Password |
-|------|----------|----------|
-| Admin | `admin` | `Password@123` |
-| Expert | `expert1` | `Password@123` |
-| Teacher | `teacher1` | `Password@123` |
-| Student | `student1` | `Password@123` |
+- **Classes have a 6-character join code** (e.g. `K7Q2M9`). Teachers/Experts create a class (subject, name, term, fee, capacity) — the code is auto-generated. Students "Find a class" by entering the code.
+- **Free classes (fee = 0)** enroll the student instantly (`ACTIVE`); **paid classes** go to `PENDING_PAYMENT` until the tuition is paid.
+- Each class is a **workspace** with three tabs: **Stream** (announcements & material uploads), **Assignments** (classwork: submit → grade → review), and **People**.
+- Payments: **VNPay Sandbox** (primary) or **VietQR sandbox confirm** (manual "I have transferred" — no real money moves; it is a demo).
+
+## 🔐 Demo Accounts
+
+All accounts use password `Password@123`:
+
+| Role | Username |
+|------|----------|
+| Admin | `admin` |
+| Experts | `expert1`, `expert2` |
+| Teachers | `teacher1`, `teacher2`, `teacher3` |
+| Students | `student1` … `student12` |
+
+Sample join codes (from seed data): `K7Q2M9`, `Q2M9K7`, `B7X4NP`, `M4T8ZD`, `X9R3VC`, `P6H2WS`, `Z5J7QB`, `T8N4LM`.
 
 ## 💳 VNPay Test Card
 

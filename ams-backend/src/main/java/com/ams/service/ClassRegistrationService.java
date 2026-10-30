@@ -49,16 +49,38 @@ public class ClassRegistrationService {
 
     @Transactional
     public RegistrationDTO.RegistrationResponse register(RegistrationDTO.CreateRegistrationRequest request) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User student = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + username));
-
+        User student = currentUser();
         SubjectClass subjectClass = subjectClassRepository.findById(request.subjectClassId())
                 .orElseThrow(() -> new ResourceNotFoundException("SubjectClass not found with id: " + request.subjectClassId()));
+        return createRegistration(student, subjectClass);
+    }
 
+    @Transactional
+    public RegistrationDTO.RegistrationResponse joinByCode(RegistrationDTO.JoinRequest request) {
+        User student = currentUser();
+        SubjectClass subjectClass = subjectClassRepository.findByJoinCode(request.code())
+                .orElseThrow(() -> new ResourceNotFoundException("No class found with join code: " + request.code()));
+        return createRegistration(student, subjectClass);
+    }
+
+    private RegistrationDTO.RegistrationResponse createRegistration(User student, SubjectClass subjectClass) {
         if (registrationRepository.existsByStudentIdAndSubjectClassId(student.getId(), subjectClass.getId())) {
             throw new DuplicateResourceException("You have already registered for class: " + subjectClass.getClassCode());
         }
+
+        long enrolled = registrationRepository.countBySubjectClassIdAndStatus(
+                subjectClass.getId(), ClassRegistration.RegistrationStatus.ACTIVE);
+        Integer capacity = subjectClass.getCapacity();
+        if (capacity != null && capacity > 0 && enrolled >= capacity) {
+            throw new DuplicateResourceException("Class " + subjectClass.getClassCode() + " is full (capacity: " + capacity + ")");
+        }
+
+        // A-03: payment is only required when the class charges a registration fee.
+        boolean free = subjectClass.getRegistrationFee() == null
+                || subjectClass.getRegistrationFee().signum() == 0;
+        ClassRegistration.RegistrationStatus initialStatus = free
+                ? ClassRegistration.RegistrationStatus.ACTIVE
+                : ClassRegistration.RegistrationStatus.PENDING_PAYMENT;
 
         String ref = "REG-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
 
@@ -66,13 +88,20 @@ public class ClassRegistrationService {
                 .student(student)
                 .subjectClass(subjectClass)
                 .registrationReference(ref)
-                .status(ClassRegistration.RegistrationStatus.PENDING_PAYMENT)
+                .status(initialStatus)
                 .registeredAt(LocalDateTime.now())
+                .activatedAt(initialStatus == ClassRegistration.RegistrationStatus.ACTIVE ? LocalDateTime.now() : null)
                 .build();
 
         reg = registrationRepository.save(reg);
-        auditLogService.log("REGISTER_CLASS", "ClassRegistration", ref);
+        auditLogService.log(free ? "REGISTER_CLASS_FREE" : "REGISTER_CLASS", "ClassRegistration", ref);
         return mapToResponse(reg);
+    }
+
+    private User currentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + username));
     }
 
     @Transactional

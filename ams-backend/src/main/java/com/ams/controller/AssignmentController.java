@@ -21,21 +21,31 @@ public class AssignmentController {
     private final AssignmentService assignmentService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT', 'STUDENT')")
     @Operation(summary = "Get all assignments")
     public ResponseEntity<List<AssignmentDTO.AssignmentResponse>> getAllAssignments() {
         return ResponseEntity.ok(assignmentService.getAllAssignments());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT', 'STUDENT')")
     @Operation(summary = "Get assignment by ID")
     public ResponseEntity<AssignmentDTO.AssignmentResponse> getAssignmentById(@PathVariable Long id) {
         return ResponseEntity.ok(assignmentService.getAssignmentById(id));
     }
 
     @GetMapping("/class/{subjectClassId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT', 'STUDENT')")
     @Operation(summary = "Get assignments allocated to a subject class")
     public ResponseEntity<List<AssignmentDTO.AssignmentResponse>> getAssignmentsByClass(@PathVariable Long subjectClassId) {
         return ResponseEntity.ok(assignmentService.getAssignmentsByClass(subjectClassId));
+    }
+
+    @GetMapping("/overview")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Student's pending-work overview: own active-class assignments with work state")
+    public ResponseEntity<List<AssignmentDTO.AssignmentOverviewItem>> getOverview() {
+        return ResponseEntity.ok(assignmentService.getMyAssignmentsOverview());
     }
 
     @PostMapping

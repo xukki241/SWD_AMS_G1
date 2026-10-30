@@ -3,6 +3,7 @@ package com.ams.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class AssignmentDTO {
@@ -32,7 +33,8 @@ public class AssignmentDTO {
             Long templateId,
             String title,
             String instructions,
-            LocalDateTime dueAt
+            LocalDateTime dueAt,
+            BigDecimal maxScore
     ) {}
 
     public record CreateAssignmentRequest(
@@ -40,6 +42,7 @@ public class AssignmentDTO {
             @NotBlank String title,
             String instructions,
             @NotNull LocalDateTime dueAt,
+            BigDecimal maxScore,
             Long subjectClassId
     ) {}
 
@@ -47,5 +50,20 @@ public class AssignmentDTO {
             @NotNull Long assignmentId,
             @NotNull Long subjectClassId,
             String classNote
+    ) {}
+
+    /** Student's view of one class assignment with their own work state. */
+    public record AssignmentOverviewItem(
+            Long classId,
+            String classCode,
+            String className,
+            Long assignmentId,
+            String title,
+            String instructions,
+            LocalDateTime dueAt,
+            BigDecimal maxScore,
+            String workState, // NOT_STARTED, DRAFT, SUBMITTED, LATE, GRADED
+            Long submissionId,
+            BigDecimal score
     ) {}
 }

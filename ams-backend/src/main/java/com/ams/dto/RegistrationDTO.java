@@ -25,4 +25,8 @@ public class RegistrationDTO {
     public record CreateRegistrationRequest(
             @NotNull Long subjectClassId
     ) {}
+
+    public record JoinRequest(
+            @NotNull String code
+    ) {}
 }

@@ -42,6 +42,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/subject-classes/public",
+                                "/api/files/**",
                                 "/api/payment/vnpay-ipn",
                                 "/api/payment/vnpay-return",
                                 "/swagger-ui/**",

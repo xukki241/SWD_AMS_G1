@@ -81,8 +81,20 @@ public class DashboardService {
         long submitted = submissions.size();
         long graded = submissions.stream().filter(s -> s.getSubmissionStatus() == Submission.SubmissionStatus.GRADED).count();
 
+        // Real average score across the student's completed evaluations (no hardcoded KPIs).
+        List<BigDecimal> scores = submissions.stream()
+                .filter(s -> s.getSubmissionStatus() == Submission.SubmissionStatus.GRADED)
+                .flatMap(s -> evaluationRepository.findBySubmissionId(s.getId()).stream())
+                .map(e -> e.getScore())
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        BigDecimal averageScore = scores.isEmpty()
+                ? BigDecimal.ZERO
+                : scores.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(scores.size()), 2, RoundingMode.HALF_UP);
+
         return new DashboardDTO.StudentDashboardResponse(
-                totalRegs, activeClasses, submitted, graded, BigDecimal.valueOf(8.25).setScale(2, RoundingMode.HALF_UP)
+                totalRegs, activeClasses, submitted, graded, averageScore
         );
     }
 

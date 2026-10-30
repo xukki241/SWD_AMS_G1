@@ -10,6 +10,7 @@ import java.util.Optional;
 @Repository
 public interface SubjectClassRepository extends JpaRepository<SubjectClass, Long> {
     Optional<SubjectClass> findByClassCode(String classCode);
+    Optional<SubjectClass> findByJoinCode(String joinCode);
     List<SubjectClass> findBySubjectId(Long subjectId);
     List<SubjectClass> findByTeacherId(Long teacherId);
     List<SubjectClass> findByExpertId(Long expertId);
