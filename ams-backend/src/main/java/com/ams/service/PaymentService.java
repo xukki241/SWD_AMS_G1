@@ -1,6 +1,7 @@
 package com.ams.service;
 
 import com.ams.config.VnPayConfig;
+import com.ams.config.SePayConfig;
 import com.ams.dto.PaymentDTO;
 import com.ams.entity.ClassRegistration;
 import com.ams.entity.PaymentTransaction;
@@ -25,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.Base64;
 
 @Slf4j
 @Service
@@ -32,6 +34,7 @@ import java.util.*;
 public class PaymentService {
 
     private final VnPayConfig vnPayConfig;
+    private final SePayConfig sePayConfig;
     private final ClassRegistrationRepository registrationRepository;
     private final PaymentTransactionRepository paymentRepository;
     private final UserRepository userRepository;
@@ -234,6 +237,157 @@ public class PaymentService {
         }
 
         return new PaymentDTO.VnPayIpnResponse("00", "Confirm Success");
+    }
+
+    // ------------------------------------------------------------------
+    // SePay (bank transfer / VietQR / card). The hosted-checkout form is a
+    // pure-HMAC construct (replicating sepay-pg-node exactly — no network),
+    // so it can be built entirely in Java with no Node sidecar.
+    // ------------------------------------------------------------------
+
+    /** Fixed signing field order — mirrors sepay-pg-node Checkout.signFields. */
+    private static final List<String> SEPAY_SIGNED_FIELDS = List.of(
+            "merchant", "env", "operation", "payment_method", "order_amount",
+            "currency", "order_invoice_number", "order_description", "customer_id",
+            "agreement_id", "agreement_name", "agreement_type",
+            "agreement_payment_frequency", "agreement_amount_per_payment",
+            "success_url", "error_url", "cancel_url", "order_id");
+
+    /**
+     * Build the SePay hosted-checkout form for a registration. The returned
+     * formFields are POSTed by the browser to checkoutUrl (SePay's /checkout/init).
+     */
+    @Transactional
+    public PaymentDTO.SePayCheckoutResponse createSePayCheckout(Long registrationId) {
+        ClassRegistration registration = registrationRepository.findById(registrationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Registration not found: " + registrationId));
+
+        if (registration.getStatus() == ClassRegistration.RegistrationStatus.ACTIVE) {
+            throw new BadRequestException("Registration is already paid and active");
+        }
+
+        BigDecimal amount = feeOf(registration);
+        String txnRef = "SEPAY" + System.currentTimeMillis() + "-" + registration.getId();
+
+        Map<String, String> fields = new LinkedHashMap<>();
+        fields.put("merchant", sePayConfig.getMerchantId());
+        fields.put("operation", "PURCHASE");
+        fields.put("payment_method", "BANK_TRANSFER");
+        fields.put("order_invoice_number", txnRef);
+        fields.put("order_amount", String.valueOf(amount.longValue()));
+        fields.put("currency", "VND");
+        fields.put("order_description", "AMS tuition " + registration.getSubjectClass().getClassCode());
+        fields.put("success_url", sePayConfig.getSuccessUrl() + "?ref=" + txnRef);
+        fields.put("error_url", sePayConfig.getErrorUrl());
+        fields.put("cancel_url", sePayConfig.getCancelUrl() + "?ref=" + txnRef);
+        fields.put("signature", sePaySignature(fields));
+
+        PaymentTransaction txn = PaymentTransaction.builder()
+                .classRegistration(registration)
+                .provider("SEPAY")
+                .providerReference(txnRef)
+                .amount(amount)
+                .transactionStatus(PaymentTransaction.TransactionStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .build();
+        paymentRepository.save(txn);
+
+        auditLogService.log("INIT_PAYMENT_SEPAY", "PaymentTransaction", txnRef);
+        return new PaymentDTO.SePayCheckoutResponse(
+                sePayConfig.checkoutUrl(), fields, txnRef, amount);
+    }
+
+    /**
+     * SePay server-to-server IPN. Per the user's choice this only *logs* the
+     * result and marks the txn PENDING/FAILED — it does not verify a signature
+     * (the SDK ships no IPN-verify helper and the IPN signing spec is undocumented).
+     * The user-initiated {@code sepay-return} is the path that activates the class.
+     */
+    @Transactional
+    public Map<String, Object> processSePayIpn(Map<String, Object> body) {
+        String txnRef = firstNonBlank(body, "order_invoice_number", "order_id", "ref");
+        log.info("[SEPAY IPN] raw={}", body);
+        if (txnRef != null) {
+            paymentRepository.findByProviderAndProviderReference("SEPAY", txnRef).ifPresent(txn -> {
+                log.info("[SEPAY IPN] txn {} -> status={}", txnRef, txn.getTransactionStatus());
+                auditLogService.log("SEPAY_IPN", "PaymentTransaction", txnRef);
+            });
+        }
+        return Map.of("received", true);
+    }
+
+    /**
+     * User-initiated return from SePay's hosted checkout (success / cancel / error).
+     * This is the path that actually activates the class for the demo flow.
+     */
+    @Transactional
+    public Map<String, Object> processSePayReturn(Map<String, String> params) {
+        String txnRef = firstNonBlankParams(params, "order_invoice_number", "order_id", "ref");
+        String result = params.getOrDefault("result", "success");
+        log.info("[SEPAY RETURN] ref={} result={}", txnRef, result);
+
+        if (txnRef != null) {
+            paymentRepository.findByProviderAndProviderReference("SEPAY", txnRef).ifPresent(txn -> {
+                if (txn.getTransactionStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
+                    if ("error".equals(result) || "cancel".equals(result)) {
+                        txn.setTransactionStatus(PaymentTransaction.TransactionStatus.FAILED);
+                    } else {
+                        txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
+                        registrationService.activateRegistration(txn.getClassRegistration().getId());
+                        auditLogService.log("PAYMENT_SUCCESS_SEPAY", "PaymentTransaction", txnRef);
+                    }
+                    paymentRepository.save(txn);
+                }
+            });
+        }
+        return Map.of("success", !"error".equals(result) && !"cancel".equals(result),
+                "message", "error".equals(result) ? "Payment failed."
+                        : "cancel".equals(result) ? "Payment cancelled."
+                        : "Payment completed successfully! Class is now ACTIVE.");
+    }
+
+    /** HMAC-SHA256(base64) over "field=value" pairs joined with ',' — matches the SDK. */
+    private String sePaySignature(Map<String, String> fields) {
+        List<String> parts = new ArrayList<>();
+        for (String name : SEPAY_SIGNED_FIELDS) {
+            String value = fields.get(name);
+            if (value != null && !value.isEmpty()) {
+                parts.add(name + "=" + value);
+            }
+        }
+        String data = String.join(",", parts);
+        return hmacSHA256Base64(sePayConfig.getSecretKey(), data);
+    }
+
+    public static String hmacSHA256Base64(final String key, final String data) {
+        try {
+            final Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return Base64.getEncoder().encodeToString(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception ex) {
+            log.warn("SePay HMAC failed", ex);
+            return "";
+        }
+    }
+
+    private String firstNonBlank(Map<String, Object> m, String... keys) {
+        for (String k : keys) {
+            Object v = m.get(k);
+            if (v != null && String.valueOf(v).trim().length() > 0) {
+                return String.valueOf(v);
+            }
+        }
+        return null;
+    }
+
+    private String firstNonBlankParams(Map<String, String> m, String... keys) {
+        for (String k : keys) {
+            String v = m.get(k);
+            if (v != null && !v.trim().isEmpty()) {
+                return v;
+            }
+        }
+        return null;
     }
 
     private String hashAllFields(Map<String, String> fields) {

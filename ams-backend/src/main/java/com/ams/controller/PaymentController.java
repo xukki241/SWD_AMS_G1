@@ -42,6 +42,27 @@ public class PaymentController {
         ));
     }
 
+    @PostMapping("/create-sepay/{registrationId}")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Generate SePay hosted-checkout form fields for a class registration")
+    public ResponseEntity<PaymentDTO.SePayCheckoutResponse> createSePayCheckout(
+            @PathVariable Long registrationId
+    ) {
+        return ResponseEntity.ok(paymentService.createSePayCheckout(registrationId));
+    }
+
+    @PostMapping("/sepay-ipn")
+    @Operation(summary = "SePay server-to-server IPN webhook (log-only)")
+    public ResponseEntity<Map<String, Object>> sepayIpn(@RequestBody Map<String, Object> body) {
+        return ResponseEntity.ok(paymentService.processSePayIpn(body));
+    }
+
+    @GetMapping("/sepay-return")
+    @Operation(summary = "SePay user-initiated return callback (activates the class on success)")
+    public ResponseEntity<Map<String, Object>> sepayReturn(@RequestParam Map<String, String> params) {
+        return ResponseEntity.ok(paymentService.processSePayReturn(params));
+    }
+
     @GetMapping("/my")
     @PreAuthorize("hasRole('STUDENT')")
     @Operation(summary = "Payment history for the current student (Payment History screen)")

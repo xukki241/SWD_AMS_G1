@@ -1,5 +1,6 @@
 import { Paperclip } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { openFreshTab } from "@/lib/tab"
 
 export function FileChip({
   name,
@@ -32,18 +33,16 @@ export function FileChip({
 
   if (href) {
     return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        download={download}
+      <button
+        type="button"
+        onClick={() => openFreshTab(href, download)}
         className={cn(
-          "inline-flex rounded-full transition-colors hover:bg-accent",
+          "inline-flex rounded-full transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           className
         )}
       >
         {chip}
-      </a>
+      </button>
     )
   }
 

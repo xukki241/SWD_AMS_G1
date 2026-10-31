@@ -32,8 +32,8 @@ export function VietQrDialog({
   const { toast } = useToast()
 
   const amount = registration?.amount
-  const qrSrc = `https://img.vietqr.io/image/tpbank-0842561752-compact2.png?amount=${
-    amount ?? 5000000
+  const qrSrc = `https://img.vietqr.io/image/mbbank-0842561752-compact2.png?amount=${
+    amount ?? 50000
   }&addInfo=AMS%20${registration?.registrationReference ?? ""}&accountName=NGUYEN%20XUAN%20KIEN`
 
   const confirm = async () => {
@@ -88,7 +88,7 @@ export function VietQrDialog({
           <div className="space-y-1 rounded-lg bg-muted/50 p-3 text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Bank</span>
-              <span className="font-medium">TPBank (Tien Phong)</span>
+              <span className="font-medium">MBBank (Military)</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Account</span>

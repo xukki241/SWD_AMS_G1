@@ -45,3 +45,17 @@ export function CardSkeleton() {
     </div>
   )
 }
+
+/** Skeleton for the centered "Verifying transaction…" payment callback card. */
+export function PaymentResultSkeleton() {
+  return (
+    <div className="w-full max-w-lg rounded-lg border bg-card p-8 text-center shadow-gc">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center">
+        <Skeleton className="h-16 w-16 rounded-full" />
+      </div>
+      <Skeleton className="mx-auto h-6 w-48" />
+      <Skeleton className="mx-auto mt-2 h-3 w-72" />
+      <Skeleton className="mx-auto mt-6 h-10 w-full rounded-full" />
+    </div>
+  )
+}

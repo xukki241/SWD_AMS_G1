@@ -13,6 +13,7 @@ import {
 } from "@/components/classroom/ClassCard"
 import { JoinClassDialog } from "@/components/classroom/JoinClassDialog"
 import { VietQrDialog } from "@/components/classroom/VietQrDialog"
+import { SePayDialog } from "@/components/classroom/SePayDialog"
 import { ErrorState } from "@/components/classroom/ErrorState"
 import { EmptyState } from "@/components/classroom/EmptyState"
 import { StatusBadge } from "@/components/classroom/StatusBadge"
@@ -45,6 +46,7 @@ export default function StudentDashboardPage() {
 
   const [vnPayBusyId, setVnPayBusyId] = useState<number | null>(null)
   const [qrRegistration, setQrRegistration] = useState<Registration | null>(null)
+  const [sepayRegistration, setSepayRegistration] = useState<Registration | null>(null)
 
   const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["student-stats"],
@@ -306,6 +308,13 @@ export default function StudentDashboardPage() {
                           <div className="flex flex-wrap gap-2">
                             <Button
                               size="sm"
+                              onClick={() => setSepayRegistration(reg)}
+                            >
+                              <Wallet className="h-3.5 w-3.5 mr-1" />
+                              SePay (Bank Transfer)
+                            </Button>
+                            <Button
+                              size="sm"
                               onClick={() => payVnPay(reg)}
                               disabled={vnPayBusyId === reg.id}
                             >
@@ -374,6 +383,14 @@ export default function StudentDashboardPage() {
           open={!!qrRegistration}
           onOpenChange={(o) => !o && setQrRegistration(null)}
           registration={qrRegistration}
+        />
+      )}
+
+      {sepayRegistration && (
+        <SePayDialog
+          open={!!sepayRegistration}
+          onOpenChange={(o) => !o && setSepayRegistration(null)}
+          registration={sepayRegistration}
         />
       )}
     </div>

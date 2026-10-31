@@ -46,6 +46,8 @@ public class SecurityConfig {
                                 "/api/files/**",
                                 "/api/payment/vnpay-ipn",
                                 "/api/payment/vnpay-return",
+                                "/api/payment/sepay-ipn",
+                                "/api/payment/sepay-return",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/api-docs/**",

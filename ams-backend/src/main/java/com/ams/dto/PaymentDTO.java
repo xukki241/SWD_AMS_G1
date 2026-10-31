@@ -4,11 +4,20 @@ import com.ams.entity.PaymentTransaction;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 public class PaymentDTO {
 
     public record PaymentUrlResponse(
             String paymentUrl,
+            String transactionRef,
+            BigDecimal amount
+    ) {}
+
+    /** SePay hosted-checkout form: the browser POSTs formFields to checkoutUrl. */
+    public record SePayCheckoutResponse(
+            String checkoutUrl,
+            Map<String, String> formFields,
             String transactionRef,
             BigDecimal amount
     ) {}
