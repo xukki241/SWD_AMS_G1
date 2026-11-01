@@ -22,6 +22,7 @@ import { ErrorState } from "@/components/classroom/ErrorState"
 import { EmptyState } from "@/components/classroom/EmptyState"
 import { StatusBadge } from "@/components/classroom/StatusBadge"
 import { ClassBanner } from "@/components/classroom/ClassBanner"
+import { CreateAssignmentDialog } from "@/components/classroom/CreateAssignmentDialog"
 import { Avatar } from "@/components/ui/avatar"
 import { FileChip } from "@/components/classroom/FileChip"
 import {
@@ -339,6 +340,11 @@ function AssignmentsTab({
       </aside>
 
       <div className="space-y-4">
+        {isStaff && (
+          <div className="flex justify-end">
+            <CreateAssignmentDialog classId={classId} />
+          </div>
+        )}
         {isError ? (
           <ErrorState onRetry={() => refetch()} />
         ) : isLoading ? (
@@ -384,7 +390,11 @@ function AssignmentsTab({
         ) : (
           <EmptyState
             title="Chưa có bài tập"
-            description="Bài tập sẽ hiện ở đây khi giáo viên giao."
+            description={
+              isStaff
+                ? "Nhấn Create để giao bài tập cho lớp này."
+                : "Bài tập sẽ hiện ở đây khi giáo viên giao."
+            }
           />
         )}
       </div>

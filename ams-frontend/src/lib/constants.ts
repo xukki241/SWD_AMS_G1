@@ -38,7 +38,7 @@ export const NAV_ITEMS = {
   TEACHER: [
     { label: 'Dashboard', href: '/teacher', icon: 'LayoutDashboard' },
     { label: 'My Classes', href: '/teacher#classes', icon: 'School' },
-    { label: 'New Classwork', href: '/teacher#new-assignment', icon: 'ClipboardList' },
+    { label: 'To-do', href: '/teacher#todo', icon: 'CheckSquare' },
   ],
   STUDENT: [
     { label: 'Home', href: '/student', icon: 'LayoutDashboard' },

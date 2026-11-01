@@ -8,6 +8,7 @@ import com.ams.entity.SubjectClass;
 import com.ams.entity.Submission;
 import com.ams.entity.SystemConfiguration;
 import com.ams.entity.User;
+import com.ams.exception.BadRequestException;
 import com.ams.exception.ResourceNotFoundException;
 import com.ams.repository.AssignmentClassRepository;
 import com.ams.repository.ClassRegistrationRepository;
@@ -17,6 +18,7 @@ import com.ams.repository.SubmissionRepository;
 import com.ams.repository.SystemConfigurationRepository;
 import com.ams.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,27 +71,33 @@ public class SubjectClassService {
                 .collect(Collectors.toList());
     }
 
-    /** Public catalog for the guest landing page — no auth required. */
+    /** Public catalog for the guest landing page — no auth required. ACTIVE classes only. */
     @Transactional(readOnly = true)
     public List<SubjectClassDTO.SubjectClassResponse> getPublicCatalog() {
-        return getAllClasses();
+        return subjectClassRepository.findByStatus(SubjectClass.ClassStatus.ACTIVE).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    /** Classes the current user belongs to: staff via teacher/expert FK, students via ACTIVE/PENDING registrations. */
+    /** Classes the current user belongs to: staff via teacher/expert FK, students via ACTIVE/PENDING registrations. ACTIVE classes only. */
     @Transactional(readOnly = true)
     public List<SubjectClassDTO.MyClassResponse> getMyClasses() {
         User user = currentUser();
         Map<Long, SubjectClass> classes = new LinkedHashMap<>();
 
-        List<SubjectClass> taught = subjectClassRepository.findByTeacherId(user.getId());
-        taught.forEach(sc -> classes.put(sc.getId(), sc));
-        subjectClassRepository.findByExpertId(user.getId()).forEach(sc -> classes.put(sc.getId(), sc));
+        subjectClassRepository.findByTeacherIdAndStatus(user.getId(), SubjectClass.ClassStatus.ACTIVE)
+                .forEach(sc -> classes.put(sc.getId(), sc));
+        subjectClassRepository.findByExpertIdAndStatus(user.getId(), SubjectClass.ClassStatus.ACTIVE)
+                .forEach(sc -> classes.put(sc.getId(), sc));
 
         List<ClassRegistration> myRegs = registrationRepository.findByStudentId(user.getId());
         for (ClassRegistration reg : myRegs) {
             if (reg.getStatus() == ClassRegistration.RegistrationStatus.ACTIVE
                     || reg.getStatus() == ClassRegistration.RegistrationStatus.PENDING_PAYMENT) {
-                classes.computeIfAbsent(reg.getSubjectClass().getId(), id -> reg.getSubjectClass());
+                SubjectClass sc = reg.getSubjectClass();
+                if (sc.getStatus() == SubjectClass.ClassStatus.ACTIVE) {
+                    classes.computeIfAbsent(sc.getId(), id -> sc);
+                }
             }
         }
 
@@ -120,11 +128,78 @@ public class SubjectClassService {
                 .joinCode(joinCode)
                 .capacity(0)
                 .registrationFee(fee)
+                .status(SubjectClass.ClassStatus.ACTIVE)
                 .build();
 
         sc = subjectClassRepository.save(sc);
         auditLogService.log("CREATE_CLASS", "SubjectClass", sc.getClassCode() + " joinCode=" + sc.getJoinCode());
         return mapToResponse(sc);
+    }
+
+    @Transactional
+    public SubjectClassDTO.SubjectClassResponse updateClass(Long id, SubjectClassDTO.UpdateSubjectClassRequest request) {
+        SubjectClass sc = subjectClassRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Class not found with id: " + id));
+        requireOwningTeacher(sc);
+
+        if (request.className() != null && !request.className().isBlank()) {
+            sc.setClassName(request.className().trim());
+        }
+        String sectionOrTerm = request.section() != null ? request.section() : request.term();
+        if (sectionOrTerm != null) {
+            sc.setTerm(truncate(blankToEmpty(sectionOrTerm), 20));
+        }
+        if (request.room() != null) {
+            sc.setRoom(blankToNull(request.room()));
+        }
+
+        sc = subjectClassRepository.save(sc);
+        auditLogService.log("UPDATE_CLASS", "SubjectClass", sc.getClassCode());
+        return mapToResponse(sc);
+    }
+
+    @Transactional
+    public SubjectClassDTO.SubjectClassResponse archiveClass(Long id) {
+        SubjectClass sc = subjectClassRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Class not found with id: " + id));
+        requireOwningTeacher(sc);
+
+        if (sc.getStatus() == SubjectClass.ClassStatus.ARCHIVED) {
+            throw new BadRequestException("Class is already archived");
+        }
+
+        sc.setStatus(SubjectClass.ClassStatus.ARCHIVED);
+        sc = subjectClassRepository.save(sc);
+        auditLogService.log("ARCHIVE_CLASS", "SubjectClass", sc.getClassCode());
+        return mapToResponse(sc);
+    }
+
+    /** Owning teacher soft-removes a student by setting their registration to CANCELLED. */
+    @Transactional
+    public void removeStudent(Long classId, Long studentId) {
+        SubjectClass sc = subjectClassRepository.findById(classId)
+                .orElseThrow(() -> new ResourceNotFoundException("Class not found with id: " + classId));
+        requireOwningTeacher(sc);
+
+        ClassRegistration reg = registrationRepository.findByStudentIdAndSubjectClassId(studentId, classId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Registration not found for student " + studentId + " in class " + classId));
+
+        if (reg.getStatus() == ClassRegistration.RegistrationStatus.CANCELLED) {
+            throw new BadRequestException("Student is already removed from this class");
+        }
+
+        reg.setStatus(ClassRegistration.RegistrationStatus.CANCELLED);
+        registrationRepository.save(reg);
+        auditLogService.log("REMOVE_STUDENT", "ClassRegistration",
+                reg.getRegistrationReference() + " class=" + sc.getClassCode());
+    }
+
+    private void requireOwningTeacher(SubjectClass sc) {
+        User user = currentUser();
+        if (sc.getTeacher() == null || !user.getId().equals(sc.getTeacher().getId())) {
+            throw new AccessDeniedException("Only the class teacher can modify this class");
+        }
     }
 
     private Subject upsertSubjectFromName(String rawName) {
@@ -283,7 +358,8 @@ public class SubjectClassService {
                 (int) enrolled,
                 (int) assignmentCount,
                 (int) ungradedCount,
-                myReg != null ? myReg.getStatus() : null
+                myReg != null ? myReg.getStatus() : null,
+                sc.getStatus()
         );
     }
 
@@ -306,7 +382,8 @@ public class SubjectClassService {
                 sc.getJoinCode(),
                 sc.getCapacity(),
                 sc.getRegistrationFee(),
-                (int) enrolled
+                (int) enrolled,
+                sc.getStatus()
         );
     }
 

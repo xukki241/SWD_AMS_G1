@@ -18,6 +18,21 @@ export const subjectClassService = {
     const res = await api.put<SubjectClass>(`/subject-classes/${id}`, data);
     return res.data;
   },
+  /** Partial update: className, section/term, room (owning teacher). */
+  patch: async (
+    id: number,
+    data: { className?: string; section?: string; term?: string; room?: string }
+  ): Promise<SubjectClass> => {
+    const res = await api.patch<SubjectClass>(`/subject-classes/${id}`, data);
+    return res.data;
+  },
+  archive: async (id: number): Promise<SubjectClass> => {
+    const res = await api.post<SubjectClass>(`/subject-classes/${id}/archive`);
+    return res.data;
+  },
+  removeStudent: async (classId: number, studentId: number): Promise<void> => {
+    await api.delete(`/subject-classes/${classId}/students/${studentId}`);
+  },
   delete: async (id: number): Promise<void> => {
     await api.delete(`/subject-classes/${id}`);
   },

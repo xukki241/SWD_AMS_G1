@@ -24,6 +24,7 @@ export interface MyClass extends PublicClass {
   assignmentCount?: number
   ungradedCount?: number
   myRegistrationStatus?: "PENDING_PAYMENT" | "ACTIVE" | "CANCELLED" | null
+  status?: "ACTIVE" | "ARCHIVED"
 }
 
 export interface Registration {

@@ -14,4 +14,7 @@ public interface SubjectClassRepository extends JpaRepository<SubjectClass, Long
     List<SubjectClass> findBySubjectId(Long subjectId);
     List<SubjectClass> findByTeacherId(Long teacherId);
     List<SubjectClass> findByExpertId(Long expertId);
+    List<SubjectClass> findByStatus(SubjectClass.ClassStatus status);
+    List<SubjectClass> findByTeacherIdAndStatus(Long teacherId, SubjectClass.ClassStatus status);
+    List<SubjectClass> findByExpertIdAndStatus(Long expertId, SubjectClass.ClassStatus status);
 }

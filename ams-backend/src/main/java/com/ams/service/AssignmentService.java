@@ -5,6 +5,7 @@ import com.ams.entity.*;
 import com.ams.exception.ResourceNotFoundException;
 import com.ams.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -174,6 +175,7 @@ public class AssignmentService {
     public AssignmentDTO.AssignmentResponse updateAssignment(Long id, AssignmentDTO.UpdateAssignmentRequest request) {
         Assignment assignment = assignmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found with id: " + id));
+        requireOwningTeacher(assignment);
 
         if (request.title() != null && !request.title().isBlank()) {
             assignment.setTitle(request.title().trim());
@@ -194,6 +196,13 @@ public class AssignmentService {
         assignment = assignmentRepository.save(assignment);
         auditLogService.log("UPDATE_ASSIGNMENT", "Assignment", assignment.getTitle());
         return mapToResponse(assignment);
+    }
+
+    private void requireOwningTeacher(Assignment assignment) {
+        User user = currentUser();
+        if (assignment.getTeacher() == null || !user.getId().equals(assignment.getTeacher().getId())) {
+            throw new AccessDeniedException("Only the assignment owner can update this assignment");
+        }
     }
 
     private AssignmentDTO.AssignmentResponse mapToResponse(Assignment a) {

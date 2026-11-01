@@ -20,7 +20,6 @@ import {
   ShieldCheck,
   FolderKanban,
   FileText,
-  CalendarDays,
 } from "lucide-react"
 
 type NavLink = {
@@ -51,15 +50,18 @@ function NavItem({
   icon: Icon,
   label,
   active,
+  onNavigate,
 }: {
   href: string
   icon: React.ComponentType<{ className?: string }>
   label: string
   active: boolean
+  onNavigate?: (href: string) => void
 }) {
   return (
     <Link
       href={href}
+      onClick={() => onNavigate?.(href)}
       className={cn(
         "flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium transition-colors",
         active
@@ -124,9 +126,9 @@ export function Sidebar() {
             { name: "Classes", href: "/teacher#classes", icon: Home, section: "classes" },
             {
               name: "To-do",
-              href: "/teacher#new-assignment",
+              href: "/teacher#todo",
               icon: CheckSquare,
-              section: "new-assignment",
+              section: "todo",
             },
           ]
         : isExpert
@@ -152,13 +154,12 @@ export function Sidebar() {
     }
     if (pathname !== base && pathname !== homePath) return false
     if (!link.section) return pathname === link.href
-    if (!hash) {
-      return (
-        link.section === "classes" ||
-        (isAdmin && link.section === "users")
-      )
+    // Empty hash (or #classes) ⇒ Classes; never light To-do on bare /teacher
+    const effectiveHash = hash || "classes"
+    if (isAdmin && !hash) {
+      return link.section === "users"
     }
-    return hash === link.section
+    return effectiveHash === link.section
   }
 
   const activeClassId = (() => {
@@ -177,18 +178,12 @@ export function Sidebar() {
               icon={item.icon}
               label={item.name}
               active={isPrimaryActive(item)}
+              onNavigate={(h) => {
+                const next = h.includes("#") ? h.split("#")[1] || "" : ""
+                setHash(next)
+              }}
             />
           ))}
-
-          {isClassroomUser && !isAdmin && (
-            <div
-              className="flex cursor-default items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium text-muted-foreground/70"
-              title="Calendar coming soon"
-            >
-              <CalendarDays className="h-5 w-5 shrink-0" />
-              <span>Calendar</span>
-            </div>
-          )}
         </div>
 
         {isClassroomUser && !isAdmin && (

@@ -1,22 +1,12 @@
 "use client"
 
-import React, { useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import React, { useMemo } from "react"
+import Link from "next/link"
+import { useQuery } from "@tanstack/react-query"
 import api from "@/lib/axios"
-import { useToast } from "@/lib/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
+import { StatSkeleton } from "@/components/ui/loading"
 import { ClassCard } from "@/components/classroom/ClassCard"
 import { CreateClassDialog } from "@/components/classroom/CreateClassDialog"
 import { ErrorState } from "@/components/classroom/ErrorState"
@@ -27,22 +17,11 @@ import {
   FileText,
   Hourglass,
   CheckCircle2,
-  Plus,
-  Loader2,
   ClipboardList,
+  ChevronRight,
 } from "lucide-react"
 
 export default function TeacherDashboardPage() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-
-  const [title, setTitle] = useState("")
-  const [instructions, setInstructions] = useState("")
-  const [topic, setTopic] = useState("")
-  const [dueAt, setDueAt] = useState("")
-  const [maxScore, setMaxScore] = useState("10")
-  const [classId, setClassId] = useState<string>("")
-
   const { data: stats, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["teacher-stats"],
     queryFn: async () => (await api.get("/dashboard/teacher")).data,
@@ -58,35 +37,13 @@ export default function TeacherDashboardPage() {
     queryFn: async () => (await api.get("/subject-classes/my")).data as MyClass[],
   })
 
-  const createAssignment = useMutation({
-    mutationFn: async () => {
-      await api.post("/assignments", {
-        title: title.trim(),
-        instructions: instructions.trim(),
-        topic: topic.trim() || undefined,
-        dueAt,
-        maxScore: Number(maxScore) || 10,
-        subjectClassId: classId ? Number(classId) : undefined,
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["teacher-my-classes"] })
-      queryClient.invalidateQueries({ queryKey: ["teacher-stats"] })
-      toast({ title: "Classwork created", variant: "success" })
-      setTitle("")
-      setInstructions("")
-      setTopic("")
-      setDueAt("")
-      setMaxScore("10")
-    },
-    onError: (err: any) => {
-      toast({
-        title: "Could not create classwork",
-        description: err.response?.data?.message || "Please check the form.",
-        variant: "destructive",
-      })
-    },
-  })
+  const toGrade = useMemo(
+    () =>
+      (myClasses || [])
+        .filter((c) => (c.ungradedCount ?? 0) > 0)
+        .sort((a, b) => (b.ungradedCount ?? 0) - (a.ungradedCount ?? 0)),
+    [myClasses]
+  )
 
   return (
     <div className="space-y-8">
@@ -94,7 +51,7 @@ export default function TeacherDashboardPage() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Teacher dashboard</h2>
           <p className="text-muted-foreground">
-            Manage your classes, publish classwork, and grade submissions.
+            Manage your classes and grade submissions.
           </p>
         </div>
         <CreateClassDialog />
@@ -157,89 +114,6 @@ export default function TeacherDashboardPage() {
         )}
       </div>
 
-      {/* New classwork */}
-      <section id="new-assignment">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-primary" /> Publish new classwork
-            </CardTitle>
-            <CardDescription>Create an assignment and attach it to one of your classes</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label>Title *</Label>
-                <Input
-                  placeholder="e.g. Weekly programming exercise"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Assign to class</Label>
-                <Select value={classId} onValueChange={setClassId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Optional — pick a class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(myClasses || []).map((c) => (
-                      <SelectItem key={c.id} value={String(c.classId ?? c.id)}>
-                        {c.className}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Due date &amp; time *</Label>
-                <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label>Max score</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={maxScore}
-                  onChange={(e) => setMaxScore(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Topic (optional)</Label>
-                <Input
-                  placeholder="e.g. Đồ án môn học"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <Label>Instructions</Label>
-                <Textarea
-                  placeholder="What should students do? Which file type to submit?"
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-end">
-              <Button
-                onClick={() => createAssignment.mutate()}
-                disabled={!title || !dueAt || createAssignment.isPending}
-              >
-                {createAssignment.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4 mr-1.5" />
-                )}
-                Create classwork
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
       {/* My classes */}
       <section id="classes">
         <div className="mb-4">
@@ -270,11 +144,65 @@ export default function TeacherDashboardPage() {
         )}
       </section>
 
-      {stats && stats.pendingEvaluations > 0 && (
-        <p className="text-sm text-muted-foreground">
-          Tip: open a class and go to the <strong>Assignments</strong> tab to grade pending submissions.
-        </p>
-      )}
+      {/* To-do / grading queue */}
+      <section id="todo" className="space-y-4">
+        <div>
+          <h3 className="text-xl font-bold tracking-tight">To-do</h3>
+          <p className="text-sm text-muted-foreground">
+            Classes with submissions waiting to be graded.
+          </p>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-primary" /> Grading queue
+            </CardTitle>
+            <CardDescription>
+              {stats
+                ? `${stats.pendingEvaluations} submission${stats.pendingEvaluations === 1 ? "" : "s"} awaiting a score`
+                : "Review ungraded work by class"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {classesError ? (
+              <ErrorState onRetry={() => refetchClasses()} />
+            ) : classesLoading ? (
+              <StatSkeleton />
+            ) : toGrade.length > 0 ? (
+              <ul className="divide-y rounded-lg border">
+                {toGrade.map((c) => {
+                  const id = c.classId ?? c.id
+                  return (
+                    <li key={id}>
+                      <Link
+                        href={`/classes/${id}?tab=assignments`}
+                        className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{c.className}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {c.ungradedCount} ungraded
+                            {c.ungradedCount === 1 ? " submission" : " submissions"}
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="sm" className="shrink-0 gap-1">
+                          Grade
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <EmptyState
+                title="Nothing to grade"
+                description="When students submit work, classes needing grades will show up here."
+              />
+            )}
+          </CardContent>
+        </Card>
+      </section>
     </div>
   )
 }

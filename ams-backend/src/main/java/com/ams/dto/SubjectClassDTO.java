@@ -1,6 +1,7 @@
 package com.ams.dto;
 
 import com.ams.entity.ClassRegistration;
+import com.ams.entity.SubjectClass;
 import jakarta.validation.constraints.NotBlank;
 
 import java.math.BigDecimal;
@@ -23,7 +24,8 @@ public class SubjectClassDTO {
             String joinCode,
             Integer capacity,
             BigDecimal registrationFee,
-            Integer enrolledCount
+            Integer enrolledCount,
+            SubjectClass.ClassStatus status
     ) {}
 
     /** Google Classroom-shaped create payload. Server sets teacher, codes, fee, capacity. */
@@ -31,6 +33,14 @@ public class SubjectClassDTO {
             @NotBlank String className,
             String section,
             @NotBlank String subjectName,
+            String room
+    ) {}
+
+    /** Partial update for owning teacher: class details only. */
+    public record UpdateSubjectClassRequest(
+            String className,
+            String section,
+            String term,
             String room
     ) {}
 
@@ -52,6 +62,7 @@ public class SubjectClassDTO {
             Integer enrolledCount,
             Integer assignmentCount,
             Integer ungradedCount,
-            ClassRegistration.RegistrationStatus myRegistrationStatus
+            ClassRegistration.RegistrationStatus myRegistrationStatus,
+            SubjectClass.ClassStatus status
     ) {}
 }

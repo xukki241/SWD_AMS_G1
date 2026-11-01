@@ -51,4 +51,13 @@ public class SubjectClass {
     @Column(name = "registration_fee", nullable = false, precision = 15, scale = 2)
     @Builder.Default
     private BigDecimal registrationFee = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private ClassStatus status = ClassStatus.ACTIVE;
+
+    public enum ClassStatus {
+        ACTIVE, ARCHIVED
+    }
 }

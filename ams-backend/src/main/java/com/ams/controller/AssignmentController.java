@@ -56,9 +56,19 @@ public class AssignmentController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
-    @Operation(summary = "Update an assignment (optional topic, title, instructions, due, maxScore)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Update an assignment (optional topic, title, instructions, due, maxScore); owning teacher only")
     public ResponseEntity<AssignmentDTO.AssignmentResponse> updateAssignment(
+            @PathVariable Long id,
+            @RequestBody AssignmentDTO.UpdateAssignmentRequest request
+    ) {
+        return ResponseEntity.ok(assignmentService.updateAssignment(id, request));
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Partial update assignment (dueAt/title and other fields); owning teacher only")
+    public ResponseEntity<AssignmentDTO.AssignmentResponse> patchAssignment(
             @PathVariable Long id,
             @RequestBody AssignmentDTO.UpdateAssignmentRequest request
     ) {

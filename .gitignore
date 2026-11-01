@@ -50,5 +50,10 @@ ams-db-backup-*.sql
 # Next.js build info
 *.tsbuildinfo
 
+# Playwright
+ams-frontend/test-results/
+ams-frontend/playwright-report/
+ams-frontend/blob-report/
+
 # local file-upload storage (when running backend outside docker)
 ams-backend/storage/

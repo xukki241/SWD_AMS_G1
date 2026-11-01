@@ -72,6 +72,7 @@ export interface SubjectClass {
   capacity?: number;
   registrationFee?: number;
   enrolledCount?: number;
+  status?: 'ACTIVE' | 'ARCHIVED';
 }
 
 /** Google Classroom-shaped create payload. Server sets teacher, codes, fee, capacity. */

@@ -57,4 +57,29 @@ public class SubjectClassController {
     public ResponseEntity<SubjectClassDTO.SubjectClassResponse> createClass(@Valid @RequestBody SubjectClassDTO.CreateSubjectClassRequest request) {
         return ResponseEntity.ok(classService.createClass(request));
     }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Update class details (className, section/term, room); owning teacher only")
+    public ResponseEntity<SubjectClassDTO.SubjectClassResponse> updateClass(
+            @PathVariable Long id,
+            @RequestBody SubjectClassDTO.UpdateSubjectClassRequest request
+    ) {
+        return ResponseEntity.ok(classService.updateClass(id, request));
+    }
+
+    @PostMapping("/{id}/archive")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Soft-archive a class (status=ARCHIVED); owning teacher only")
+    public ResponseEntity<SubjectClassDTO.SubjectClassResponse> archiveClass(@PathVariable Long id) {
+        return ResponseEntity.ok(classService.archiveClass(id));
+    }
+
+    @DeleteMapping("/{id}/students/{studentId}")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Remove/withdraw a student registration from the class; owning teacher only")
+    public ResponseEntity<Void> removeStudent(@PathVariable Long id, @PathVariable Long studentId) {
+        classService.removeStudent(id, studentId);
+        return ResponseEntity.noContent().build();
+    }
 }

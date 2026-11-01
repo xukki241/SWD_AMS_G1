@@ -27,6 +27,20 @@ export const assignmentService = {
     const res = await api.put<Assignment>(`/assignments/${id}`, data);
     return res.data;
   },
+  /** Partial update: title, dueAt, instructions, topic, maxScore (owning teacher). */
+  patch: async (
+    id: number,
+    data: {
+      title?: string;
+      instructions?: string;
+      topic?: string;
+      dueAt?: string;
+      maxScore?: number;
+    }
+  ): Promise<Assignment> => {
+    const res = await api.patch<Assignment>(`/assignments/${id}`, data);
+    return res.data;
+  },
   delete: async (id: number): Promise<void> => {
     await api.delete(`/assignments/${id}`);
   },

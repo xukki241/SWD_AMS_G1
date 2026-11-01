@@ -4,6 +4,7 @@ import com.ams.dto.RegistrationDTO;
 import com.ams.entity.ClassRegistration;
 import com.ams.entity.SubjectClass;
 import com.ams.entity.User;
+import com.ams.exception.BadRequestException;
 import com.ams.exception.DuplicateResourceException;
 import com.ams.exception.ResourceNotFoundException;
 import com.ams.repository.ClassRegistrationRepository;
@@ -64,6 +65,9 @@ public class ClassRegistrationService {
     }
 
     private RegistrationDTO.RegistrationResponse createRegistration(User student, SubjectClass subjectClass) {
+        if (subjectClass.getStatus() == SubjectClass.ClassStatus.ARCHIVED) {
+            throw new BadRequestException("This class has been archived and is no longer accepting registrations");
+        }
         if (registrationRepository.existsByStudentIdAndSubjectClassId(student.getId(), subjectClass.getId())) {
             throw new DuplicateResourceException("You have already registered for class: " + subjectClass.getClassCode());
         }
