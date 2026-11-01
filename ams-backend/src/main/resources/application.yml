@@ -40,12 +40,18 @@ vnpay:
 
 sepay:
   env: ${SEPAY_ENV:production}
-  merchant-id: ${SEPAY_MERCHANT_ID:SP-LIVE-NX3AAB5B}
+  merchant-id: ${SEPAY_MERCHANT_ID:SP-LIVE-NX3AA858}
   secret-key: ${SEPAY_SECRET_KEY:spsk_live_7P92E5XYPkpNKJwkokzUcFKbuht253cU}
   success-url: ${SEPAY_SUCCESS_URL:http://localhost:3000/payment/sepay-return}
   error-url: ${SEPAY_ERROR_URL:http://localhost:3000/payment/sepay-return?result=error}
   cancel-url: ${SEPAY_CANCEL_URL:http://localhost:3000/payment/sepay-return?result=cancel}
   ipn-url: ${SEPAY_IPN_URL:http://localhost:8080/api/payment/sepay-ipn}
+
+# Local disk storage for class materials / uploads (override via FILE_STORAGE_*)
+file:
+  storage:
+    path: ${FILE_STORAGE_PATH:./storage/files}
+    base-url: ${FILE_STORAGE_BASE_URL:http://localhost:8080}
 
 springdoc:
   api-docs:

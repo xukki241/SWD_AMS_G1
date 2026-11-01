@@ -40,7 +40,7 @@ services:
       VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/payment/return}
       VNPAY_IPN_URL: ${VNPAY_IPN_URL:-http://host.docker.internal:8080/api/payment/vnpay-ipn}
       SEPAY_ENV: ${SEPAY_ENV:-production}
-      SEPAY_MERCHANT_ID: ${SEPAY_MERCHANT_ID:-SP-LIVE-NX3AAB5B}
+      SEPAY_MERCHANT_ID: ${SEPAY_MERCHANT_ID:-SP-LIVE-NX3AA858}
       SEPAY_SECRET_KEY: ${SEPAY_SECRET_KEY:-spsk_live_7P92E5XYPkpNKJwkokzUcFKbuht253cU}
       SEPAY_SUCCESS_URL: ${SEPAY_SUCCESS_URL:-http://localhost:3000/payment/sepay-return}
       SEPAY_ERROR_URL: ${SEPAY_ERROR_URL:-http://localhost:3000/payment/sepay-return?result=error}

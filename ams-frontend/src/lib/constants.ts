@@ -26,7 +26,6 @@ export const NAV_ITEMS = {
   ADMIN: [
     { label: 'Dashboard', href: '/admin', icon: 'LayoutDashboard' },
     { label: 'Users & Roles', href: '/admin#users', icon: 'Users' },
-    { label: 'Subjects', href: '/admin#subjects', icon: 'BookOpen' },
     { label: 'Classes', href: '/admin#classes', icon: 'School' },
     { label: 'Audit Trail', href: '/admin#audit', icon: 'ShieldCheck' },
   ],
