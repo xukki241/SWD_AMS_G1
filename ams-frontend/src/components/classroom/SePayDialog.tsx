@@ -3,6 +3,7 @@
 import React, { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/axios"
+import { paymentService } from "@/services/payment.service"
 import { useToast } from "@/lib/use-toast"
 import {
   Dialog,
@@ -48,8 +49,8 @@ export function SePayDialog({
     setLoading(true)
     setError(null)
     try {
-      const res = await api.post<SePayCheckout>(`/payment/create-sepay/${registration.id}`)
-      setCheckout(res.data)
+      const data = await paymentService.createSePayPayment(registration.id)
+      setCheckout(data)
     } catch (err: any) {
       setError(err.response?.data?.message || "Could not start SePay payment.")
     } finally {

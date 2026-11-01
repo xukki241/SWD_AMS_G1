@@ -277,9 +277,9 @@ public class PaymentService {
         fields.put("order_amount", String.valueOf(amount.longValue()));
         fields.put("currency", "VND");
         fields.put("order_description", "AMS tuition " + registration.getSubjectClass().getClassCode());
-        fields.put("success_url", sePayConfig.getSuccessUrl() + "?ref=" + txnRef);
-        fields.put("error_url", sePayConfig.getErrorUrl());
-        fields.put("cancel_url", sePayConfig.getCancelUrl() + "?ref=" + txnRef);
+        fields.put("success_url", appendRef(sePayConfig.getSuccessUrl(), txnRef));
+        fields.put("error_url", appendRef(sePayConfig.getErrorUrl(), txnRef));
+        fields.put("cancel_url", appendRef(sePayConfig.getCancelUrl(), txnRef));
         fields.put("signature", sePaySignature(fields));
 
         PaymentTransaction txn = PaymentTransaction.builder()
@@ -347,6 +347,12 @@ public class PaymentService {
     }
 
     /** HMAC-SHA256(base64) over "field=value" pairs joined with ',' — matches the SDK. */
+
+    private String appendRef(String url, String ref) {
+        if (url == null || url.isEmpty()) return url;
+        String separator = url.contains("?") ? "&" : "?";
+        return url + separator + "ref=" + ref;
+    }
     private String sePaySignature(Map<String, String> fields) {
         List<String> parts = new ArrayList<>();
         for (String name : SEPAY_SIGNED_FIELDS) {

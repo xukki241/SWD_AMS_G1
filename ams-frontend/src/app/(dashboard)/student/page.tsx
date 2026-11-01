@@ -274,7 +274,7 @@ export default function StudentDashboardPage() {
                 <CreditCard className="h-5 w-5 text-primary" /> Tuition & payments
               </CardTitle>
               <CardDescription>
-                Pay pending enrollments (sandbox — no real money moves)
+                Pay pending enrollments via SePay (live bank transfer) or VNPay / VietQR sandbox
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
