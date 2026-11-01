@@ -2,15 +2,13 @@
 
 import React, { useMemo, useState } from "react"
 import Link from "next/link"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import api from "@/lib/axios"
 import { useToast } from "@/lib/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
-import {
-  ClassCard,
-} from "@/components/classroom/ClassCard"
+import { ClassCard } from "@/components/classroom/ClassCard"
 import { JoinClassDialog } from "@/components/classroom/JoinClassDialog"
 import { VietQrDialog } from "@/components/classroom/VietQrDialog"
 import { SePayDialog } from "@/components/classroom/SePayDialog"
@@ -29,29 +27,21 @@ import {
   AssignmentOverviewItem,
 } from "@/components/classroom/classroomTypes"
 import {
-  FolderKanban,
-  GraduationCap,
   Clock,
   CreditCard,
   ExternalLink,
   Wallet,
   Loader2,
   QrCode,
-  CheckCircle2,
+  Plus,
 } from "lucide-react"
 
 export default function StudentDashboardPage() {
-  const queryClient = useQueryClient()
   const { toast } = useToast()
 
   const [vnPayBusyId, setVnPayBusyId] = useState<number | null>(null)
   const [qrRegistration, setQrRegistration] = useState<Registration | null>(null)
   const [sepayRegistration, setSepayRegistration] = useState<Registration | null>(null)
-
-  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useQuery({
-    queryKey: ["student-stats"],
-    queryFn: async () => (await api.get("/dashboard/student")).data,
-  })
 
   const { data: myClasses, isLoading: classesLoading, isError: classesError, refetch: refetchClasses } = useQuery({
     queryKey: ["student-my-classes"],
@@ -87,6 +77,16 @@ export default function StudentDashboardPage() {
     [overview]
   )
 
+  const upcomingByClass = useMemo(() => {
+    const map = new Map<number, AssignmentOverviewItem>()
+    for (const o of upcoming) {
+      if (!map.has(o.classId) && o.workState !== "GRADED") {
+        map.set(o.classId, o)
+      }
+    }
+    return map
+  }, [upcoming])
+
   const payVnPay = async (reg: Registration) => {
     setVnPayBusyId(reg.id)
     try {
@@ -107,118 +107,76 @@ export default function StudentDashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Hi, welcome back 👋</h2>
-          <p className="text-muted-foreground">
-            Join classes, track deadlines, and manage your tuition in one place.
+          <h2 className="text-2xl font-semibold tracking-tight">Lớp học</h2>
+          <p className="text-sm text-muted-foreground">
+            Mở lớp để xem bảng tin, bài tập và mọi người.
           </p>
         </div>
         <div id="find" className="flex gap-2">
-          <JoinClassDialog />
+          <JoinClassDialog defaultLabel="Tham gia lớp học" />
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        {stats ? (
-          <>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">My Classes</CardTitle>
-                <FolderKanban className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.activeClasses}</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats.totalRegistrations} total enrollments
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Submitted</CardTitle>
-                <GraduationCap className="h-4 w-4 text-emerald-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.submittedAssignments}</div>
-                <p className="text-xs text-muted-foreground">works handed in</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Graded</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.gradedAssignments}</div>
-                <p className="text-xs text-muted-foreground">with final scores</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                <Wallet className="h-4 w-4 text-amber-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {stats.averageScore != null ? Number(stats.averageScore).toFixed(1) : "—"}
-                </div>
-                <p className="text-xs text-muted-foreground">across graded work</p>
-              </CardContent>
-            </Card>
-          </>
-        ) : statsError ? (
-          <ErrorState onRetry={() => refetchStats()} />
-        ) : (
-          <>
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-          </>
-        )}
-      </div>
-
-      {/* My classes */}
+      {/* Classes grid — first viewport, GC composition */}
       <section id="classes">
-        <div className="mb-4 flex items-end justify-between">
-          <div>
-            <h3 className="text-xl font-bold tracking-tight">My classes</h3>
-            <p className="text-sm text-muted-foreground">
-              Open a class to see its stream, assignments, and people.
-            </p>
-          </div>
-        </div>
         {classesError ? (
           <ErrorState onRetry={() => refetchClasses()} />
         ) : classesLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
               <StatSkeleton key={i} />
             ))}
           </div>
-        ) : myClasses && myClasses.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {myClasses.map((c) => (
-              <ClassCard key={c.classId ?? c.id} data={c} showMyStatus />
-            ))}
-          </div>
         ) : (
-          <EmptyState
-            title="No classes yet"
-            description="Use “Join a class” to enroll with a 6-character join code."
-          />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {(myClasses || []).map((c) => {
+              const id = c.classId ?? c.id
+              const next = upcomingByClass.get(id)
+              return (
+                <ClassCard
+                  key={id}
+                  data={c}
+                  showMyStatus
+                  upcomingTitle={next?.title}
+                  upcomingDueAt={next?.dueAt}
+                />
+              )
+            })}
+
+            {/* Dashed join tile */}
+            <JoinClassDialog
+              defaultLabel="Tham gia lớp học mới"
+              trigger={
+                <button
+                  type="button"
+                  className="flex min-h-[220px] w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border bg-card/40 p-6 text-muted-foreground transition-colors hover:border-[hsl(var(--success))] hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-current">
+                    <Plus className="h-6 w-6" />
+                  </span>
+                  <span className="text-sm font-medium">Tham gia lớp học mới</span>
+                  <span className="text-xs text-muted-foreground">Nhập mã lớp 6 ký tự</span>
+                </button>
+              }
+            />
+          </div>
+        )}
+
+        {!classesLoading && !classesError && (!myClasses || myClasses.length === 0) && (
+          <p className="mt-3 text-center text-sm text-muted-foreground">
+            Chưa có lớp — dùng ô &ldquo;Tham gia lớp học mới&rdquo; để ghi danh.
+          </p>
         )}
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Upcoming deadlines */}
         <section id="work">
-          <Card>
+          <Card className="shadow-gc">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" /> Upcoming deadlines
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Clock className="h-5 w-5 text-[hsl(var(--success))]" /> Sắp đến hạn
               </CardTitle>
-              <CardDescription>Your classwork sorted by due date</CardDescription>
+              <CardDescription>Bài tập sắp tới theo hạn nộp</CardDescription>
             </CardHeader>
             <CardContent>
               {overviewError ? (
@@ -227,7 +185,7 @@ export default function StudentDashboardPage() {
                 <TableSkeleton rows={3} cols={3} />
               ) : upcoming.length > 0 ? (
                 <ul className="space-y-2">
-                  {upcoming.map((o) => {
+                  {upcoming.slice(0, 8).map((o) => {
                     const pastDue = new Date(o.dueAt).getTime() < Date.now()
                     return (
                       <li
@@ -237,19 +195,19 @@ export default function StudentDashboardPage() {
                         <div className="min-w-0">
                           <div className="truncate font-medium text-foreground">{o.title}</div>
                           <div className="truncate text-xs text-muted-foreground">
-                            {o.className} · due {formatDate(o.dueAt)}
+                            {o.className} · hạn {formatDate(o.dueAt)}
                             {pastDue && o.workState !== "GRADED" && (
-                              <span className="ml-1 text-amber-600">(past due)</span>
+                              <span className="ml-1 text-amber-600">(quá hạn)</span>
                             )}
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <StatusBadge status={o.workState} />
                           <Link
-                            href={`/classes/${o.classId}`}
+                            href={`/classes/${o.classId}/assignments/${o.assignmentId}`}
                             className="text-xs font-medium text-primary hover:underline"
                           >
-                            Open
+                            Mở
                           </Link>
                         </div>
                       </li>
@@ -258,23 +216,22 @@ export default function StudentDashboardPage() {
                 </ul>
               ) : (
                 <EmptyState
-                  title="No pending work"
-                  description="Deadlines will appear here once your teachers assign classwork."
+                  title="Không có bài sắp đến hạn"
+                  description="Bài tập sẽ hiện ở đây khi giáo viên giao."
                 />
               )}
             </CardContent>
           </Card>
         </section>
 
-        {/* Payments */}
         <section id="payments">
-          <Card>
+          <Card className="shadow-gc">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" /> Tuition & payments
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CreditCard className="h-5 w-5 text-[hsl(var(--success))]" /> Học phí & thanh toán
               </CardTitle>
               <CardDescription>
-                Pay pending enrollments via SePay (live bank transfer) or VNPay / VietQR sandbox
+                SePay (chuyển khoản), VNPay / VietQR sandbox
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -291,7 +248,7 @@ export default function StudentDashboardPage() {
                 <>
                   {pendingRegs.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-sm font-semibold text-foreground">Awaiting payment</p>
+                      <p className="text-sm font-semibold text-foreground">Chờ thanh toán</p>
                       {pendingRegs.map((reg) => (
                         <div
                           key={reg.id}
@@ -308,13 +265,16 @@ export default function StudentDashboardPage() {
                           <div className="flex flex-wrap gap-2">
                             <Button
                               size="sm"
+                              className="rounded-full"
                               onClick={() => setSepayRegistration(reg)}
                             >
                               <Wallet className="h-3.5 w-3.5 mr-1" />
-                              SePay (Bank Transfer)
+                              SePay
                             </Button>
                             <Button
                               size="sm"
+                              variant="outline"
+                              className="rounded-full"
                               onClick={() => payVnPay(reg)}
                               disabled={vnPayBusyId === reg.id}
                             >
@@ -323,15 +283,16 @@ export default function StudentDashboardPage() {
                               ) : (
                                 <ExternalLink className="h-3.5 w-3.5 mr-1" />
                               )}
-                              Pay via VNPay (Sandbox)
+                              VNPay
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
+                              className="rounded-full"
                               onClick={() => setQrRegistration(reg)}
                             >
                               <QrCode className="h-3.5 w-3.5 mr-1" />
-                              VietQR (Sandbox)
+                              VietQR
                             </Button>
                           </div>
                         </div>
@@ -341,7 +302,7 @@ export default function StudentDashboardPage() {
 
                   <div>
                     <p className="mb-2 text-sm font-semibold text-foreground">
-                      Payment history
+                      Lịch sử thanh toán
                     </p>
                     {payments && payments.length > 0 ? (
                       <ul className="space-y-1.5">
@@ -368,7 +329,7 @@ export default function StudentDashboardPage() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-muted-foreground">No payments yet.</p>
+                      <p className="text-xs text-muted-foreground">Chưa có giao dịch.</p>
                     )}
                   </div>
                 </>

@@ -33,6 +33,7 @@ public class AssignmentDTO {
             Long templateId,
             String title,
             String instructions,
+            String topic,
             LocalDateTime dueAt,
             BigDecimal maxScore
     ) {}
@@ -41,9 +42,18 @@ public class AssignmentDTO {
             Long templateId,
             @NotBlank String title,
             String instructions,
+            String topic,
             @NotNull LocalDateTime dueAt,
             BigDecimal maxScore,
             Long subjectClassId
+    ) {}
+
+    public record UpdateAssignmentRequest(
+            String title,
+            String instructions,
+            String topic,
+            LocalDateTime dueAt,
+            BigDecimal maxScore
     ) {}
 
     public record AllocateClassRequest(
@@ -60,6 +70,7 @@ public class AssignmentDTO {
             Long assignmentId,
             String title,
             String instructions,
+            String topic,
             LocalDateTime dueAt,
             BigDecimal maxScore,
             String workState, // NOT_STARTED, DRAFT, SUBMITTED, LATE, GRADED

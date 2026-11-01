@@ -1,10 +1,8 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import api from "@/lib/axios"
 import { paymentService } from "@/services/payment.service"
-import { useToast } from "@/lib/use-toast"
 import {
   Dialog,
   DialogContent,
@@ -41,36 +39,56 @@ export function SePayDialog({
   const [checkout, setCheckout] = useState<SePayCheckout | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [redirecting, setRedirecting] = useState(false)
+  const autoSubmittedRef = useRef(false)
   const queryClient = useQueryClient()
-  const { toast } = useToast()
 
-  const load = async () => {
-    if (!registration) return
+  // Reset state when dialog closes or registration changes.
+  useEffect(() => {
+    if (!open) {
+      setCheckout(null)
+      setLoading(false)
+      setError(null)
+      setRedirecting(false)
+      autoSubmittedRef.current = false
+    }
+  }, [open])
+
+  // Load signed checkout when the dialog opens for a registration.
+  useEffect(() => {
+    if (!open || !registration?.id) return
+
+    let cancelled = false
     setLoading(true)
     setError(null)
-    try {
-      const data = await paymentService.createSePayPayment(registration.id)
-      setCheckout(data)
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Could not start SePay payment.")
-    } finally {
-      setLoading(false)
+    setCheckout(null)
+    setRedirecting(false)
+    autoSubmittedRef.current = false
+
+    paymentService
+      .createSePayPayment(registration.id)
+      .then((data) => {
+        if (!cancelled) setCheckout(data)
+      })
+      .catch((err: any) => {
+        if (!cancelled) {
+          setError(err.response?.data?.message || "Could not start SePay payment.")
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
     }
-  }
+  }, [open, registration?.id])
 
-  // Fetch the signed checkout form whenever the dialog opens for a registration.
-  const openForId = registration?.id ?? null
-  if (open && openForId && !checkout && !loading && !error) {
-    void load()
-  }
-
-  const submit = () => {
-    if (!checkout) return
-    // Build + submit the form in-memory (no network call — SePay handles it).
+  const submitToSePay = (data: SePayCheckout) => {
     const form = document.createElement("form")
     form.method = "POST"
-    form.action = checkout.checkoutUrl
-    for (const [name, value] of Object.entries(checkout.formFields)) {
+    form.action = data.checkoutUrl
+    for (const [name, value] of Object.entries(data.formFields)) {
       const input = document.createElement("input")
       input.type = "hidden"
       input.name = name
@@ -80,10 +98,17 @@ export function SePayDialog({
     document.body.appendChild(form)
     form.submit()
     document.body.removeChild(form)
-    onOpenChange(false)
     queryClient.invalidateQueries({ queryKey: ["student-payments"] })
     queryClient.invalidateQueries({ queryKey: ["student-registrations"] })
   }
+
+  // Auto-submit the hidden POST form once checkout is ready.
+  useEffect(() => {
+    if (!checkout || autoSubmittedRef.current) return
+    autoSubmittedRef.current = true
+    setRedirecting(true)
+    submitToSePay(checkout)
+  }, [checkout])
 
   const amount = checkout?.amount ?? registration?.amount
 
@@ -96,14 +121,25 @@ export function SePayDialog({
             <DialogTitle>Pay tuition — SePay (bank transfer)</DialogTitle>
           </div>
           <DialogDescription>
-            You will be redirected to SePay to complete a bank transfer of{" "}
-            <span className="font-semibold text-emerald-600">{formatVnd(amount)}</span>.
+            {redirecting ? (
+              <>Redirecting to SePay…</>
+            ) : (
+              <>
+                You will be redirected to SePay to complete a bank transfer of{" "}
+                <span className="font-semibold text-emerald-600">{formatVnd(amount)}</span>.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
         {error ? (
           <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
+          </div>
+        ) : redirecting || loading ? (
+          <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {redirecting ? "Redirecting to SePay…" : "Preparing checkout…"}
           </div>
         ) : checkout ? (
           <div className="space-y-2 rounded-lg bg-muted/50 p-3 text-xs">
@@ -130,14 +166,18 @@ export function SePayDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button onClick={submit} disabled={!checkout || loading}>
-            {loading ? (
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-            ) : (
+          {checkout && (
+            <Button
+              onClick={() => {
+                setRedirecting(true)
+                submitToSePay(checkout)
+              }}
+              disabled={loading}
+            >
               <ExternalLink className="h-4 w-4 mr-1.5" />
-            )}
-            Open SePay
-          </Button>
+              Open SePay
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

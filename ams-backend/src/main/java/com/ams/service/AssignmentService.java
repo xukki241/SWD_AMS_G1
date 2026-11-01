@@ -68,6 +68,7 @@ public class AssignmentService {
                 .template(template)
                 .title(request.title())
                 .instructions(request.instructions())
+                .topic(blankToNull(request.topic()))
                 .dueAt(request.dueAt())
                 .maxScore(request.maxScore() != null ? request.maxScore() : BigDecimal.TEN)
                 .build();
@@ -157,6 +158,7 @@ public class AssignmentService {
                         a.getId(),
                         a.getTitle(),
                         a.getInstructions(),
+                        a.getTopic(),
                         a.getDueAt(),
                         a.getMaxScore(),
                         workState,
@@ -168,6 +170,32 @@ public class AssignmentService {
         return items;
     }
 
+    @Transactional
+    public AssignmentDTO.AssignmentResponse updateAssignment(Long id, AssignmentDTO.UpdateAssignmentRequest request) {
+        Assignment assignment = assignmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found with id: " + id));
+
+        if (request.title() != null && !request.title().isBlank()) {
+            assignment.setTitle(request.title().trim());
+        }
+        if (request.instructions() != null) {
+            assignment.setInstructions(request.instructions());
+        }
+        if (request.topic() != null) {
+            assignment.setTopic(blankToNull(request.topic()));
+        }
+        if (request.dueAt() != null) {
+            assignment.setDueAt(request.dueAt());
+        }
+        if (request.maxScore() != null) {
+            assignment.setMaxScore(request.maxScore());
+        }
+
+        assignment = assignmentRepository.save(assignment);
+        auditLogService.log("UPDATE_ASSIGNMENT", "Assignment", assignment.getTitle());
+        return mapToResponse(assignment);
+    }
+
     private AssignmentDTO.AssignmentResponse mapToResponse(Assignment a) {
         return new AssignmentDTO.AssignmentResponse(
                 a.getId(),
@@ -176,9 +204,16 @@ public class AssignmentService {
                 a.getTemplate() != null ? a.getTemplate().getId() : null,
                 a.getTitle(),
                 a.getInstructions(),
+                a.getTopic(),
                 a.getDueAt(),
                 a.getMaxScore()
         );
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private User currentUser() {

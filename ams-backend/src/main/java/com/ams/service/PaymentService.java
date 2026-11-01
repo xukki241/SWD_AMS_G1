@@ -245,13 +245,11 @@ public class PaymentService {
     // so it can be built entirely in Java with no Node sidecar.
     // ------------------------------------------------------------------
 
-    /** Fixed signing field order — mirrors sepay-pg-node Checkout.signFields. */
+    /** Official SePay form API signed-field order (skip missing). */
     private static final List<String> SEPAY_SIGNED_FIELDS = List.of(
-            "merchant", "env", "operation", "payment_method", "order_amount",
-            "currency", "order_invoice_number", "order_description", "customer_id",
-            "agreement_id", "agreement_name", "agreement_type",
-            "agreement_payment_frequency", "agreement_amount_per_payment",
-            "success_url", "error_url", "cancel_url", "order_id");
+            "order_amount", "merchant", "currency", "operation",
+            "order_description", "order_invoice_number", "customer_id",
+            "payment_method", "success_url", "error_url", "cancel_url");
 
     /**
      * Build the SePay hosted-checkout form for a registration. The returned

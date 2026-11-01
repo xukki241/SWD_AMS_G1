@@ -1,6 +1,6 @@
 import { Users, KeyRound } from "lucide-react"
 import type { MyClass } from "@/components/classroom/classroomTypes"
-import { avatarHex, classInitial, formatVnd } from "@/components/classroom/format"
+import { classBannerColor, classInitial, formatVnd } from "@/components/classroom/format"
 
 export function ClassBanner({
   data,
@@ -9,12 +9,12 @@ export function ClassBanner({
   data: MyClass
   isStaff: boolean
 }) {
-  const hex = avatarHex(data.className)
+  const banner = classBannerColor(data.className)
   return (
     <div
       className="relative overflow-hidden rounded-xl p-6 text-white shadow-gc"
       style={{
-        background: `linear-gradient(135deg, ${hex} 0%, #0b57d0 100%)`,
+        background: `linear-gradient(135deg, ${banner.hex} 0%, #0b57d0 100%)`,
       }}
     >
       <div className="flex flex-wrap items-center gap-4">
@@ -35,9 +35,11 @@ export function ClassBanner({
               {data.enrolledCount}
               {data.capacity > 0 ? ` / ${data.capacity}` : ""} enrolled
             </span>
-            <span className="rounded-full bg-white/15 px-2 py-0.5 font-medium">
-              {formatVnd(data.registrationFee)}
-            </span>
+            {Number(data.registrationFee) > 0 && (
+              <span className="rounded-full bg-white/15 px-2 py-0.5 font-medium">
+                {formatVnd(data.registrationFee)}
+              </span>
+            )}
           </div>
         </div>
         {isStaff && data.joinCode && (

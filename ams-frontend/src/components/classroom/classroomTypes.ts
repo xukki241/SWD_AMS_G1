@@ -57,6 +57,7 @@ export interface AssignmentItem {
   templateId?: number | null
   title: string
   instructions: string
+  topic?: string | null
   dueAt: string
   maxScore: number
 }
@@ -68,6 +69,7 @@ export interface AssignmentOverviewItem {
   assignmentId: number
   title: string
   instructions: string
+  topic?: string | null
   dueAt: string
   maxScore: number
   workState: "NOT_STARTED" | "DRAFT" | "SUBMITTED" | "LATE" | "GRADED"

@@ -55,6 +55,16 @@ public class AssignmentController {
         return ResponseEntity.ok(assignmentService.createAssignment(request));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @Operation(summary = "Update an assignment (optional topic, title, instructions, due, maxScore)")
+    public ResponseEntity<AssignmentDTO.AssignmentResponse> updateAssignment(
+            @PathVariable Long id,
+            @RequestBody AssignmentDTO.UpdateAssignmentRequest request
+    ) {
+        return ResponseEntity.ok(assignmentService.updateAssignment(id, request));
+    }
+
     @PostMapping("/allocate")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Allocate assignment to a class")

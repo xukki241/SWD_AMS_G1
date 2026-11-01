@@ -46,4 +46,12 @@ public class SubmissionController {
     public ResponseEntity<List<SubmissionDTO.SubmissionResponse>> getMySubmissions() {
         return ResponseEntity.ok(submissionService.getMySubmissions());
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Unsubmit (withdraw) own non-graded submission")
+    public ResponseEntity<Void> unsubmit(@PathVariable Long id) {
+        submissionService.unsubmit(id);
+        return ResponseEntity.noContent().build();
+    }
 }

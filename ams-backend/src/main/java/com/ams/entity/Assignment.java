@@ -32,6 +32,10 @@ public class Assignment {
     @Column(columnDefinition = "TEXT")
     private String instructions;
 
+    /** Optional classwork topic for GC-style grouping (e.g. "Đồ án môn học"). */
+    @Column(length = 120)
+    private String topic;
+
     @Column(name = "due_at", nullable = false)
     private LocalDateTime dueAt;
 

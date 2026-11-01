@@ -38,6 +38,7 @@ export default function TeacherDashboardPage() {
 
   const [title, setTitle] = useState("")
   const [instructions, setInstructions] = useState("")
+  const [topic, setTopic] = useState("")
   const [dueAt, setDueAt] = useState("")
   const [maxScore, setMaxScore] = useState("10")
   const [classId, setClassId] = useState<string>("")
@@ -62,6 +63,7 @@ export default function TeacherDashboardPage() {
       await api.post("/assignments", {
         title: title.trim(),
         instructions: instructions.trim(),
+        topic: topic.trim() || undefined,
         dueAt,
         maxScore: Number(maxScore) || 10,
         subjectClassId: classId ? Number(classId) : undefined,
@@ -73,6 +75,7 @@ export default function TeacherDashboardPage() {
       toast({ title: "Classwork created", variant: "success" })
       setTitle("")
       setInstructions("")
+      setTopic("")
       setDueAt("")
       setMaxScore("10")
     },
@@ -200,6 +203,14 @@ export default function TeacherDashboardPage() {
                   step={0.5}
                   value={maxScore}
                   onChange={(e) => setMaxScore(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Topic (optional)</Label>
+                <Input
+                  placeholder="e.g. Đồ án môn học"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
                 />
               </div>
               <div className="space-y-1 sm:col-span-2">

@@ -106,6 +106,30 @@ public class SubmissionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * GC-style "Unsubmit": student withdraws a non-graded submission so they can edit and turn in again.
+     */
+    @Transactional
+    public void unsubmit(Long submissionId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User student = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + username));
+
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found: " + submissionId));
+
+        if (!submission.getClassRegistration().getStudent().getId().equals(student.getId())) {
+            throw new BadRequestException("You can only unsubmit your own work");
+        }
+        if (submission.getSubmissionStatus() == Submission.SubmissionStatus.GRADED) {
+            throw new BadRequestException("Graded work cannot be unsubmitted");
+        }
+
+        evaluationRepository.findBySubmissionId(submissionId).ifPresent(evaluationRepository::delete);
+        submissionRepository.delete(submission);
+        auditLogService.log("UNSUBMIT_ASSIGNMENT", "Submission", "SubId:" + submissionId);
+    }
+
     public SubmissionDTO.SubmissionResponse mapToResponse(Submission s) {
         EvaluationDTO.EvaluationResponse evalDto = null;
         AssignmentEvaluation eval = evaluationRepository.findBySubmissionId(s.getId()).orElse(null);

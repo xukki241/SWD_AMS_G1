@@ -125,3 +125,15 @@ export function avatarColor(seed: string): string {
 export function avatarHex(seed: string): string {
   return AVATAR_HEX[seedHash(seed) % AVATAR_HEX.length]
 }
+
+/** GC class-card header palette: green / blue / teal / brown */
+const CLASS_BANNER = [
+  { bg: "bg-[#1967d2]", hex: "#1967d2" }, // blue
+  { bg: "bg-[#137333]", hex: "#137333" }, // green
+  { bg: "bg-[#00786a]", hex: "#00786a" }, // teal
+  { bg: "bg-[#8d6e63]", hex: "#8d6e63" }, // brown
+] as const
+
+export function classBannerColor(seed: string): (typeof CLASS_BANNER)[number] {
+  return CLASS_BANNER[seedHash(seed) % CLASS_BANNER.length]
+}
