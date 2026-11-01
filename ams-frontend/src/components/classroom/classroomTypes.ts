@@ -12,6 +12,7 @@ export interface PublicClass {
   classCode: string
   className: string
   term: string
+  room?: string | null
   joinCode: string
   capacity: number
   registrationFee: number

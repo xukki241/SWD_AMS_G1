@@ -1,61 +1,75 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuthStore } from "@/stores/authStore"
 import { cn } from "@/lib/utils"
 import api from "@/lib/axios"
-import type { AssignmentOverviewItem } from "@/components/classroom/classroomTypes"
 import {
-  LayoutDashboard,
+  classBannerColor,
+  classInitial,
+} from "@/components/classroom/format"
+import type { MyClass } from "@/components/classroom/classroomTypes"
+import {
+  Home,
+  CheckSquare,
+  CreditCard,
+  Users,
+  ShieldCheck,
   FolderKanban,
   FileText,
-  CheckSquare,
-  GraduationCap,
-  CreditCard,
-  ShieldCheck,
-  BookMarked,
-  Users,
-  Search,
+  CalendarDays,
 } from "lucide-react"
 
-function SubmissionProgressRing({
-  submitted,
-  total,
-}: {
-  submitted: number
-  total: number
-}) {
-  const pct = total > 0 ? Math.min(100, Math.round((submitted / total) * 100)) : 0
-  const r = 16
-  const c = 2 * Math.PI * r
-  const offset = c - (pct / 100) * c
+type NavLink = {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  /** Hash section on the role home page (student/teacher/expert/admin) */
+  section?: string
+}
 
+function ClassDot({ name }: { name: string }) {
+  const banner = classBannerColor(name)
   return (
-    <div className="mx-3 mb-3 flex items-center gap-3 rounded-xl bg-muted/60 px-3 py-2.5">
-      <svg width="40" height="40" viewBox="0 0 40 40" className="shrink-0 -rotate-90">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="3" />
-        <circle
-          cx="20"
-          cy="20"
-          r={r}
-          fill="none"
-          stroke="hsl(var(--success))"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-        />
-      </svg>
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-foreground">Tiến độ nộp bài</p>
-        <p className="text-[11px] text-muted-foreground">
-          {submitted}/{total} đã nộp ({pct}%)
-        </p>
-      </div>
-    </div>
+    <span
+      className={cn(
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white",
+        banner.bg
+      )}
+      aria-hidden
+    >
+      {classInitial(name)}
+    </span>
+  )
+}
+
+function NavItem({
+  href,
+  icon: Icon,
+  label,
+  active,
+}: {
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  active: boolean
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium transition-colors",
+        active
+          ? "bg-[hsl(var(--success))] text-white shadow-gc"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      <Icon className="h-5 w-5 shrink-0" />
+      <span className="truncate">{label}</span>
+    </Link>
   )
 }
 
@@ -76,101 +90,149 @@ export function Sidebar() {
   const isExpert = roles.some((r) => r.includes("EXPERT"))
   const isTeacher = roles.some((r) => r.includes("TEACHER"))
   const isStudent = roles.some((r) => r.includes("STUDENT"))
+  const isClassroomUser = isStudent || isTeacher || isExpert
 
-  const { data: overview } = useQuery({
-    queryKey: ["student-assignments-overview"],
+  const homePath = isAdmin
+    ? "/admin"
+    : isTeacher
+      ? "/teacher"
+      : isExpert
+        ? "/expert"
+        : "/student"
+
+  const { data: myClasses } = useQuery({
+    queryKey: ["sidebar-my-classes", homePath],
     queryFn: async () =>
-      (await api.get("/assignments/overview")).data as AssignmentOverviewItem[],
-    enabled: isStudent,
+      (await api.get("/subject-classes/my")).data as MyClass[],
+    enabled: isClassroomUser && !isAdmin,
   })
 
-  const progress = useMemo(() => {
-    const items = overview || []
-    const total = items.length
-    const submitted = items.filter((o) =>
-      ["SUBMITTED", "LATE", "GRADED"].includes(o.workState)
-    ).length
-    return { submitted, total }
-  }, [overview])
+  const primaryLinks: NavLink[] = isAdmin
+    ? [
+        { name: "Users & roles", href: "/admin#users", icon: Users, section: "users" },
+        { name: "Classes", href: "/admin#classes", icon: FolderKanban, section: "classes" },
+        { name: "Audit trail", href: "/admin#audit", icon: ShieldCheck, section: "audit" },
+      ]
+    : isStudent
+      ? [
+          { name: "Classes", href: "/student#classes", icon: Home, section: "classes" },
+          { name: "To-do", href: "/student#work", icon: CheckSquare, section: "work" },
+          { name: "Payments", href: "/student#payments", icon: CreditCard, section: "payments" },
+        ]
+      : isTeacher
+        ? [
+            { name: "Classes", href: "/teacher#classes", icon: Home, section: "classes" },
+            {
+              name: "To-do",
+              href: "/teacher#new-assignment",
+              icon: CheckSquare,
+              section: "new-assignment",
+            },
+          ]
+        : isExpert
+          ? [
+              { name: "Classes", href: "/expert#classes", icon: Home, section: "classes" },
+              {
+                name: "Templates",
+                href: "/expert#templates",
+                icon: FileText,
+                section: "templates",
+              },
+            ]
+          : []
 
-  const links = [
-    ...(isAdmin
-      ? [
-          { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-          { name: "My Classes", href: "/admin#classes", icon: FolderKanban },
-          { name: "Subjects", href: "/admin#subjects", icon: BookMarked },
-          { name: "Users & Roles", href: "/admin#users", icon: Users },
-          { name: "Audit Trail", href: "/admin#audit", icon: ShieldCheck },
-        ]
-      : []),
-    ...(isTeacher
-      ? [
-          { name: "Dashboard", href: "/teacher", icon: LayoutDashboard },
-          { name: "My Classes", href: "/teacher#classes", icon: FolderKanban },
-          { name: "New Classwork", href: "/teacher#new-assignment", icon: FileText },
-          { name: "Grading Queue", href: "/teacher#grading", icon: CheckSquare },
-        ]
-      : []),
-    ...(isExpert
-      ? [
-          { name: "Dashboard", href: "/expert", icon: LayoutDashboard },
-          { name: "My Classes", href: "/expert#classes", icon: FolderKanban },
-          { name: "Templates", href: "/expert#templates", icon: FileText },
-        ]
-      : []),
-    ...(isStudent
-      ? [
-          { name: "Đã ghi danh", href: "/student#classes", icon: FolderKanban, section: "classes" },
-          { name: "Tìm lớp", href: "/student#find", icon: Search, section: "find" },
-          { name: "Thanh toán", href: "/student#payments", icon: CreditCard, section: "payments" },
-          { name: "Bài tập của tôi", href: "/student#work", icon: GraduationCap, section: "work" },
-        ]
-      : []),
-  ]
+  const classListLabel = isStudent ? "Enrolled" : "Teaching"
+  const classList = myClasses || []
+
+  const isPrimaryActive = (link: NavLink) => {
+    const base = link.href.split("#")[0]
+    if (pathname.startsWith("/classes/")) {
+      // On a class workspace, highlight Classes home link.
+      return link.section === "classes"
+    }
+    if (pathname !== base && pathname !== homePath) return false
+    if (!link.section) return pathname === link.href
+    if (!hash) {
+      return (
+        link.section === "classes" ||
+        (isAdmin && link.section === "users")
+      )
+    }
+    return hash === link.section
+  }
+
+  const activeClassId = (() => {
+    const m = pathname.match(/^\/classes\/(\d+)/)
+    return m ? Number(m[1]) : null
+  })()
 
   return (
-    <aside className="w-64 shrink-0 border-r bg-card min-h-[calc(100vh-4rem)] p-3">
-      <div className="px-3 py-2">
-        <p className="text-sm font-semibold tracking-tight text-foreground">
-          {isStudent ? "Không gian học tập" : "Navigation"}
-        </p>
-        {isStudent && (
-          <p className="text-[11px] text-muted-foreground">Lớp học · bài tập · học phí</p>
-        )}
-      </div>
-
-      {isStudent && progress.total > 0 && (
-        <SubmissionProgressRing submitted={progress.submitted} total={progress.total} />
-      )}
-
-      <div className="space-y-1">
-        {links.map((item) => {
-          const Icon = item.icon
-          const activeHref = item.href.split("#")[0]
-          const section = "section" in item ? (item as { section?: string }).section : undefined
-          const isActive = isStudent
-            ? pathname === "/student" &&
-              (hash === section || (!hash && section === "classes"))
-            : item.href === pathname ||
-              (activeHref === pathname && !item.href.includes("#"))
-
-          return (
-            <Link
-              key={item.name}
+    <aside className="flex w-64 shrink-0 flex-col border-r bg-card min-h-[calc(100vh-4rem)]">
+      <nav className="flex flex-1 flex-col gap-1 p-3">
+        <div className="space-y-0.5">
+          {primaryLinks.map((item) => (
+            <NavItem
+              key={item.href}
               href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-[hsl(var(--success))] text-white shadow-gc"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
+              icon={item.icon}
+              label={item.name}
+              active={isPrimaryActive(item)}
+            />
+          ))}
+
+          {isClassroomUser && !isAdmin && (
+            <div
+              className="flex cursor-default items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium text-muted-foreground/70"
+              title="Calendar coming soon"
             >
-              <Icon className="h-4 w-4" />
-              <span>{item.name}</span>
-            </Link>
-          )
-        })}
-      </div>
+              <CalendarDays className="h-5 w-5 shrink-0" />
+              <span>Calendar</span>
+            </div>
+          )}
+        </div>
+
+        {isClassroomUser && !isAdmin && (
+          <div className="mt-4 flex min-h-0 flex-1 flex-col">
+            <div className="mb-1 px-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {classListLabel}
+              </p>
+            </div>
+            <div className="flex-1 space-y-0.5 overflow-y-auto pb-3">
+              {classList.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-muted-foreground">
+                  {isStudent
+                    ? "Join a class to see it here."
+                    : "Create a class to see it here."}
+                </p>
+              ) : (
+                classList.map((c) => {
+                  const id = c.classId ?? c.id
+                  const active = activeClassId === id
+                  return (
+                    <Link
+                      key={id}
+                      href={`/classes/${id}`}
+                      className={cn(
+                        "flex items-center gap-3 rounded-full px-2.5 py-2 text-sm transition-colors",
+                        active
+                          ? "bg-accent text-accent-foreground"
+                          : "text-foreground hover:bg-muted"
+                      )}
+                      title={c.className}
+                    >
+                      <ClassDot name={c.className} />
+                      <span className="min-w-0 truncate font-medium">
+                        {c.className}
+                      </span>
+                    </Link>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        )}
+      </nav>
     </aside>
   )
 }

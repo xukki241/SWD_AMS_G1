@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { useAuthStore } from "@/stores/authStore"
 import { useRouter } from "next/navigation"
 import { Avatar } from "@/components/ui/avatar"
@@ -12,12 +12,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Search, Menu, LogOut, BookOpen } from "lucide-react"
+import { Search, Menu, LogOut, BookOpen, Plus, FolderPlus } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { CreateClassDialog } from "@/components/classroom/CreateClassDialog"
 
 export function Header() {
   const { user, logout } = useAuthStore()
   const router = useRouter()
+  const [createOpen, setCreateOpen] = useState(false)
+
+  const roles = user?.roles || []
+  const canCreateClass =
+    roles.some((r) => r.includes("TEACHER")) ||
+    roles.some((r) => r.includes("EXPERT"))
 
   const handleLogout = () => {
     logout()
@@ -29,17 +36,18 @@ export function Header() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="hidden rounded-full p-2 text-muted-foreground hover:bg-muted md:block"
+          className="rounded-full p-2 text-muted-foreground hover:bg-muted"
           aria-label="Menu"
         >
           <Menu className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          {/* AMS mark — green GC-adjacent brand chip */}
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--success))] text-white shadow-gc">
             <BookOpen className="h-4 w-4" />
           </div>
-          <span className="hidden text-lg font-semibold tracking-tight text-foreground sm:block">
-            AMS
+          <span className="hidden text-lg font-medium tracking-tight text-foreground sm:block">
+            AMS Classroom
           </span>
         </div>
       </div>
@@ -47,8 +55,35 @@ export function Header() {
       <div className="flex items-center gap-3">
         <div className="hidden items-center gap-2 rounded-full bg-muted px-4 py-1.5 lg:flex">
           <Search className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Search classes</span>
+          <span className="text-sm text-muted-foreground">Search</span>
         </div>
+
+        {canCreateClass && (
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  aria-label="Create"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 rounded-lg shadow-gc">
+                <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+                  <FolderPlus className="mr-2 h-4 w-4" />
+                  Create class
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <CreateClassDialog
+              hideTrigger
+              open={createOpen}
+              onOpenChange={setCreateOpen}
+            />
+          </>
+        )}
 
         {user && (
           <DropdownMenu>

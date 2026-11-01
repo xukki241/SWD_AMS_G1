@@ -67,15 +67,19 @@ export interface SubjectClass {
   classCode: string;
   className: string;
   term: string;
+  room?: string;
+  joinCode?: string;
+  capacity?: number;
+  registrationFee?: number;
+  enrolledCount?: number;
 }
 
+/** Google Classroom-shaped create payload. Server sets teacher, codes, fee, capacity. */
 export interface CreateSubjectClassRequest {
-  subjectId: number;
-  classCode: string;
   className: string;
-  term: string;
-  expertId?: number;
-  teacherId?: number;
+  section?: string;
+  subjectName: string;
+  room?: string;
 }
 
 // AssignmentTemplate

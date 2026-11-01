@@ -52,8 +52,8 @@ public class SubjectClassController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXPERT', 'TEACHER')")
-    @Operation(summary = "Create subject class (join code auto-generated when not supplied)")
+    @PreAuthorize("hasAnyRole('TEACHER', 'EXPERT')")
+    @Operation(summary = "Create class (GC shape: className, section, subjectName, room); teacher = current user")
     public ResponseEntity<SubjectClassDTO.SubjectClassResponse> createClass(@Valid @RequestBody SubjectClassDTO.CreateSubjectClassRequest request) {
         return ResponseEntity.ok(classService.createClass(request));
     }

@@ -6,14 +6,15 @@ import com.ams.entity.ClassRegistration;
 import com.ams.entity.Subject;
 import com.ams.entity.SubjectClass;
 import com.ams.entity.Submission;
+import com.ams.entity.SystemConfiguration;
 import com.ams.entity.User;
-import com.ams.exception.DuplicateResourceException;
 import com.ams.exception.ResourceNotFoundException;
 import com.ams.repository.AssignmentClassRepository;
 import com.ams.repository.ClassRegistrationRepository;
 import com.ams.repository.SubjectClassRepository;
 import com.ams.repository.SubjectRepository;
 import com.ams.repository.SubmissionRepository;
+import com.ams.repository.SystemConfigurationRepository;
 import com.ams.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,8 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.security.SecureRandom;
+import java.text.Normalizer;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -31,7 +34,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SubjectClassService {
 
-    private static final String JOIN_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    private static final String CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    private static final String FEE_CONFIG_KEY = "registration.fee.default";
+    private static final BigDecimal DEFAULT_FEE = new BigDecimal("50000");
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final SubjectClassRepository subjectClassRepository;
@@ -40,6 +45,7 @@ public class SubjectClassService {
     private final ClassRegistrationRepository registrationRepository;
     private final AssignmentClassRepository assignmentClassRepository;
     private final SubmissionRepository submissionRepository;
+    private final SystemConfigurationRepository systemConfigurationRepository;
     private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
@@ -94,38 +100,26 @@ public class SubjectClassService {
 
     @Transactional
     public SubjectClassDTO.SubjectClassResponse createClass(SubjectClassDTO.CreateSubjectClassRequest request) {
-        if (subjectClassRepository.findByClassCode(request.classCode()).isPresent()) {
-            throw new DuplicateResourceException("Class code '" + request.classCode() + "' already exists");
-        }
+        User teacher = currentUser();
 
-        Subject subject = subjectRepository.findById(request.subjectId())
-                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with id: " + request.subjectId()));
-
-        User expert = request.expertId() != null
-                ? userRepository.findById(request.expertId()).orElse(null)
-                : null;
-
-        User teacher = request.teacherId() != null
-                ? userRepository.findById(request.teacherId()).orElse(null)
-                : null;
-
-        String joinCode = request.joinCode();
-        if (joinCode == null || joinCode.isBlank()) {
-            joinCode = generateJoinCode();
-        } else if (subjectClassRepository.findByJoinCode(joinCode).isPresent()) {
-            throw new DuplicateResourceException("Join code '" + joinCode + "' is already in use");
-        }
+        Subject subject = upsertSubjectFromName(request.subjectName());
+        String classCode = generateClassCode(request.className());
+        String joinCode = generateJoinCode();
+        String term = truncate(blankToEmpty(request.section()), 20);
+        String room = blankToNull(request.room());
+        BigDecimal fee = resolveDefaultRegistrationFee();
 
         SubjectClass sc = SubjectClass.builder()
                 .subject(subject)
-                .expert(expert)
+                .expert(null)
                 .teacher(teacher)
-                .classCode(request.classCode())
-                .className(request.className())
-                .term(request.term())
+                .classCode(classCode)
+                .className(request.className().trim())
+                .term(term)
+                .room(room)
                 .joinCode(joinCode)
-                .capacity(request.capacity())
-                .registrationFee(request.registrationFee())
+                .capacity(0)
+                .registrationFee(fee)
                 .build();
 
         sc = subjectClassRepository.save(sc);
@@ -133,16 +127,119 @@ public class SubjectClassService {
         return mapToResponse(sc);
     }
 
-    private String generateJoinCode() {
-        StringBuilder sb = new StringBuilder(6);
-        for (int i = 0; i < 6; i++) {
-            sb.append(JOIN_CODE_ALPHABET.charAt(RANDOM.nextInt(JOIN_CODE_ALPHABET.length())));
+    private Subject upsertSubjectFromName(String rawName) {
+        String name = rawName.trim();
+        return subjectRepository.findFirstBySubjectNameIgnoreCase(name)
+                .orElseGet(() -> {
+                    Subject created = Subject.builder()
+                            .subjectCode(generateSubjectCode(name))
+                            .subjectName(name)
+                            .description(null)
+                            .status(Subject.SubjectStatus.ACTIVE)
+                            .build();
+                    created = subjectRepository.save(created);
+                    auditLogService.log("CREATE_SUBJECT", "Subject", created.getSubjectCode());
+                    return created;
+                });
+    }
+
+    private BigDecimal resolveDefaultRegistrationFee() {
+        return systemConfigurationRepository.findByConfigurationName(FEE_CONFIG_KEY)
+                .map(SystemConfiguration::getBusinessValue)
+                .filter(v -> v != null && !v.isBlank())
+                .map(v -> {
+                    try {
+                        return new BigDecimal(v.trim());
+                    } catch (NumberFormatException ex) {
+                        return DEFAULT_FEE;
+                    }
+                })
+                .orElse(DEFAULT_FEE);
+    }
+
+    private String generateSubjectCode(String subjectName) {
+        String slug = slugify(subjectName);
+        if (slug.isEmpty()) {
+            slug = "SUBJ";
         }
-        String code = sb.toString();
+        if (slug.length() > 12) {
+            slug = slug.substring(0, 12);
+        }
+        String candidate = slug;
+        int attempt = 0;
+        while (subjectRepository.findBySubjectCode(candidate).isPresent()) {
+            attempt++;
+            String suffix = shortSuffix(attempt);
+            int maxBase = Math.max(1, 20 - suffix.length());
+            candidate = slug.substring(0, Math.min(slug.length(), maxBase)) + suffix;
+        }
+        return candidate;
+    }
+
+    private String generateClassCode(String className) {
+        String slug = slugify(className);
+        if (slug.isEmpty()) {
+            slug = "CLASS";
+        }
+        if (slug.length() > 10) {
+            slug = slug.substring(0, 10);
+        }
+        String candidate = slug + "-" + randomToken(4);
+        while (subjectClassRepository.findByClassCode(candidate).isPresent()) {
+            candidate = slug.substring(0, Math.min(slug.length(), 10)) + "-" + randomToken(4);
+        }
+        if (candidate.length() > 20) {
+            candidate = candidate.substring(0, 20);
+            while (subjectClassRepository.findByClassCode(candidate).isPresent()) {
+                candidate = slug.substring(0, Math.min(slug.length(), 12)) + randomToken(4);
+            }
+        }
+        return candidate;
+    }
+
+    private String generateJoinCode() {
+        String code = randomToken(6);
         while (subjectClassRepository.findByJoinCode(code).isPresent()) {
-            code = generateJoinCode();
+            code = randomToken(6);
         }
         return code;
+    }
+
+    private String randomToken(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(CODE_ALPHABET.charAt(RANDOM.nextInt(CODE_ALPHABET.length())));
+        }
+        return sb.toString();
+    }
+
+    private String shortSuffix(int attempt) {
+        if (attempt < 10) {
+            return String.valueOf(attempt);
+        }
+        return randomToken(3);
+    }
+
+    private static String slugify(String input) {
+        String normalized = Normalizer.normalize(input, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "");
+        String cleaned = normalized.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "");
+        return cleaned;
+    }
+
+    private static String blankToEmpty(String value) {
+        return value == null || value.isBlank() ? "" : value.trim();
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static String truncate(String value, int max) {
+        if (value == null) {
+            return "";
+        }
+        return value.length() <= max ? value : value.substring(0, max);
     }
 
     private SubjectClassDTO.MyClassResponse mapToMyClassResponse(SubjectClass sc, User user, List<ClassRegistration> myRegs) {
@@ -174,6 +271,7 @@ public class SubjectClassService {
                 sc.getClassName(),
                 sc.getJoinCode(),
                 sc.getTerm(),
+                sc.getRoom(),
                 sc.getSubject().getSubjectCode(),
                 sc.getSubject().getSubjectName(),
                 sc.getTeacher() != null ? sc.getTeacher().getId() : null,
@@ -204,6 +302,7 @@ public class SubjectClassService {
                 sc.getClassCode(),
                 sc.getClassName(),
                 sc.getTerm(),
+                sc.getRoom(),
                 sc.getJoinCode(),
                 sc.getCapacity(),
                 sc.getRegistrationFee(),

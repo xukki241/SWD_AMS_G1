@@ -38,6 +38,9 @@ public class SubjectClass {
     @Column(nullable = false, length = 20)
     private String term;
 
+    @Column(length = 100)
+    private String room;
+
     @Column(name = "join_code", length = 6)
     private String joinCode;
 

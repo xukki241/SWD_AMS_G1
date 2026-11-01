@@ -1,9 +1,7 @@
 package com.ams.dto;
 
 import com.ams.entity.ClassRegistration;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
@@ -21,22 +19,19 @@ public class SubjectClassDTO {
             String classCode,
             String className,
             String term,
+            String room,
             String joinCode,
             Integer capacity,
             BigDecimal registrationFee,
             Integer enrolledCount
     ) {}
 
+    /** Google Classroom-shaped create payload. Server sets teacher, codes, fee, capacity. */
     public record CreateSubjectClassRequest(
-            @NotNull Long subjectId,
-            Long expertId,
-            Long teacherId,
-            @NotBlank String classCode,
             @NotBlank String className,
-            @NotBlank String term,
-            @NotNull @Min(0) Integer capacity,
-            @NotNull @Min(0) BigDecimal registrationFee,
-            String joinCode
+            String section,
+            @NotBlank String subjectName,
+            String room
     ) {}
 
     public record MyClassResponse(
@@ -45,6 +40,7 @@ public class SubjectClassDTO {
             String className,
             String joinCode,
             String term,
+            String room,
             String subjectCode,
             String subjectName,
             Long teacherId,
