@@ -3,7 +3,7 @@
 **Ngày kiểm tra:** 2026-11-01  
 **Repo:** `C:\FLM\Ki7\SWD\SWD_AMS_G1`  
 **Kết luận:** **READY** cho demo end-to-end (có vài GAP nhỏ, không chặn flow chính).  
-**Reseed:** **Không** — dữ liệu live đã đủ; không INSERT thêm.
+**Seed path:** Flyway on backend start (`V1`–`V8`). Fresh volume = full demo; existing volume applies pending migrations only (V8 is idempotent). Reset: `docker compose down -v` rồi `docker compose up --build`.
 
 ---
 
@@ -15,9 +15,9 @@
 | Backend (Spring Boot) | http://localhost:8080 | Up |
 | Swagger UI | http://localhost:8080/swagger-ui/index.html | HTTP 200 |
 | Postgres | localhost:**5433** → container `ams-postgres` (`ams_db` / `ams_user`) | Healthy |
-| SePay tunnel (IPN) | `https://visual-assure-reflect-outlet.trycloudflare.com` | Có trong env backend |
+| SePay tunnel (IPN) | `https://visual-assure-reflect-outlet.trycloudflare.com` | Có trong env backend (không lưu trong DB) |
 
-**Flyway:** V1 → V7 đã apply thành công (`flyway_schema_history`).
+**Flyway:** V1 → V8. Seeds chạy khi backend start — không có seed container riêng.
 
 | Version | Mô tả | Seed / thay đổi |
 |---|---|---|
@@ -28,8 +28,9 @@
 | **V5** | Assignment topic | Cột `topic`; gán topic cho assignment 1–10 |
 | **V6** | Room | Cột `room` (optional GC settings) |
 | **V7** | Class status | Cột `status` ACTIVE/ARCHIVED (archive soft) |
+| **V8** | Demo seed sync | Idempotent: join codes, 50k fees, topics, `registration.fee.default=50000`, `student1` ACTIVE@G1701 + PENDING_PAYMENT@G1801 (50k). Safe re-run on existing volumes. |
 
-Live DB còn thêm vài lớp/reg/assignment từ golden-path tests (id ≥ 9) — không phá seed gốc.
+Live DB có thể còn vài lớp/reg/assignment từ golden-path tests — không phá seed gốc; wipe volume để DB “sạch” theo V1–V8.
 
 ---
 
@@ -64,7 +65,7 @@ Live DB còn thêm vài lớp/reg/assignment từ golden-path tests (id ≥ 9) �
 
 ---
 
-## 3. DB counts (sau kiểm tra — không reseed)
+## 3. DB counts (live volume — có thể > seed tối thiểu)
 
 | Entity | Count |
 |---|---|
@@ -110,16 +111,18 @@ Chi tiết cầm tay: [`docs/SEPAY_SETUP.md`](./SEPAY_SETUP.md).
 
 ---
 
-## 6. What was reseeded
+## 6. Demo seed sync (V8)
 
-**Không reseed.** Lý do: đã có đủ điều kiện demo tối thiểu:
+**V8__demo_seed_sync.sql** (additive, idempotent) đảm bảo clone + `docker compose up --build` có:
 
-- `teacher1` ≥ 1 ACTIVE class (+ assignments có topic)
-- `student1` 1 × PENDING_PAYMENT trên lớp **50_000** (`SWD392-G1801` / join `B7X4NP`)
-- Join codes đầy đủ trên catalog
-- Payment history (VNPAY/SEPAY) giữ nguyên
+- `registration.fee.default` = **50000**
+- Join codes documented (`K7Q2M9`, `B7X4NP`, …) + seed classes `ACTIVE`
+- `SWD392-G1701` / `G1702` / `G1801` fee **50_000**; free labs `PRJ301-*` fee **0**
+- Seed assignment topics (Đồ án / Chuyên đề / Bài tập)
+- `student1` ACTIVE trên G1701 (nếu thiếu); `student1` **PENDING_PAYMENT** trên G1801 50k (nếu thiếu)
+- **Không** ghi SePay vào DB; **không** wipe volume trong migration
 
-Không thêm V8 migration (prefer one-off SQL; lần này không cần).
+Reset full sync: `docker compose down -v && docker compose up --build`.
 
 ---
 
@@ -137,8 +140,8 @@ Không thêm V8 migration (prefer one-off SQL; lần này không cần).
 
 | Hạng mục | Kết quả |
 |---|---|
-| Seeds & schema V1–V7 | Đủ |
-| Critical demo rows | Đủ — **no reseed** |
+| Seeds & schema V1–V8 | Đủ (V8 sync idempotent) |
+| Critical demo rows | Đủ — V8 đảm bảo trên volume mới |
 | Login 4 roles | OK |
 | Teacher / Student / Admin flows | OK (API admin-subject = GAP nhẹ) |
 | SePay IPN | READY (tunnel-dependent) |

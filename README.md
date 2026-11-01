@@ -27,7 +27,7 @@ Assignment Management System (AMS) is a Google Classroom–style POC for SWD392 
 - Class workspace: Stream (posts + materials), Assignments (submit → grade), People, Settings (rename, room, archive)
 - Payments: SePay (primary live/demo gateway with IPN), VNPay Sandbox, VietQR sandbox confirm
 - Roles: `ADMIN`, `EXPERT`, `TEACHER`, `STUDENT` with JWT auth
-- Flyway-managed PostgreSQL schema (V1–V7) and seed data for demos
+- Flyway-managed PostgreSQL schema (V1–V8) and seed data for demos
 
 ## Tech stack
 
@@ -97,14 +97,16 @@ Compose notes:
 - Backend receives `DB_URL=jdbc:postgresql://postgres:5432/ams_db` inside the network (not the host port).
 - Frontend build/runtime uses `NEXT_PUBLIC_API_URL=http://localhost:8080/api` so the **browser** talks to the published backend port.
 - Secrets should come from your local `.env`. Do not commit `.env`. Compose may still ship demo defaults for some payment vars; override them in `.env` for real merchant credentials.
-- Flyway runs on backend startup (`V1`–`V7`).
+- Flyway runs on **backend startup** (`V1`–`V8`). Seeds load with the API — not a separate seed container. `V2` inserts the base demo dataset; `V8` idempotently syncs join codes, 50k fees, assignment topics, and the `student1` PENDING_PAYMENT path on `SWD392-G1801`.
+- A **fresh Postgres volume** gets the full demo via Flyway. An existing volume only applies migrations not yet in `flyway_schema_history` (e.g. V8 once).
 
 Stop / reset:
 
 ```bash
 docker compose down
-# Wipe DB volume (destructive):
+# Full DB resync (destructive — wipes volume, then Flyway V1–V8 reseeds on next up):
 docker compose down -v
+docker compose up --build
 ```
 
 ## Local development (without Docker app containers)
@@ -248,7 +250,7 @@ SWD_AMS_G1/
 │       │   └── service/
 │       └── resources/
 │           ├── application.yml
-│           └── db/migration/    Flyway V1–V7
+│           └── db/migration/    Flyway V1–V8
 ├── ams-frontend/                Next.js App Router UI
 │   ├── Dockerfile
 │   ├── e2e/                     Playwright specs
@@ -343,6 +345,7 @@ Flyway:
 | V5 | Assignment `topic` |
 | V6 | Class `room` |
 | V7 | Class `status` `ACTIVE` / `ARCHIVED` |
+| V8 | Idempotent demo sync (join codes, 50k fees, topics, `student1` PENDING on G1801) |
 
 Core tables (simplified):
 
@@ -498,7 +501,7 @@ Production should not rely on Compose demo defaults for merchant secrets.
 ### Flyway / schema errors
 
 - `ddl-auto: validate` means the DB must match migrations. Do not hand-edit schema out of band.
-- Fresh demo DB: `docker compose down -v && docker compose up --build`.
+- Fresh demo DB (full Flyway reseed V1–V8): `docker compose down -v && docker compose up --build`.
 
 ### Frontend calls wrong API / CORS errors
 
