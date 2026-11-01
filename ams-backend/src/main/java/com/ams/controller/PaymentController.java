@@ -52,13 +52,16 @@ public class PaymentController {
     }
 
     @PostMapping("/sepay-ipn")
-    @Operation(summary = "SePay server-to-server IPN webhook (log-only)")
-    public ResponseEntity<Map<String, Object>> sepayIpn(@RequestBody Map<String, Object> body) {
-        return ResponseEntity.ok(paymentService.processSePayIpn(body));
+    @Operation(summary = "SePay server-to-server IPN webhook (ORDER_PAID → SUCCESS + activate)")
+    public ResponseEntity<Map<String, Object>> sepayIpn(
+            @RequestHeader(value = "X-Secret-Key", required = false) String secretKey,
+            @RequestBody Map<String, Object> body
+    ) {
+        return paymentService.processSePayIpn(secretKey, body);
     }
 
     @GetMapping("/sepay-return")
-    @Operation(summary = "SePay user-initiated return callback (activates the class on success)")
+    @Operation(summary = "SePay browser return (secondary/idempotent activate; IPN is primary)")
     public ResponseEntity<Map<String, Object>> sepayReturn(@RequestParam Map<String, String> params) {
         return ResponseEntity.ok(paymentService.processSePayReturn(params));
     }

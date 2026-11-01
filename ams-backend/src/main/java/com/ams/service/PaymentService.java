@@ -14,6 +14,8 @@ import com.ams.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -296,45 +298,99 @@ public class PaymentService {
     }
 
     /**
-     * SePay server-to-server IPN. Per the user's choice this only *logs* the
-     * result and marks the txn PENDING/FAILED — it does not verify a signature
-     * (the SDK ships no IPN-verify helper and the IPN signing spec is undocumented).
-     * The user-initiated {@code sepay-return} is the path that activates the class.
+     * SePay server-to-server IPN (primary activation path).
+     * Verifies {@code X-Secret-Key}, handles {@code ORDER_PAID} via nested
+     * {@code order.order_invoice_number}, marks txn SUCCESS and activates registration
+     * (idempotent). Always returns HTTP 200 {@code {"success": true}} on accepted receipt
+     * per SePay docs; mismatch → 401.
      */
     @Transactional
-    public Map<String, Object> processSePayIpn(Map<String, Object> body) {
-        String txnRef = firstNonBlank(body, "order_invoice_number", "order_id", "ref");
-        log.info("[SEPAY IPN] raw={}", body);
-        if (txnRef != null) {
-            paymentRepository.findByProviderAndProviderReference("SEPAY", txnRef).ifPresent(txn -> {
-                log.info("[SEPAY IPN] txn {} -> status={}", txnRef, txn.getTransactionStatus());
-                auditLogService.log("SEPAY_IPN", "PaymentTransaction", txnRef);
-            });
+    public ResponseEntity<Map<String, Object>> processSePayIpn(String secretKey, Map<String, Object> body) {
+        if (secretKey == null || !secretKey.equals(sePayConfig.getSecretKey())) {
+            log.warn("[SEPAY_IPN] unauthorized: X-Secret-Key missing or mismatch");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Unauthorized"));
         }
-        return Map.of("received", true);
+
+        log.info("[SEPAY_IPN] raw={}", body);
+
+        String notificationType = body.get("notification_type") != null
+                ? String.valueOf(body.get("notification_type"))
+                : "";
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> order = body.get("order") instanceof Map
+                ? (Map<String, Object>) body.get("order")
+                : Collections.emptyMap();
+
+        String txnRef = firstNonBlank(order, "order_invoice_number");
+        if (txnRef == null) {
+            // fallback for atypical payloads
+            txnRef = firstNonBlank(body, "order_invoice_number", "order_id", "ref");
+        }
+
+        if ("ORDER_PAID".equals(notificationType) && txnRef != null) {
+            final String ref = txnRef;
+            paymentRepository.findByProviderAndProviderReference("SEPAY", ref).ifPresentOrElse(txn -> {
+                if (txn.getTransactionStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
+                    txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
+                    paymentRepository.save(txn);
+                    registrationService.activateRegistration(txn.getClassRegistration().getId());
+                    auditLogService.log("PAYMENT_SUCCESS_SEPAY_IPN", "PaymentTransaction", ref);
+                    log.info("[SEPAY_IPN] ORDER_PAID → SUCCESS + activate registrationId={} txn={}",
+                            txn.getClassRegistration().getId(), ref);
+                } else {
+                    // Already SUCCESS (retry / duplicate IPN) — ensure ACTIVE anyway
+                    registrationService.activateRegistration(txn.getClassRegistration().getId());
+                    log.info("[SEPAY_IPN] ORDER_PAID idempotent skip (already SUCCESS) txn={}", ref);
+                }
+                auditLogService.log("SEPAY_IPN", "PaymentTransaction", ref);
+            }, () -> log.warn("[SEPAY_IPN] ORDER_PAID but no SEPAY txn for order_invoice_number={}", ref));
+        } else {
+            log.info("[SEPAY_IPN] ignored notification_type={} txnRef={}", notificationType, txnRef);
+            if (txnRef != null) {
+                auditLogService.log("SEPAY_IPN", "PaymentTransaction", txnRef);
+            }
+        }
+
+        // SePay requires HTTP 200 to acknowledge successful receipt
+        return ResponseEntity.ok(Map.of("success", true));
     }
 
     /**
-     * User-initiated return from SePay's hosted checkout (success / cancel / error).
-     * This is the path that actually activates the class for the demo flow.
+     * Browser return from SePay hosted checkout (secondary / DX fallback).
+     * Production should rely on IPN; this path still activates idempotently when
+     * {@code result} indicates success so local demos work without a public tunnel.
      */
     @Transactional
     public Map<String, Object> processSePayReturn(Map<String, String> params) {
         String txnRef = firstNonBlankParams(params, "order_invoice_number", "order_id", "ref");
         String result = params.getOrDefault("result", "success");
-        log.info("[SEPAY RETURN] ref={} result={}", txnRef, result);
+        log.info("[SEPAY_RETURN] ref={} result={} (secondary path; production should rely on IPN)",
+                txnRef, result);
 
         if (txnRef != null) {
             paymentRepository.findByProviderAndProviderReference("SEPAY", txnRef).ifPresent(txn -> {
-                if (txn.getTransactionStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
-                    if ("error".equals(result) || "cancel".equals(result)) {
+                if ("error".equals(result) || "cancel".equals(result)) {
+                    if (txn.getTransactionStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
                         txn.setTransactionStatus(PaymentTransaction.TransactionStatus.FAILED);
-                    } else {
-                        txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
-                        registrationService.activateRegistration(txn.getClassRegistration().getId());
-                        auditLogService.log("PAYMENT_SUCCESS_SEPAY", "PaymentTransaction", txnRef);
+                        paymentRepository.save(txn);
+                        log.info("[SEPAY_RETURN] marked FAILED txn={}", txnRef);
                     }
+                    return;
+                }
+
+                // success (or default): idempotent activate for local demo / IPN lag
+                if (txn.getTransactionStatus() == PaymentTransaction.TransactionStatus.SUCCESS) {
+                    registrationService.activateRegistration(txn.getClassRegistration().getId());
+                    log.info("[SEPAY_RETURN] txn already SUCCESS (likely via IPN); ensured ACTIVE txn={}", txnRef);
+                } else {
+                    log.warn("[SEPAY_RETURN] activating via return fallback — IPN may be unreachable locally; txn={}",
+                            txnRef);
+                    txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
                     paymentRepository.save(txn);
+                    registrationService.activateRegistration(txn.getClassRegistration().getId());
+                    auditLogService.log("PAYMENT_SUCCESS_SEPAY_RETURN", "PaymentTransaction", txnRef);
                 }
             });
         }
