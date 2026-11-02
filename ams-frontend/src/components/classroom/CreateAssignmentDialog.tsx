@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Plus } from "lucide-react"
+import { toApiDateTime } from "@/lib/datetime"
 
 export function CreateAssignmentDialog({
   classId,
@@ -47,14 +48,15 @@ export function CreateAssignmentDialog({
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      await api.post("/assignments", {
+      const res = await api.post("/assignments", {
         title: title.trim(),
-        instructions: instructions.trim(),
+        instructions: instructions.trim() || undefined,
         topic: topic.trim() || undefined,
-        dueAt,
+        dueAt: toApiDateTime(dueAt),
         maxScore: Number(maxScore) || 10,
         subjectClassId: classId,
       })
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["class-assignments", classId] })
@@ -68,7 +70,12 @@ export function CreateAssignmentDialog({
     onError: (err: any) => {
       toast({
         title: "Could not create classwork",
-        description: err.response?.data?.message || "Please check the form.",
+        description:
+          err.response?.data?.message ||
+          err.response?.data?.error ||
+          (err.response?.status === 400
+            ? "Invalid due date or fields — check the form."
+            : "Please check the form and try again."),
         variant: "destructive",
       })
     },

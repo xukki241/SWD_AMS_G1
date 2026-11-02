@@ -75,6 +75,17 @@ public class AssignmentController {
         return ResponseEntity.ok(assignmentService.updateAssignment(id, request));
     }
 
+    @DeleteMapping("/{id}/classes/{subjectClassId}")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Soft-remove assignment from a class (cancel allocation); owning teacher only")
+    public ResponseEntity<Void> cancelAssignmentForClass(
+            @PathVariable Long id,
+            @PathVariable Long subjectClassId
+    ) {
+        assignmentService.cancelAssignmentForClass(id, subjectClassId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/allocate")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Allocate assignment to a class")

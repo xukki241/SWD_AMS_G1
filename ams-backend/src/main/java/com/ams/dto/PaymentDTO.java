@@ -25,6 +25,8 @@ public class PaymentDTO {
     public record PaymentTransactionResponse(
             Long id,
             Long classRegistrationId,
+            String className,
+            String classCode,
             String provider,
             String providerReference,
             BigDecimal amount,

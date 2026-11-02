@@ -61,7 +61,37 @@ function NavItem({
   return (
     <Link
       href={href}
-      onClick={() => onNavigate?.(href)}
+      scroll={false}
+      onClick={(e) => {
+        // Same-path hash links often don't fire navigation in App Router —
+        // force hash + scroll ourselves so Classes ↔ To-do always responds.
+        const [path, section = ""] = href.split("#")
+        if (
+          typeof window !== "undefined" &&
+          (window.location.pathname === path ||
+            window.location.pathname === path.replace(/\/$/, ""))
+        ) {
+          e.preventDefault()
+          const nextHash = section ? `#${section}` : ""
+          if (window.location.hash !== nextHash) {
+            window.history.pushState(null, "", `${path}${nextHash}`)
+          } else {
+            // Re-click same section: still scroll
+            window.dispatchEvent(new HashChangeEvent("hashchange"))
+          }
+          // Ensure listeners (Sidebar + useHashSection) see the new hash
+          window.dispatchEvent(new HashChangeEvent("hashchange"))
+          if (section) {
+            requestAnimationFrame(() => {
+              document.getElementById(section)?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              })
+            })
+          }
+        }
+        onNavigate?.(href)
+      }}
       className={cn(
         "flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium transition-colors",
         active

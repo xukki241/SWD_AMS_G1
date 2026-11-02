@@ -4,6 +4,7 @@ import React, { useMemo } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import api from "@/lib/axios"
+import { useHashSection } from "@/hooks/useHashSection"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatSkeleton } from "@/components/ui/loading"
@@ -22,6 +23,8 @@ import {
 } from "lucide-react"
 
 export default function TeacherDashboardPage() {
+  useHashSection()
+
   const { data: stats, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["teacher-stats"],
     queryFn: async () => (await api.get("/dashboard/teacher")).data,

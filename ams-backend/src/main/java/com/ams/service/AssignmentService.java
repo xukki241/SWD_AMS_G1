@@ -198,6 +198,26 @@ public class AssignmentService {
         return mapToResponse(assignment);
     }
 
+    /**
+     * Soft-remove classwork from a class: cancel the AssignmentClass allocation.
+     * The assignment row remains for audit; students no longer see it in that class.
+     */
+    @Transactional
+    public void cancelAssignmentForClass(Long assignmentId, Long subjectClassId) {
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found with id: " + assignmentId));
+        requireOwningTeacher(assignment);
+
+        AssignmentClass ac = assignmentClassRepository
+                .findByAssignmentIdAndSubjectClassId(assignmentId, subjectClassId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Assignment is not allocated to class " + subjectClassId));
+        ac.setAllocationStatus(AssignmentClass.AllocationStatus.CANCELLED);
+        assignmentClassRepository.save(ac);
+        auditLogService.log("CANCEL_ASSIGNMENT_CLASS", "AssignmentClass",
+                assignment.getTitle() + " -> classId=" + subjectClassId);
+    }
+
     private void requireOwningTeacher(Assignment assignment) {
         User user = currentUser();
         if (assignment.getTeacher() == null || !user.getId().equals(assignment.getTeacher().getId())) {

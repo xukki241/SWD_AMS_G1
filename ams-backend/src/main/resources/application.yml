@@ -18,6 +18,15 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 30MB
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      adjust-dates-to-context-time-zone: false
 
 server:
   port: ${PORT:8080}

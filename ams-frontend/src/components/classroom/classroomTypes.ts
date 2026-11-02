@@ -45,6 +45,8 @@ export interface Registration {
 export interface PaymentTransaction {
   id: number
   classRegistrationId: number
+  className?: string | null
+  classCode?: string | null
   provider: string
   providerReference?: string | null
   amount: number
