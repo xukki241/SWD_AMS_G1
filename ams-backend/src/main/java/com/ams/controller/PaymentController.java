@@ -16,7 +16,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/payment")
 @RequiredArgsConstructor
-@Tag(name = "Payments", description = "Course tuition payment APIs (VNPay / SePay / VietQR)")
+@Tag(name = "Payments", description = "Course tuition payment APIs (VNPay / SePay / PayOS / VietQR)")
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -49,6 +49,27 @@ public class PaymentController {
             @PathVariable Long enrollmentId
     ) {
         return ResponseEntity.ok(paymentService.createSePayCheckout(enrollmentId));
+    }
+
+    @PostMapping("/course/create-payos/{enrollmentId}")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Create a PayOS payment link for a course enrollment")
+    public ResponseEntity<PaymentDTO.PayOSCheckoutResponse> createPayOSCheckout(
+            @PathVariable Long enrollmentId
+    ) {
+        return ResponseEntity.ok(paymentService.createPayOSCheckout(enrollmentId));
+    }
+
+    @PostMapping("/payos-webhook")
+    @Operation(summary = "PayOS webhook (verified PAID → SUCCESS + activate)")
+    public ResponseEntity<Map<String, Object>> payosWebhook(@RequestBody Map<String, Object> body) {
+        return paymentService.processPayOSWebhook(body);
+    }
+
+    @GetMapping("/payos-return")
+    @Operation(summary = "PayOS browser return (re-checks order status with PayOS)")
+    public ResponseEntity<Map<String, Object>> payosReturn(@RequestParam Map<String, String> params) {
+        return ResponseEntity.ok(paymentService.processPayOSReturn(params));
     }
 
     @PostMapping("/sepay-ipn")

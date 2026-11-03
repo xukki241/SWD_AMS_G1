@@ -1,5 +1,5 @@
 import api from '@/lib/axios';
-import { PaymentTransaction, PaymentUrlResponse, SePayCheckoutResponse } from '@/types';
+import { PaymentTransaction, PaymentUrlResponse, PayOSCheckoutResponse, SePayCheckoutResponse } from '@/types';
 
 export const paymentService = {
   /** VNPay redirect for a course enrollment. */
@@ -10,6 +10,11 @@ export const paymentService = {
   /** SePay hosted-checkout form fields for a course enrollment. */
   createSePayPayment: async (enrollmentId: number): Promise<SePayCheckoutResponse> => {
     const res = await api.post<SePayCheckoutResponse>(`/payment/course/create-sepay/${enrollmentId}`);
+    return res.data;
+  },
+  /** PayOS payment link for a course enrollment. */
+  createPayOSPayment: async (enrollmentId: number): Promise<PayOSCheckoutResponse> => {
+    const res = await api.post<PayOSCheckoutResponse>(`/payment/course/create-payos/${enrollmentId}`);
     return res.data;
   },
   confirmVietQr: async (enrollmentId: number): Promise<{ success: boolean; message: string }> => {

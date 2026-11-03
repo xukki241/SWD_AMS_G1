@@ -22,6 +22,15 @@ public class PaymentDTO {
             BigDecimal amount
     ) {}
 
+    /** PayOS payment link: the browser is redirected to {@code checkoutUrl}. */
+    public record PayOSCheckoutResponse(
+            String checkoutUrl,
+            String qrCode,
+            String paymentLinkId,
+            String transactionRef,
+            BigDecimal amount
+    ) {}
+
     public record PaymentTransactionResponse(
             Long id,
             Long courseEnrollmentId,

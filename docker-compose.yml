@@ -46,6 +46,12 @@ services:
       SEPAY_ERROR_URL: ${SEPAY_ERROR_URL:-http://localhost:3000/payment/sepay-return?result=error}
       SEPAY_CANCEL_URL: ${SEPAY_CANCEL_URL:-http://localhost:3000/payment/sepay-return?result=cancel}
       SEPAY_IPN_URL: ${SEPAY_IPN_URL:-http://host.docker.internal:8080/api/payment/sepay-ipn}
+      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
+      PAYOS_API_KEY: ${PAYOS_API_KEY:-}
+      PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}
+      PAYOS_BASE_URL: ${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
+      PAYOS_RETURN_URL: ${PAYOS_RETURN_URL:-http://localhost:3000/payment/payos-return}
+      PAYOS_CANCEL_URL: ${PAYOS_CANCEL_URL:-http://localhost:3000/payment/payos-return}
       FILE_STORAGE_PATH: /app/storage/files
       FILE_STORAGE_BASE_URL: http://localhost:8080
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
 import { VietQrDialog } from "@/components/classroom/VietQrDialog"
 import { SePayDialog } from "@/components/classroom/SePayDialog"
+import { PayOSDialog } from "@/components/classroom/PayOSDialog"
 import { SubmitDialog } from "@/components/classroom/SubmitDialog"
 import { ErrorState } from "@/components/classroom/ErrorState"
 import { EmptyState } from "@/components/classroom/EmptyState"
@@ -49,6 +50,7 @@ export default function StudentDashboardPage() {
   const [vnPayBusyId, setVnPayBusyId] = useState<number | null>(null)
   const [qrEnrollment, setQrEnrollment] = useState<CourseEnrollment | null>(null)
   const [sepayEnrollment, setSepayEnrollment] = useState<CourseEnrollment | null>(null)
+  const [payosEnrollment, setPayosEnrollment] = useState<CourseEnrollment | null>(null)
   const [submitItem, setSubmitItem] = useState<AssignmentOverviewItem | null>(null)
 
   const { data: stats } = useQuery({
@@ -305,7 +307,7 @@ export default function StudentDashboardPage() {
                 <CreditCard className="h-5 w-5 text-[hsl(var(--success))]" /> Tuition &amp; payments
               </CardTitle>
               <CardDescription>
-                SePay (bank transfer), VNPay / VietQR sandbox
+                SePay &amp; PayOS (bank transfer / QR), VNPay / VietQR sandbox
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -345,6 +347,15 @@ export default function StudentDashboardPage() {
                             >
                               <Wallet className="h-3.5 w-3.5 mr-1" />
                               SePay
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full"
+                              onClick={() => setPayosEnrollment(e)}
+                            >
+                              <CreditCard className="h-3.5 w-3.5 mr-1" />
+                              PayOS
                             </Button>
                             <Button
                               size="sm"
@@ -427,6 +438,14 @@ export default function StudentDashboardPage() {
           open={!!sepayEnrollment}
           onOpenChange={(o) => !o && setSepayEnrollment(null)}
           enrollment={sepayEnrollment}
+        />
+      )}
+
+      {payosEnrollment && (
+        <PayOSDialog
+          open={!!payosEnrollment}
+          onOpenChange={(o) => !o && setPayosEnrollment(null)}
+          enrollment={payosEnrollment}
         />
       )}
 

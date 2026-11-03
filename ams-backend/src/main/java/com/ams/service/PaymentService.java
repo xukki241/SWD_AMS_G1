@@ -1,6 +1,7 @@
 package com.ams.service;
 
 import com.ams.config.VnPayConfig;
+import com.ams.config.PayOSConfig;
 import com.ams.config.SePayConfig;
 import com.ams.dto.PaymentDTO;
 import com.ams.entity.CourseEnrollment;
@@ -11,6 +12,8 @@ import com.ams.exception.ResourceNotFoundException;
 import com.ams.repository.CourseEnrollmentRepository;
 import com.ams.repository.PaymentTransactionRepository;
 import com.ams.repository.UserRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,9 +26,14 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
+import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.Base64;
@@ -37,11 +45,13 @@ public class PaymentService {
 
     private final VnPayConfig vnPayConfig;
     private final SePayConfig sePayConfig;
+    private final PayOSConfig payOSConfig;
     private final CourseEnrollmentRepository enrollmentRepository;
     private final PaymentTransactionRepository paymentRepository;
     private final UserRepository userRepository;
     private final CourseEnrollmentService enrollmentService;
     private final AuditLogService auditLogService;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<PaymentDTO.PaymentTransactionResponse> getMyPayments() {
@@ -481,6 +491,293 @@ public class PaymentService {
         } catch (Exception ex) {
             return "";
         }
+    }
+
+    // ------------------------------------------------------------------
+    // PayOS (payment link / VietQR / bank transfer). Links are created through
+    // the PayOS merchant API, the webhook is the primary activation path, and
+    // the browser return re-checks the order status before activating.
+    // ------------------------------------------------------------------
+
+    private static final HttpClient PAYOS_HTTP = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
+
+    /**
+     * Create a PayOS payment link for an enrollment and store a PENDING txn.
+     * The browser is redirected to {@code checkoutUrl} to complete payment.
+     */
+    @Transactional
+    public PaymentDTO.PayOSCheckoutResponse createPayOSCheckout(Long enrollmentId) {
+        CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found: " + enrollmentId));
+
+        if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE) {
+            throw new BadRequestException("Enrollment is already paid and active");
+        }
+        if (isBlank(payOSConfig.getClientId()) || isBlank(payOSConfig.getApiKey())
+                || isBlank(payOSConfig.getChecksumKey())) {
+            throw new BadRequestException("PayOS is not configured (missing client id / api key / checksum key)");
+        }
+
+        BigDecimal amount = enrollment.getAmount();
+        long orderCode = payOSOrderCode(enrollment.getId());
+        // Bank-transfer descriptions are limited in length, so keep this short.
+        String description = "AMS " + enrollment.getId();
+        String returnUrl = payOSConfig.getReturnUrl();
+        String cancelUrl = payOSConfig.getCancelUrl();
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("orderCode", orderCode);
+        payload.put("amount", amount.longValue());
+        payload.put("description", description);
+        payload.put("returnUrl", returnUrl);
+        payload.put("cancelUrl", cancelUrl);
+        payload.put("signature", payOSCreateSignature(
+                amount.longValue(), cancelUrl, description, orderCode, returnUrl));
+
+        JsonNode response;
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(payOSConfig.paymentRequestsUrl()))
+                    .timeout(Duration.ofSeconds(20))
+                    .header("Content-Type", "application/json")
+                    .header("x-client-id", payOSConfig.getClientId())
+                    .header("x-api-key", payOSConfig.getApiKey())
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                    .build();
+            HttpResponse<String> httpResponse = PAYOS_HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            response = objectMapper.readTree(httpResponse.body());
+            if (httpResponse.statusCode() / 100 != 2) {
+                log.error("[PAYOS] create link HTTP {} body={}", httpResponse.statusCode(), httpResponse.body());
+                throw new BadRequestException("PayOS rejected the payment link request");
+            }
+        } catch (BadRequestException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.error("[PAYOS] create payment link failed", ex);
+            throw new BadRequestException("Could not reach PayOS: " + ex.getMessage());
+        }
+
+        if (!"00".equals(response.path("code").asText(""))) {
+            throw new BadRequestException("PayOS error: " + response.path("desc").asText("unknown error"));
+        }
+
+        JsonNode data = response.path("data");
+        String checkoutUrl = data.path("checkoutUrl").asText(null);
+        if (checkoutUrl == null || checkoutUrl.isBlank()) {
+            throw new BadRequestException("PayOS did not return a checkout URL");
+        }
+
+        String txnRef = String.valueOf(orderCode);
+        PaymentTransaction txn = PaymentTransaction.builder()
+                .courseEnrollment(enrollment)
+                .provider("PAYOS")
+                .providerReference(txnRef)
+                .amount(amount)
+                .transactionStatus(PaymentTransaction.TransactionStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .build();
+        paymentRepository.save(txn);
+
+        auditLogService.log("INIT_PAYMENT_PAYOS", "PaymentTransaction", txnRef);
+        return new PaymentDTO.PayOSCheckoutResponse(
+                checkoutUrl,
+                data.path("qrCode").asText(null),
+                data.path("paymentLinkId").asText(null),
+                txnRef,
+                amount);
+    }
+
+    /**
+     * PayOS webhook (primary activation path). Verifies the HMAC-SHA256 signature
+     * of {@code data}, then marks the txn SUCCESS and activates the enrollment
+     * (idempotent). PayOS retries until it receives a 2xx response.
+     */
+    @Transactional
+    public ResponseEntity<Map<String, Object>> processPayOSWebhook(Map<String, Object> body) {
+        Object rawData = body.get("data");
+        String signature = body.get("signature") == null ? null : String.valueOf(body.get("signature"));
+
+        if (!(rawData instanceof Map<?, ?> rawDataMap) || signature == null) {
+            log.warn("[PAYOS_WEBHOOK] malformed payload: {}", body);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "message", "Malformed payload"));
+        }
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        rawDataMap.forEach((key, value) -> data.put(String.valueOf(key), value));
+
+        if (!payOSDataSignature(data).equalsIgnoreCase(signature)) {
+            log.warn("[PAYOS_WEBHOOK] invalid signature for orderCode={}", data.get("orderCode"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("success", false, "message", "Invalid signature"));
+        }
+
+        String orderCode = data.get("orderCode") == null ? null : String.valueOf(data.get("orderCode"));
+        boolean paid = Boolean.TRUE.equals(body.get("success"))
+                || "00".equals(String.valueOf(data.get("code")));
+
+        log.info("[PAYOS_WEBHOOK] orderCode={} paid={} reference={}", orderCode, paid, data.get("reference"));
+
+        if (orderCode != null && paid) {
+            paymentRepository.findByProviderAndProviderReference("PAYOS", orderCode).ifPresentOrElse(txn -> {
+                if (txn.getTransactionStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
+                    txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
+                    paymentRepository.save(txn);
+                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
+                    auditLogService.log("PAYMENT_SUCCESS_PAYOS_WEBHOOK", "PaymentTransaction", orderCode);
+                    log.info("[PAYOS_WEBHOOK] PAID → SUCCESS + activate enrollmentId={} orderCode={}",
+                            txn.getCourseEnrollment().getId(), orderCode);
+                } else {
+                    // Duplicate webhook retry — keep the enrollment ACTIVE.
+                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
+                    log.info("[PAYOS_WEBHOOK] idempotent skip (already SUCCESS) orderCode={}", orderCode);
+                }
+            }, () -> log.warn("[PAYOS_WEBHOOK] no PAYOS txn for orderCode={}", orderCode));
+        }
+
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    /**
+     * Browser return from PayOS (secondary path). The order status is fetched
+     * from the PayOS API instead of trusting query params, so only a confirmed
+     * PAID order activates the enrollment. Production should rely on the webhook.
+     */
+    @Transactional
+    public Map<String, Object> processPayOSReturn(Map<String, String> params) {
+        String orderCode = params.get("orderCode");
+        log.info("[PAYOS_RETURN] orderCode={} status={} cancel={}",
+                orderCode, params.get("status"), params.get("cancel"));
+
+        if (orderCode == null || orderCode.isBlank()) {
+            return Map.of("success", false, "message", "Missing orderCode in the PayOS return.");
+        }
+
+        PaymentTransaction txn = paymentRepository
+                .findByProviderAndProviderReference("PAYOS", orderCode)
+                .orElse(null);
+        if (txn == null) {
+            return Map.of("success", false,
+                    "message", "No PayOS transaction found for order " + orderCode + ".");
+        }
+
+        String status = queryPayOSStatus(orderCode);
+
+        if ("PAID".equalsIgnoreCase(status)) {
+            if (txn.getTransactionStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
+                txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
+                paymentRepository.save(txn);
+                auditLogService.log("PAYMENT_SUCCESS_PAYOS_RETURN", "PaymentTransaction", orderCode);
+            }
+            enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
+            return Map.of("success", true,
+                    "message", "Payment completed successfully! Course enrollment is now ACTIVE.");
+        }
+
+        if ("CANCELLED".equalsIgnoreCase(status)) {
+            if (txn.getTransactionStatus() == PaymentTransaction.TransactionStatus.PENDING) {
+                txn.setTransactionStatus(PaymentTransaction.TransactionStatus.FAILED);
+                paymentRepository.save(txn);
+            }
+            return Map.of("success", false, "message", "Payment was cancelled.");
+        }
+
+        if ("PENDING".equalsIgnoreCase(status)) {
+            return Map.of("success", false,
+                    "message", "PayOS has not confirmed this payment yet. "
+                            + "Your enrollment activates as soon as the webhook arrives.");
+        }
+
+        return Map.of("success", false,
+                "message", "Could not verify the payment with PayOS. "
+                        + "If you were charged, your enrollment activates automatically via webhook.");
+    }
+
+    /** Fetch the authoritative payment-link status from PayOS (PAID/PENDING/CANCELLED), or null. */
+    private String queryPayOSStatus(String orderCode) {
+        if (isBlank(payOSConfig.getClientId()) || isBlank(payOSConfig.getApiKey())) {
+            return null;
+        }
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(payOSConfig.paymentRequestsUrl() + "/" + orderCode))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("x-client-id", payOSConfig.getClientId())
+                    .header("x-api-key", payOSConfig.getApiKey())
+                    .GET()
+                    .build();
+            HttpResponse<String> response = PAYOS_HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                log.warn("[PAYOS_RETURN] status lookup HTTP {} for orderCode={}",
+                        response.statusCode(), orderCode);
+                return null;
+            }
+            JsonNode json = objectMapper.readTree(response.body());
+            if (!"00".equals(json.path("code").asText(""))) {
+                log.warn("[PAYOS_RETURN] status lookup error for orderCode={}: {}",
+                        orderCode, json.path("desc").asText(""));
+                return null;
+            }
+            return json.path("data").path("status").asText(null);
+        } catch (Exception ex) {
+            log.warn("[PAYOS_RETURN] status lookup failed for orderCode={}: {}", orderCode, ex.getMessage());
+            return null;
+        }
+    }
+
+    /** PayOS create-link signature: fixed field order, HMAC-SHA256 hex with the checksum key. */
+    private String payOSCreateSignature(long amount, String cancelUrl, String description,
+                                        long orderCode, String returnUrl) {
+        String data = "amount=" + amount
+                + "&cancelUrl=" + cancelUrl
+                + "&description=" + description
+                + "&orderCode=" + orderCode
+                + "&returnUrl=" + returnUrl;
+        return hmacSHA256Hex(payOSConfig.getChecksumKey(), data);
+    }
+
+    /** PayOS webhook signature: alphabetically sorted {@code key=value} pairs of {@code data}. */
+    private String payOSDataSignature(Map<String, Object> data) {
+        List<String> keys = new ArrayList<>(data.keySet());
+        Collections.sort(keys);
+        StringBuilder sb = new StringBuilder();
+        for (String key : keys) {
+            Object value = data.get(key);
+            if (value == null || value instanceof Map || value instanceof Collection) {
+                continue;
+            }
+            if (sb.length() > 0) {
+                sb.append('&');
+            }
+            sb.append(key).append('=').append(value);
+        }
+        return hmacSHA256Hex(payOSConfig.getChecksumKey(), sb.toString());
+    }
+
+    /** Unique numeric order code (PayOS requires a number below 2^53). */
+    private long payOSOrderCode(Long enrollmentId) {
+        return System.currentTimeMillis() * 100 + (enrollmentId % 100);
+    }
+
+    public static String hmacSHA256Hex(final String key, final String data) {
+        try {
+            final Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : mac.doFinal(data.getBytes(StandardCharsets.UTF_8))) {
+                sb.append(String.format("%02x", b & 0xff));
+            }
+            return sb.toString();
+        } catch (Exception ex) {
+            log.warn("PayOS HMAC failed", ex);
+            return "";
+        }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private String getClientIp(HttpServletRequest request) {

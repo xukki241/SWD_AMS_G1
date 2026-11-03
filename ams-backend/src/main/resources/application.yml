@@ -51,6 +51,14 @@ sepay:
   cancel-url: ${SEPAY_CANCEL_URL:http://localhost:3000/payment/sepay-return?result=cancel}
   ipn-url: ${SEPAY_IPN_URL:http://localhost:8080/api/payment/sepay-ipn}
 
+payos:
+  client-id: ${PAYOS_CLIENT_ID:}
+  api-key: ${PAYOS_API_KEY:}
+  checksum-key: ${PAYOS_CHECKSUM_KEY:}
+  base-url: ${PAYOS_BASE_URL:https://api-merchant.payos.vn}
+  return-url: ${PAYOS_RETURN_URL:http://localhost:3000/payment/payos-return}
+  cancel-url: ${PAYOS_CANCEL_URL:http://localhost:3000/payment/payos-return}
+
 # Local disk storage for class materials / uploads (override via FILE_STORAGE_*)
 file:
   storage:

@@ -156,6 +156,14 @@ export interface SePayCheckoutResponse {
   amount: number;
 }
 
+export interface PayOSCheckoutResponse {
+  checkoutUrl: string;
+  qrCode?: string | null;
+  paymentLinkId?: string | null;
+  transactionRef: string;
+  amount: number;
+}
+
 // Submission
 export interface Submission {
   id: number;

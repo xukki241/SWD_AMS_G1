@@ -57,6 +57,8 @@ public class SecurityConfig {
                                 "/api/payment/vnpay-return",
                                 "/api/payment/sepay-ipn",
                                 "/api/payment/sepay-return",
+                                "/api/payment/payos-webhook",
+                                "/api/payment/payos-return",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/api-docs/**",

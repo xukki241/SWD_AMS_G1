@@ -1,6 +1,6 @@
 # AMS — Assignment Management System
 
-Assignment Management System (AMS) is a course-based learning platform POC for SWD392 Group 1. Teachers build the course catalog with modules, lessons and AI-drafted outlines; students enroll in free or paid courses, pay tuition (VNPay / SePay / VietQR sandbox), submit work, and receive grades. Admins manage accounts, roles, and audit logs.
+Assignment Management System (AMS) is a course-based learning platform POC for SWD392 Group 1. Teachers build the course catalog with modules, lessons and AI-drafted outlines; students enroll in free or paid courses, pay tuition (VNPay / SePay / PayOS / VietQR sandbox), submit work, and receive grades. Admins manage accounts, roles, and audit logs.
 
 ## Table of contents
 
@@ -26,7 +26,7 @@ Assignment Management System (AMS) is a course-based learning platform POC for S
 - Course management (rubric #2): teacher-owned catalog with search/filter/pagination, thumbnail upload, module/lesson curriculum (drag-and-drop reorder), and Gemini-drafted outlines reviewed before saving
 - Enroll Course with Payment (rubric #4): free courses enroll as `ACTIVE`; paid courses stay `PENDING_PAYMENT` until payment succeeds
 - Assignments per course: submit → grade flow with student work-state overview
-- Payments: SePay (primary live/demo gateway with IPN), VNPay Sandbox, VietQR sandbox confirm
+- Payments: SePay and PayOS (hosted checkout + webhook/IPN), VNPay Sandbox, VietQR sandbox confirm
 - Roles: `ADMIN`, `EXPERT`, `TEACHER`, `STUDENT` with JWT auth
 - Flyway-managed PostgreSQL schema (V1–V3) and seed data for demos
 
@@ -41,7 +41,7 @@ Assignment Management System (AMS) is a course-based learning platform POC for S
 | Security | Spring Security + JWT (stateless) |
 | API docs | SpringDoc OpenAPI (Swagger UI) |
 | File storage | Local disk (`/api/files/**`) + Cloudinary for images |
-| Payments | SePay, VNPay Sandbox, VietQR confirm |
+| Payments | SePay, PayOS, VNPay Sandbox, VietQR confirm |
 | Frontend | Next.js 14 (App Router), TypeScript |
 | UI | Tailwind CSS, shadcn/ui (Radix) |
 | Client data | TanStack Query v5, Zustand (auth), React Hook Form + Zod |
@@ -56,6 +56,7 @@ Do not duplicate secrets or long SePay runbooks here.
 | --- | ------- |
 | [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | Health check, seed inventory, flow matrix, known GAPs |
 | [docs/SEPAY_SETUP.md](docs/SEPAY_SETUP.md) | Local SePay IPN via cloudflared/ngrok + portal config |
+| [docs/PAYOS_SETUP.md](docs/PAYOS_SETUP.md) | PayOS payment channel, env vars and webhook setup |
 | [`.env.example`](.env.example) | Backend / Compose env template (placeholders only) |
 | [`ams-frontend/.env.local.example`](ams-frontend/.env.local.example) | Frontend public env template |
 
@@ -142,7 +143,7 @@ cd ams-backend
 ./mvnw spring-boot:run
 ```
 
-Spring Boot reads `DB_*`, `JWT_*`, `CLOUDINARY_*`, `VNPAY_*`, `SEPAY_*`, `GEMINI_*`, `FILE_STORAGE_*`, and `PORT` from the environment / `.env` (depending how you inject them). Defaults also exist in `ams-backend/src/main/resources/application.yml`.
+Spring Boot reads `DB_*`, `JWT_*`, `CLOUDINARY_*`, `VNPAY_*`, `SEPAY_*`, `PAYOS_*`, `GEMINI_*`, `FILE_STORAGE_*`, and `PORT` from the environment / `.env` (depending how you inject them). Defaults also exist in `ams-backend/src/main/resources/application.yml`.
 
 Swagger: http://localhost:8080/swagger-ui.html
 
@@ -249,6 +250,10 @@ Try it: log in as `teacher1` / `Password@123` → **Courses** in the sidebar →
 ### SePay
 
 Configure merchant id, secret, and public IPN URL via `.env` + SePay portal. Step-by-step: [docs/SEPAY_SETUP.md](docs/SEPAY_SETUP.md). Do not paste live secrets into git.
+
+### PayOS
+
+Create a payment channel at [my.payos.vn](https://my.payos.vn) for `PAYOS_CLIENT_ID`, `PAYOS_API_KEY` and `PAYOS_CHECKSUM_KEY`. Webhook: `POST /api/payment/payos-webhook` (public HTTPS); return: `/payment/payos-return`. Setup details: [docs/PAYOS_SETUP.md](docs/PAYOS_SETUP.md).
 
 ### VietQR
 
