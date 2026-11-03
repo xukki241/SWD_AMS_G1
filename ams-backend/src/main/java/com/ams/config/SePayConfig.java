@@ -29,6 +29,13 @@ public class SePayConfig {
     @Value("${sepay.ipn-url}")
     private String ipnUrl;
 
+    /**
+     * Optional. Empty = omit so SePay uses merchant-enabled method(s).
+     * Hardcoding BANK_TRANSFER fails when that method is not enabled.
+     */
+    @Value("${sepay.payment-method:}")
+    private String paymentMethod;
+
     /** Hosted checkout form target (production: https://pay.sepay.vn/v1/checkout/init). */
     public String checkoutUrl() {
         return "production".equals(env)

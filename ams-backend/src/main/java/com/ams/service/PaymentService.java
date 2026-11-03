@@ -251,11 +251,16 @@ public class PaymentService {
     // so it can be built entirely in Java with no Node sidecar.
     // ------------------------------------------------------------------
 
-    /** Official SePay form API signed-field order (skip missing). */
-    private static final List<String> SEPAY_SIGNED_FIELDS = List.of(
-            "order_amount", "merchant", "currency", "operation",
-            "order_description", "order_invoice_number", "customer_id",
-            "payment_method", "success_url", "error_url", "cancel_url");
+    /**
+     * Allow-list used by sepay-pg-node Checkout.signFields.
+     * Signature string MUST follow LinkedHashMap insertion order (Object.keys).
+     */
+    private static final Set<String> SEPAY_SIGN_ALLOW = Set.of(
+            "merchant", "env", "operation", "payment_method",
+            "order_amount", "currency", "order_invoice_number", "order_description",
+            "customer_id", "agreement_id", "agreement_name", "agreement_type",
+            "agreement_payment_frequency", "agreement_amount_per_payment",
+            "success_url", "error_url", "cancel_url", "order_id");
 
     /**
      * Build the SePay hosted-checkout form for an enrollment. The returned
@@ -269,21 +274,37 @@ public class PaymentService {
         if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE) {
             throw new BadRequestException("Enrollment is already paid and active");
         }
+        if (sePayConfig.getMerchantId() == null || sePayConfig.getMerchantId().isBlank()
+                || sePayConfig.getSecretKey() == null || sePayConfig.getSecretKey().isBlank()) {
+            throw new BadRequestException("SePay is not configured (merchant or secret key).");
+        }
 
         BigDecimal amount = enrollment.getAmount();
         String txnRef = "SEPAY" + System.currentTimeMillis() + "-" + enrollment.getId();
+        String customerId = enrollment.getStudent() != null
+                ? String.valueOf(enrollment.getStudent().getId())
+                : "guest";
 
-        Map<String, String> fields = new LinkedHashMap<>();
+        // Insertion order = sepay-pg-node Object.keys sign order.
+        LinkedHashMap<String, String> fields = new LinkedHashMap<>();
         fields.put("merchant", sePayConfig.getMerchantId());
         fields.put("operation", "PURCHASE");
-        fields.put("payment_method", "BANK_TRANSFER");
+        String method = sePayConfig.getPaymentMethod();
+        if (method != null && !method.isBlank()) {
+            fields.put("payment_method", method.trim());
+        }
         fields.put("order_invoice_number", txnRef);
         fields.put("order_amount", String.valueOf(amount.longValue()));
         fields.put("currency", "VND");
-        fields.put("order_description", "AMS course tuition " + enrollment.getCourse().getCode());
+        String description = "AMS course tuition " + enrollment.getCourse().getCode();
+        if (description.length() > 120) {
+            description = description.substring(0, 120);
+        }
+        fields.put("order_description", description);
         fields.put("success_url", appendRef(sePayConfig.getSuccessUrl(), txnRef));
         fields.put("error_url", appendRef(sePayConfig.getErrorUrl(), txnRef));
         fields.put("cancel_url", appendRef(sePayConfig.getCancelUrl(), txnRef));
+        fields.put("customer_id", customerId);
         fields.put("signature", sePaySignature(fields));
 
         PaymentTransaction txn = PaymentTransaction.builder()
@@ -297,6 +318,10 @@ public class PaymentService {
         paymentRepository.save(txn);
 
         auditLogService.log("INIT_PAYMENT_SEPAY", "PaymentTransaction", txnRef);
+        log.info("[SEPAY_INIT] txn={} amount={} method={} merchant={}",
+                txnRef, amount,
+                method == null || method.isBlank() ? "(omit)" : method,
+                sePayConfig.getMerchantId());
         return new PaymentDTO.SePayCheckoutResponse(
                 sePayConfig.checkoutUrl(), fields, txnRef, amount);
     }
@@ -399,7 +424,8 @@ public class PaymentService {
             });
         }
         return Map.of("success", !"error".equals(result) && !"cancel".equals(result),
-                "message", "error".equals(result) ? "Payment failed."
+                "message", "error".equals(result)
+                        ? "Payment failed on SePay (method unavailable, cancelled, or unpaid). Try again or use VietQR."
                         : "cancel".equals(result) ? "Payment cancelled."
                         : "Payment completed successfully! Course enrollment is now ACTIVE.");
     }
@@ -409,16 +435,21 @@ public class PaymentService {
         String separator = url.contains("?") ? "&" : "?";
         return url + separator + "ref=" + ref;
     }
+
+    /** HMAC over allow-listed fields in map insertion order (parity with sepay-pg-node). */
     private String sePaySignature(Map<String, String> fields) {
         List<String> parts = new ArrayList<>();
-        for (String name : SEPAY_SIGNED_FIELDS) {
-            String value = fields.get(name);
-            if (value != null && !value.isEmpty()) {
-                parts.add(name + "=" + value);
+        for (String name : fields.keySet()) {
+            if (!SEPAY_SIGN_ALLOW.contains(name)) {
+                continue;
             }
+            String value = fields.get(name);
+            if (value == null) {
+                continue;
+            }
+            parts.add(name + "=" + value);
         }
-        String data = String.join(",", parts);
-        return hmacSHA256Base64(sePayConfig.getSecretKey(), data);
+        return hmacSHA256Base64(sePayConfig.getSecretKey(), String.join(",", parts));
     }
 
     public static String hmacSHA256Base64(final String key, final String data) {

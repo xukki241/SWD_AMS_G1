@@ -32,16 +32,16 @@ services:
       DB_USERNAME: ams_user
       DB_PASSWORD: ams_password
       JWT_SECRET: ${JWT_SECRET:-ams-super-secret-jwt-key-for-development-only-minimum-256-bits-long}
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-swd_g1_asm}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-515266116764594}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-zpX4FsnjTXRtK8p5BxzI3YQFnFY}
-      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-K815KFV6}
-      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-XXRGOEBAEHIDULXFAPHQLAYVHAZEBEKC}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
       VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/payment/return}
       VNPAY_IPN_URL: ${VNPAY_IPN_URL:-http://host.docker.internal:8080/api/payment/vnpay-ipn}
       SEPAY_ENV: ${SEPAY_ENV:-production}
-      SEPAY_MERCHANT_ID: ${SEPAY_MERCHANT_ID:-SP-LIVE-NX3AA858}
-      SEPAY_SECRET_KEY: ${SEPAY_SECRET_KEY:-spsk_live_7P92E5XYPkpNKJwkokzUcFKbuht253cU}
+      SEPAY_MERCHANT_ID: ${SEPAY_MERCHANT_ID:-}
+      SEPAY_SECRET_KEY: ${SEPAY_SECRET_KEY:-}
       SEPAY_SUCCESS_URL: ${SEPAY_SUCCESS_URL:-http://localhost:3000/payment/sepay-return}
       SEPAY_ERROR_URL: ${SEPAY_ERROR_URL:-http://localhost:3000/payment/sepay-return?result=error}
       SEPAY_CANCEL_URL: ${SEPAY_CANCEL_URL:-http://localhost:3000/payment/sepay-return?result=cancel}
@@ -52,6 +52,7 @@ services:
       PAYOS_BASE_URL: ${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
       PAYOS_RETURN_URL: ${PAYOS_RETURN_URL:-http://localhost:3000/payment/payos-return}
       PAYOS_CANCEL_URL: ${PAYOS_CANCEL_URL:-http://localhost:3000/payment/payos-return}
+      SEPAY_PAYMENT_METHOD: ${SEPAY_PAYMENT_METHOD:-BANK_TRANSFER}
       FILE_STORAGE_PATH: /app/storage/files
       FILE_STORAGE_BASE_URL: http://localhost:8080
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
