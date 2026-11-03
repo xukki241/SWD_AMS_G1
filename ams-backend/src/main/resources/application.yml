@@ -31,25 +31,27 @@ jwt:
   expiration: 86400000  # 24h in ms
 
 cloudinary:
-  cloud-name: ${CLOUDINARY_CLOUD_NAME:swd_g1_asm}
-  api-key: ${CLOUDINARY_API_KEY:515266116764594}
-  api-secret: ${CLOUDINARY_API_SECRET:zpX4FsnjTXRtK8p5BxzI3YQFnFY}
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+  api-key: ${CLOUDINARY_API_KEY:}
+  api-secret: ${CLOUDINARY_API_SECRET:}
 
 vnpay:
-  tmn-code: ${VNPAY_TMN_CODE:K815KFV6}
-  hash-secret: ${VNPAY_HASH_SECRET:XXRGOEBAEHIDULXFAPHQLAYVHAZEBEKC}
+  tmn-code: ${VNPAY_TMN_CODE:}
+  hash-secret: ${VNPAY_HASH_SECRET:}
   payment-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
   return-url: ${VNPAY_RETURN_URL:http://localhost:3000/payment/return}
   ipn-url: ${VNPAY_IPN_URL:http://localhost:8080/api/payment/vnpay-ipn}
 
 sepay:
   env: ${SEPAY_ENV:production}
-  merchant-id: ${SEPAY_MERCHANT_ID:SP-LIVE-NX3AA858}
-  secret-key: ${SEPAY_SECRET_KEY:spsk_live_7P92E5XYPkpNKJwkokzUcFKbuht253cU}
+  merchant-id: ${SEPAY_MERCHANT_ID:}
+  secret-key: ${SEPAY_SECRET_KEY:}
   success-url: ${SEPAY_SUCCESS_URL:http://localhost:3000/payment/sepay-return}
   error-url: ${SEPAY_ERROR_URL:http://localhost:3000/payment/sepay-return?result=error}
   cancel-url: ${SEPAY_CANCEL_URL:http://localhost:3000/payment/sepay-return?result=cancel}
   ipn-url: ${SEPAY_IPN_URL:http://localhost:8080/api/payment/sepay-ipn}
+  # BANK_TRANSFER | NAPAS_BANK_TRANSFER | CARD — leave empty to omit (merchant default).
+  payment-method: ${SEPAY_PAYMENT_METHOD:BANK_TRANSFER}
 
 # Local disk storage for class materials / uploads (override via FILE_STORAGE_*)
 file:

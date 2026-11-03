@@ -138,3 +138,9 @@ Log mong đợi:
 | **Return** (`GET /api/payment/sepay-return`) | Secondary / local demo khi chưa có tunnel; vẫn activate idempotent nếu `result` success |
 
 Production: luôn cấu hình IPN public; đừng chỉ tin query `?result=success` từ browser.
+
+## Merchant ID + payment method
+
+`SEPAY_MERCHANT_ID` phải **khớp Unit ID** trên portal (ví dụ `SP-LIVE-NX3AAB5B`). Sai merchant → SePay redirect `error_url` trong ~2 giây (lịch sử Failed liên tục).
+
+`SEPAY_PAYMENT_METHOD` (mặc định `BANK_TRANSFER`) chỉ set method đã bật trên merchant. Để trống nếu muốn SePay tự chọn / hiện màn picker.
