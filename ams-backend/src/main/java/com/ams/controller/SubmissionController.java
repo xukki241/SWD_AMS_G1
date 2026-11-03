@@ -24,13 +24,13 @@ public class SubmissionController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('STUDENT')")
-    @Operation(summary = "Submit assignment file (uploaded to Cloudinary)")
+    @Operation(summary = "Submit assignment file for a course enrollment (uploaded to Cloudinary)")
     public ResponseEntity<SubmissionDTO.SubmissionResponse> submitAssignment(
-            @RequestParam("classRegistrationId") Long classRegistrationId,
+            @RequestParam("courseEnrollmentId") Long courseEnrollmentId,
             @RequestParam("assignmentId") Long assignmentId,
             @RequestParam("file") MultipartFile file
     ) throws IOException {
-        return ResponseEntity.ok(submissionService.submitAssignment(classRegistrationId, assignmentId, file));
+        return ResponseEntity.ok(submissionService.submitAssignment(courseEnrollmentId, assignmentId, file));
     }
 
     @GetMapping("/assignment/{assignmentId}")

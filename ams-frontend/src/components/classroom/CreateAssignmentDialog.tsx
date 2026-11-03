@@ -2,7 +2,6 @@
 
 import React, { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import api from "@/lib/axios"
 import { useToast } from "@/lib/use-toast"
 import {
   Dialog,
@@ -11,24 +10,25 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Plus } from "lucide-react"
+import { assignmentService } from "@/services/assignment.service"
 
 export function CreateAssignmentDialog({
-  classId,
-  trigger,
-  defaultLabel = "Create",
+  courseId,
+  open,
+  onClose,
+  onCreated,
 }: {
-  classId: number
-  trigger?: React.ReactNode
-  defaultLabel?: string
+  courseId: number
+  open: boolean
+  onClose: () => void
+  onCreated?: (assignmentId: number) => void
 }) {
-  const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [instructions, setInstructions] = useState("")
   const [topic, setTopic] = useState("")
@@ -46,28 +46,26 @@ export function CreateAssignmentDialog({
   }
 
   const createMutation = useMutation({
-    mutationFn: async () => {
-      await api.post("/assignments", {
+    mutationFn: () =>
+      assignmentService.createForCourse(courseId, {
         title: title.trim(),
-        instructions: instructions.trim(),
+        instructions: instructions.trim() || undefined,
         topic: topic.trim() || undefined,
         dueAt,
         maxScore: Number(maxScore) || 10,
-        subjectClassId: classId,
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["class-assignments", classId] })
-      queryClient.invalidateQueries({ queryKey: ["teacher-my-classes"] })
+      }),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["course-assignments", courseId] })
+      queryClient.invalidateQueries({ queryKey: ["teacher-todo"] })
       queryClient.invalidateQueries({ queryKey: ["teacher-stats"] })
-      queryClient.invalidateQueries({ queryKey: ["sidebar-my-classes"] })
-      toast({ title: "Classwork created", variant: "success" })
+      toast({ title: "Assignment created", variant: "success" })
+      onCreated?.(created.id)
       reset()
-      setOpen(false)
+      onClose()
     },
     onError: (err: any) => {
       toast({
-        title: "Could not create classwork",
+        title: "Could not create assignment",
         description: err.response?.data?.message || "Please check the form.",
         variant: "destructive",
       })
@@ -78,23 +76,17 @@ export function CreateAssignmentDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        setOpen(next)
-        if (!next) reset()
+        if (!next) {
+          reset()
+          onClose()
+        }
       }}
     >
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm" className="rounded-full shadow-gc">
-            <Plus className="mr-1.5 h-4 w-4" />
-            {defaultLabel}
-          </Button>
-        )}
-      </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create assignment</DialogTitle>
           <DialogDescription>
-            Publish classwork for this class only.
+            Publish coursework for this course only.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-1">
@@ -150,7 +142,7 @@ export function CreateAssignmentDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={createMutation.isPending}>
+          <Button variant="outline" onClick={() => { reset(); onClose() }} disabled={createMutation.isPending}>
             Cancel
           </Button>
           <Button

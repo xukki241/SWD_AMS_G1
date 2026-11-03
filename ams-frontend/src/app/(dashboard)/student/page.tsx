@@ -8,10 +8,9 @@ import { useToast } from "@/lib/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
-import { ClassCard } from "@/components/classroom/ClassCard"
-import { JoinClassDialog } from "@/components/classroom/JoinClassDialog"
 import { VietQrDialog } from "@/components/classroom/VietQrDialog"
 import { SePayDialog } from "@/components/classroom/SePayDialog"
+import { SubmitDialog } from "@/components/classroom/SubmitDialog"
 import { ErrorState } from "@/components/classroom/ErrorState"
 import { EmptyState } from "@/components/classroom/EmptyState"
 import { StatusBadge } from "@/components/classroom/StatusBadge"
@@ -19,13 +18,18 @@ import {
   formatVnd,
   formatDate,
   formatDateTime,
+  avatarColor,
+  classInitial,
 } from "@/components/classroom/format"
-import {
-  MyClass,
-  Registration,
+import { enrollmentService } from "@/services/enrollment.service"
+import { paymentService } from "@/services/payment.service"
+import { assignmentService } from "@/services/assignment.service"
+import type {
+  CourseEnrollment,
   PaymentTransaction,
   AssignmentOverviewItem,
-} from "@/components/classroom/classroomTypes"
+  StudentDashboard,
+} from "@/types"
 import {
   Clock,
   CreditCard,
@@ -33,65 +37,87 @@ import {
   Wallet,
   Loader2,
   QrCode,
-  Plus,
+  GraduationCap,
+  BookOpen,
+  CheckCircle2,
+  TrendingUp,
 } from "lucide-react"
 
 export default function StudentDashboardPage() {
   const { toast } = useToast()
 
   const [vnPayBusyId, setVnPayBusyId] = useState<number | null>(null)
-  const [qrRegistration, setQrRegistration] = useState<Registration | null>(null)
-  const [sepayRegistration, setSepayRegistration] = useState<Registration | null>(null)
+  const [qrEnrollment, setQrEnrollment] = useState<CourseEnrollment | null>(null)
+  const [sepayEnrollment, setSepayEnrollment] = useState<CourseEnrollment | null>(null)
+  const [submitItem, setSubmitItem] = useState<AssignmentOverviewItem | null>(null)
 
-  const { data: myClasses, isLoading: classesLoading, isError: classesError, refetch: refetchClasses } = useQuery({
-    queryKey: ["student-my-classes"],
-    queryFn: async () => (await api.get("/subject-classes/my")).data as MyClass[],
+  const { data: stats } = useQuery({
+    queryKey: ["student-dashboard"],
+    queryFn: async () => (await api.get("/dashboard/student")).data as StudentDashboard,
   })
 
-  const { data: registrations, isLoading: regsLoading, isError: regsError, refetch: refetchRegs } = useQuery({
-    queryKey: ["student-registrations"],
-    queryFn: async () => (await api.get("/registrations/my")).data as Registration[],
+  const {
+    data: enrollments,
+    isLoading: enrollmentsLoading,
+    isError: enrollmentsError,
+    refetch: refetchEnrollments,
+  } = useQuery({
+    queryKey: ["student-enrollments"],
+    queryFn: () => enrollmentService.getMyEnrollments(),
   })
 
-  const { data: payments, isLoading: payLoading, isError: payError, refetch: refetchPay } = useQuery({
+  const {
+    data: payments,
+    isLoading: payLoading,
+    isError: payError,
+    refetch: refetchPay,
+  } = useQuery({
     queryKey: ["student-payments"],
-    queryFn: async () => (await api.get("/payment/my")).data as PaymentTransaction[],
+    queryFn: () => paymentService.getMyPayments(),
   })
 
-  const { data: overview, isLoading: overviewLoading, isError: overviewError, refetch: refetchOverview } = useQuery({
-    queryKey: ["student-assignments-overview"],
-    queryFn: async () =>
-      (await api.get("/assignments/overview")).data as AssignmentOverviewItem[],
+  const {
+    data: overview,
+    isLoading: overviewLoading,
+    isError: overviewError,
+    refetch: refetchOverview,
+  } = useQuery({
+    queryKey: ["student-work"],
+    queryFn: () => assignmentService.getMyOverview(),
   })
 
-  const pendingRegs = useMemo(
-    () => (registrations || []).filter((r) => r.status === "PENDING_PAYMENT"),
-    [registrations]
+  const pendingEnrollments = useMemo(
+    () => (enrollments || []).filter((e) => e.status === "PENDING_PAYMENT"),
+    [enrollments]
   )
 
-  const upcoming = useMemo(
+  const pendingWork = useMemo(
     () =>
       [...(overview || [])]
-        .filter((o) => new Date(o.dueAt).getTime() >= Date.now() - 365 * 24 * 3600 * 1000)
+        .filter((o) => o.workState !== "GRADED")
         .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()),
     [overview]
   )
 
-  const upcomingByClass = useMemo(() => {
-    const map = new Map<number, AssignmentOverviewItem>()
-    for (const o of upcoming) {
-      if (!map.has(o.classId) && o.workState !== "GRADED") {
-        map.set(o.classId, o)
-      }
-    }
-    return map
-  }, [upcoming])
+  const kpis = [
+    { label: "Enrolled courses", value: stats?.totalEnrollments ?? 0, icon: BookOpen },
+    { label: "Active courses", value: stats?.activeCourses ?? 0, icon: GraduationCap },
+    { label: "Submitted", value: stats?.submittedAssignments ?? 0, icon: CheckCircle2 },
+    {
+      label: "Average score",
+      value:
+        stats?.averageScore !== null && stats?.averageScore !== undefined
+          ? Number(stats.averageScore).toFixed(1)
+          : "—",
+      icon: TrendingUp,
+    },
+  ]
 
-  const payVnPay = async (reg: Registration) => {
-    setVnPayBusyId(reg.id)
+  const payVnPay = async (enrollment: CourseEnrollment) => {
+    setVnPayBusyId(enrollment.id)
     try {
-      const res = await api.post(`/payment/create/${reg.id}`)
-      window.location.href = res.data.paymentUrl
+      const res = await paymentService.payVnPay(enrollment.id)
+      window.location.href = res.paymentUrl
     } catch (err: any) {
       toast({
         title: "Could not start payment",
@@ -107,108 +133,156 @@ export default function StudentDashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Lớp học</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">My learning</h2>
           <p className="text-sm text-muted-foreground">
-            Mở lớp để xem bảng tin, bài tập và mọi người.
+            Your courses, upcoming work and payments in one place.
           </p>
-        </div>
-        <div id="find" className="flex gap-2">
-          <JoinClassDialog defaultLabel="Tham gia lớp học" />
         </div>
       </div>
 
-      {/* Classes grid — first viewport, GC composition */}
-      <section id="classes">
-        {classesError ? (
-          <ErrorState onRetry={() => refetchClasses()} />
-        ) : classesLoading ? (
+      {/* KPI cards */}
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {kpis.map((k) => (
+          <Card key={k.label} className="shadow-gc">
+            <CardContent className="flex items-center gap-3 p-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]">
+                <k.icon className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-2xl font-semibold tabular-nums text-foreground">
+                  {k.value}
+                </div>
+                <div className="text-xs text-muted-foreground">{k.label}</div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
+
+      {/* My courses — enrollment cards */}
+      <section id="classes" className="scroll-mt-20">
+        <div className="mb-3 flex items-end justify-between">
+          <div>
+            <h3 className="text-lg font-medium tracking-tight text-foreground">My Courses</h3>
+            <p className="text-sm text-muted-foreground">
+              Courses you are enrolled in. Open one to learn and submit work.
+            </p>
+          </div>
+        </div>
+
+        {enrollmentsError ? (
+          <ErrorState onRetry={() => refetchEnrollments()} />
+        ) : enrollmentsLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <StatSkeleton key={i} />
             ))}
           </div>
-        ) : (
+        ) : enrollments && enrollments.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {(myClasses || []).map((c) => {
-              const id = c.classId ?? c.id
-              const next = upcomingByClass.get(id)
+            {enrollments.map((e) => {
+              const banner = e.courseThumbnailUrl
               return (
-                <ClassCard
-                  key={id}
-                  data={c}
-                  showMyStatus
-                  upcomingTitle={next?.title}
-                  upcomingDueAt={next?.dueAt}
-                />
+                <Link
+                  key={e.id}
+                  href={`/courses/${e.courseId}`}
+                  className="group overflow-hidden rounded-xl border bg-card shadow-gc transition-shadow hover:shadow-gc-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {banner ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={banner}
+                      alt={e.courseTitle}
+                      className="h-28 w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className={`flex h-28 w-full items-center justify-center ${avatarColor(
+                        e.courseTitle
+                      )}`}
+                    >
+                      <span className="text-4xl font-bold text-white">
+                        {classInitial(e.courseTitle)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="space-y-2 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="line-clamp-2 font-medium text-foreground group-hover:underline">
+                        {e.courseTitle}
+                      </h4>
+                      <StatusBadge status={e.status} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{e.courseCode}</p>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-sm font-medium text-foreground">
+                        {formatVnd(Number(e.amount))}
+                      </span>
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {e.registrationReference}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
               )
             })}
-
-            {/* Dashed join tile */}
-            <JoinClassDialog
-              defaultLabel="Tham gia lớp học mới"
-              trigger={
-                <button
-                  type="button"
-                  className="flex min-h-[220px] w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border bg-card/40 p-6 text-muted-foreground transition-colors hover:border-[hsl(var(--success))] hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-current">
-                    <Plus className="h-6 w-6" />
-                  </span>
-                  <span className="text-sm font-medium">Tham gia lớp học mới</span>
-                  <span className="text-xs text-muted-foreground">Nhập mã lớp 6 ký tự</span>
-                </button>
-              }
-            />
           </div>
-        )}
-
-        {!classesLoading && !classesError && (!myClasses || myClasses.length === 0) && (
-          <p className="mt-3 text-center text-sm text-muted-foreground">
-            Chưa có lớp — dùng ô &ldquo;Tham gia lớp học mới&rdquo; để ghi danh.
-          </p>
+        ) : (
+          <EmptyState
+            title="No courses yet"
+            description="Browse the catalog and enroll in a course to get started."
+          />
         )}
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section id="work">
+        <section id="work" className="scroll-mt-20">
           <Card className="shadow-gc">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-5 w-5 text-[hsl(var(--success))]" /> Sắp đến hạn
+                <Clock className="h-5 w-5 text-[hsl(var(--success))]" /> Pending work
               </CardTitle>
-              <CardDescription>Bài tập sắp tới theo hạn nộp</CardDescription>
+              <CardDescription>Assignments waiting for your submission</CardDescription>
             </CardHeader>
             <CardContent>
               {overviewError ? (
                 <ErrorState onRetry={() => refetchOverview()} />
               ) : overviewLoading ? (
                 <TableSkeleton rows={3} cols={3} />
-              ) : upcoming.length > 0 ? (
+              ) : pendingWork.length > 0 ? (
                 <ul className="space-y-2">
-                  {upcoming.slice(0, 8).map((o) => {
+                  {pendingWork.slice(0, 8).map((o) => {
                     const pastDue = new Date(o.dueAt).getTime() < Date.now()
                     return (
                       <li
-                        key={`${o.classId}-${o.assignmentId}`}
+                        key={`${o.enrollmentId}-${o.assignmentId}`}
                         className="flex items-center justify-between gap-3 rounded-lg border p-3"
                       >
                         <div className="min-w-0">
                           <div className="truncate font-medium text-foreground">{o.title}</div>
                           <div className="truncate text-xs text-muted-foreground">
-                            {o.className} · hạn {formatDate(o.dueAt)}
-                            {pastDue && o.workState !== "GRADED" && (
-                              <span className="ml-1 text-amber-600">(quá hạn)</span>
+                            {o.courseCode} · due {formatDate(o.dueAt)}
+                            {pastDue && (
+                              <span className="ml-1 text-amber-600">(overdue)</span>
                             )}
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <StatusBadge status={o.workState} />
                           <Link
-                            href={`/classes/${o.classId}/assignments/${o.assignmentId}`}
+                            href={`/courses/${o.courseId}`}
                             className="text-xs font-medium text-primary hover:underline"
                           >
-                            Mở
+                            Open
                           </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full"
+                            onClick={() => setSubmitItem(o)}
+                          >
+                            Submit
+                          </Button>
                         </div>
                       </li>
                     )
@@ -216,57 +290,58 @@ export default function StudentDashboardPage() {
                 </ul>
               ) : (
                 <EmptyState
-                  title="Không có bài sắp đến hạn"
-                  description="Bài tập sẽ hiện ở đây khi giáo viên giao."
+                  title="Nothing pending"
+                  description="All caught up — new assignments will appear here."
                 />
               )}
             </CardContent>
           </Card>
         </section>
 
-        <section id="payments">
+        <section id="payments" className="scroll-mt-20">
           <Card className="shadow-gc">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <CreditCard className="h-5 w-5 text-[hsl(var(--success))]" /> Học phí & thanh toán
+                <CreditCard className="h-5 w-5 text-[hsl(var(--success))]" /> Tuition &amp; payments
               </CardTitle>
               <CardDescription>
-                SePay (chuyển khoản), VNPay / VietQR sandbox
+                SePay (bank transfer), VNPay / VietQR sandbox
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {regsError || payError ? (
+              {enrollmentsError || payError ? (
                 <ErrorState
                   onRetry={() => {
-                    refetchRegs()
+                    refetchEnrollments()
                     refetchPay()
                   }}
                 />
-              ) : regsLoading || payLoading ? (
+              ) : enrollmentsLoading || payLoading ? (
                 <TableSkeleton rows={3} cols={3} />
               ) : (
                 <>
-                  {pendingRegs.length > 0 && (
+                  {pendingEnrollments.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-sm font-semibold text-foreground">Chờ thanh toán</p>
-                      {pendingRegs.map((reg) => (
+                      <p className="text-sm font-semibold text-foreground">Awaiting payment</p>
+                      {pendingEnrollments.map((e) => (
                         <div
-                          key={reg.id}
+                          key={e.id}
                           className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-amber-500/5 p-3"
                         >
                           <div className="min-w-0">
                             <div className="truncate text-sm font-medium text-foreground">
-                              {reg.className}
+                              {e.courseTitle}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              Ref: {reg.registrationReference}
+                              Ref: {e.registrationReference} ·{" "}
+                              <span className="font-medium">{formatVnd(Number(e.amount))}</span>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Button
                               size="sm"
                               className="rounded-full"
-                              onClick={() => setSepayRegistration(reg)}
+                              onClick={() => setSepayEnrollment(e)}
                             >
                               <Wallet className="h-3.5 w-3.5 mr-1" />
                               SePay
@@ -275,10 +350,10 @@ export default function StudentDashboardPage() {
                               size="sm"
                               variant="outline"
                               className="rounded-full"
-                              onClick={() => payVnPay(reg)}
-                              disabled={vnPayBusyId === reg.id}
+                              onClick={() => payVnPay(e)}
+                              disabled={vnPayBusyId === e.id}
                             >
-                              {vnPayBusyId === reg.id ? (
+                              {vnPayBusyId === e.id ? (
                                 <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
                               ) : (
                                 <ExternalLink className="h-3.5 w-3.5 mr-1" />
@@ -289,7 +364,7 @@ export default function StudentDashboardPage() {
                               size="sm"
                               variant="outline"
                               className="rounded-full"
-                              onClick={() => setQrRegistration(reg)}
+                              onClick={() => setQrEnrollment(e)}
                             >
                               <QrCode className="h-3.5 w-3.5 mr-1" />
                               VietQR
@@ -302,11 +377,11 @@ export default function StudentDashboardPage() {
 
                   <div>
                     <p className="mb-2 text-sm font-semibold text-foreground">
-                      Lịch sử thanh toán
+                      Payment history
                     </p>
                     {payments && payments.length > 0 ? (
                       <ul className="space-y-1.5">
-                        {payments.map((p) => (
+                        {payments.map((p: PaymentTransaction) => (
                           <li
                             key={p.id}
                             className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm"
@@ -329,7 +404,7 @@ export default function StudentDashboardPage() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-muted-foreground">Chưa có giao dịch.</p>
+                      <p className="text-xs text-muted-foreground">No transactions yet.</p>
                     )}
                   </div>
                 </>
@@ -339,19 +414,31 @@ export default function StudentDashboardPage() {
         </section>
       </div>
 
-      {qrRegistration && (
+      {qrEnrollment && (
         <VietQrDialog
-          open={!!qrRegistration}
-          onOpenChange={(o) => !o && setQrRegistration(null)}
-          registration={qrRegistration}
+          open={!!qrEnrollment}
+          onOpenChange={(o) => !o && setQrEnrollment(null)}
+          enrollment={qrEnrollment}
         />
       )}
 
-      {sepayRegistration && (
+      {sepayEnrollment && (
         <SePayDialog
-          open={!!sepayRegistration}
-          onOpenChange={(o) => !o && setSepayRegistration(null)}
-          registration={sepayRegistration}
+          open={!!sepayEnrollment}
+          onOpenChange={(o) => !o && setSepayEnrollment(null)}
+          enrollment={sepayEnrollment}
+        />
+      )}
+
+      {submitItem && (
+        <SubmitDialog
+          open={!!submitItem}
+          onClose={() => setSubmitItem(null)}
+          onSubmitted={() => {
+            refetchOverview()
+          }}
+          enrollmentId={submitItem.enrollmentId}
+          assignmentId={submitItem.assignmentId}
         />
       )}
     </div>

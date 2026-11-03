@@ -55,32 +55,20 @@ export interface CreateSubjectRequest {
   description: string;
 }
 
-// SubjectClass
-export interface SubjectClass {
+// Course Enrollment
+export interface CourseEnrollment {
   id: number;
-  subjectId: number;
-  subjectName: string;
-  expertId?: number;
-  expertName?: string;
-  teacherId?: number;
-  teacherName?: string;
-  classCode: string;
-  className: string;
-  term: string;
-  room?: string;
-  joinCode?: string;
-  capacity?: number;
-  registrationFee?: number;
-  enrolledCount?: number;
-  status?: 'ACTIVE' | 'ARCHIVED';
-}
-
-/** Google Classroom-shaped create payload. Server sets teacher, codes, fee, capacity. */
-export interface CreateSubjectClassRequest {
-  className: string;
-  section?: string;
-  subjectName: string;
-  room?: string;
+  courseId: number;
+  courseTitle: string;
+  courseCode: string;
+  courseThumbnailUrl?: string | null;
+  studentId: number;
+  studentName: string;
+  registrationReference: string;
+  status: 'PENDING_PAYMENT' | 'ACTIVE' | 'CANCELLED' | 'COMPLETED';
+  amount: number;
+  registeredAt: string;
+  activatedAt?: string | null;
 }
 
 // AssignmentTemplate
@@ -105,53 +93,49 @@ export interface CreateAssignmentTemplateRequest {
 // Assignment
 export interface Assignment {
   id: number;
+  courseId: number;
+  courseCode: string;
+  courseTitle: string;
   teacherId: number;
   teacherName: string;
   templateId?: number;
   title: string;
-  instructions: string;
+  instructions?: string;
+  topic?: string;
   dueAt: string;
+  maxScore: number;
 }
 
 export interface CreateAssignmentRequest {
   templateId?: number;
   title: string;
-  instructions: string;
+  instructions?: string;
+  topic?: string;
   dueAt: string;
+  maxScore?: number;
 }
 
-// AssignmentClass
-export interface AssignmentClass {
-  id: number;
+/** Student's view of one course assignment with their own work state. */
+export interface AssignmentOverviewItem {
+  courseId: number;
+  courseCode: string;
+  courseTitle: string;
+  enrollmentId: number;
   assignmentId: number;
-  subjectClassId: number;
-  subjectClassName: string;
-  allocatedAt: string;
-  allocationStatus: 'ACTIVE' | 'CANCELLED';
-}
-
-export interface AllocateAssignmentRequest {
-  assignmentId: number;
-  subjectClassId: number;
-}
-
-// ClassRegistration
-export interface ClassRegistration {
-  id: number;
-  studentId: number;
-  studentName: string;
-  subjectClassId: number;
-  subjectClassName: string;
-  registrationReference: string;
-  status: 'PENDING_PAYMENT' | 'ACTIVE' | 'CANCELLED';
-  registeredAt: string;
-  activatedAt?: string;
+  title: string;
+  instructions?: string;
+  topic?: string;
+  dueAt: string;
+  maxScore: number;
+  workState: 'NOT_STARTED' | 'DRAFT' | 'SUBMITTED' | 'LATE' | 'GRADED';
+  submissionId?: number;
+  score?: number;
 }
 
 // PaymentTransaction
 export interface PaymentTransaction {
   id: number;
-  classRegistrationId: number;
+  courseEnrollmentId: number;
   provider: string;
   providerReference?: string;
   amount: number;
@@ -159,34 +143,32 @@ export interface PaymentTransaction {
   createdAt: string;
 }
 
-export interface InitiatePaymentRequest {
-  classRegistrationId: number;
+export interface PaymentUrlResponse {
+  paymentUrl: string;
+  transactionRef: string;
   amount: number;
-  returnUrl: string;
 }
 
-export interface InitiatePaymentResponse {
-  paymentUrl: string;
-  transactionId: number;
+export interface SePayCheckoutResponse {
+  checkoutUrl: string;
+  formFields: Record<string, string>;
+  transactionRef: string;
+  amount: number;
 }
 
 // Submission
 export interface Submission {
   id: number;
-  classRegistrationId: number;
+  courseEnrollmentId: number;
+  studentId: number;
+  studentName: string;
   assignmentId: number;
   assignmentTitle: string;
   submittedAt: string;
   secureFileReference?: string;
   fileMetadata?: string;
   submissionStatus: 'DRAFT' | 'SUBMITTED' | 'LATE' | 'GRADED';
-}
-
-export interface CreateSubmissionRequest {
-  classRegistrationId: number;
-  assignmentId: number;
-  secureFileReference?: string;
-  fileMetadata?: string;
+  evaluation?: AssignmentEvaluation;
 }
 
 // AssignmentEvaluation
@@ -214,16 +196,16 @@ export interface UpdateEvaluationRequest {
 
 // Dashboard stats
 export interface StudentDashboard {
-  totalRegistrations: number;
-  activeClasses: number;
-  pendingSubmissions: number;
-  gradedSubmissions: number;
+  totalEnrollments: number;
+  activeCourses: number;
+  submittedAssignments: number;
+  gradedAssignments: number;
   averageScore?: number;
 }
 
 export interface TeacherDashboard {
   totalAssignments: number;
-  totalClasses: number;
+  totalCourses: number;
   pendingEvaluations: number;
   completedEvaluations: number;
 }
@@ -232,9 +214,15 @@ export interface AdminDashboard {
   totalUsers: number;
   totalStudents: number;
   totalTeachers: number;
+  totalExperts: number;
   totalSubjects: number;
-  totalClasses: number;
-  totalRegistrations: number;
+  totalCourses: number;
+  totalEnrollments: number;
+}
+
+export interface ExpertDashboard {
+  totalTemplates: number;
+  publishedCourses: number;
 }
 
 // Categories

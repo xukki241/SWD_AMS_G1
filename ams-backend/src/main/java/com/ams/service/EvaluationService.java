@@ -4,7 +4,6 @@ import com.ams.dto.EvaluationDTO;
 import com.ams.entity.Assignment;
 import com.ams.entity.AssignmentEvaluation;
 import com.ams.entity.Role;
-import com.ams.entity.SubjectClass;
 import com.ams.entity.Submission;
 import com.ams.entity.User;
 import com.ams.exception.BadRequestException;
@@ -44,8 +43,7 @@ public class EvaluationService {
         }
 
         Assignment assignment = submission.getAssignment();
-        SubjectClass subjectClass = submission.getClassRegistration().getSubjectClass();
-        assertEvaluatorAuthorized(evaluator, assignment, subjectClass);
+        assertEvaluatorAuthorized(evaluator, assignment);
 
         // Score must be within the assignment's configured maximum (SRS: max_score).
         BigDecimal maxScore = assignment.getMaxScore() == null ? BigDecimal.TEN : assignment.getMaxScore();
@@ -92,7 +90,7 @@ public class EvaluationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found with id: " + submissionId));
         User current = currentUser();
 
-        boolean isStudentOwner = current.getId().equals(submission.getClassRegistration().getStudent().getId());
+        boolean isStudentOwner = current.getId().equals(submission.getCourseEnrollment().getStudent().getId());
         boolean isStaff = roleChecker.hasRole(current.getId(),
                 Role.RoleName.ADMIN, Role.RoleName.TEACHER, Role.RoleName.EXPERT);
         if (!isStudentOwner && !isStaff) {
@@ -111,18 +109,19 @@ public class EvaluationService {
     }
 
     /**
-     * Grade integrity (NFR RBAC): only the assignment's teacher, the class's expert,
-     * or an admin may grade a submission.
+     * Grade integrity (NFR RBAC): only the course instructor, or an admin,
+     * may grade a submission.
      */
-    private void assertEvaluatorAuthorized(User evaluator, Assignment assignment, SubjectClass subjectClass) {
+    private void assertEvaluatorAuthorized(User evaluator, Assignment assignment) {
+        boolean isCourseInstructor = assignment.getCourse() != null
+                && assignment.getCourse().getInstructor() != null
+                && evaluator.getId().equals(assignment.getCourse().getInstructor().getId());
         boolean isAssignmentTeacher = assignment.getTeacher() != null
                 && evaluator.getId().equals(assignment.getTeacher().getId());
-        boolean isClassExpert = subjectClass.getExpert() != null
-                && evaluator.getId().equals(subjectClass.getExpert().getId());
         boolean isAdmin = roleChecker.hasRole(evaluator.getId(), Role.RoleName.ADMIN);
-        if (!isAssignmentTeacher && !isClassExpert && !isAdmin) {
+        if (!isCourseInstructor && !isAssignmentTeacher && !isAdmin) {
             throw new AccessDeniedException(
-                    "You are not authorized to grade submissions in class " + subjectClass.getClassCode());
+                    "You are not authorized to grade submissions for course " + assignment.getCourse().getCode());
         }
     }
 

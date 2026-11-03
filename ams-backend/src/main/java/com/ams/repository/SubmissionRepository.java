@@ -10,6 +10,6 @@ import java.util.Optional;
 @Repository
 public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     List<Submission> findByAssignmentId(Long assignmentId);
-    List<Submission> findByClassRegistrationId(Long classRegistrationId);
-    Optional<Submission> findByClassRegistrationIdAndAssignmentId(Long classRegistrationId, Long assignmentId);
+    List<Submission> findByCourseEnrollmentId(Long courseEnrollmentId);
+    Optional<Submission> findByCourseEnrollmentIdAndAssignmentId(Long courseEnrollmentId, Long assignmentId);
 }

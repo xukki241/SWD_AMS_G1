@@ -28,6 +28,9 @@ public class AssignmentDTO {
 
     public record AssignmentResponse(
             Long id,
+            Long courseId,
+            String courseCode,
+            String courseTitle,
             Long teacherId,
             String teacherName,
             Long templateId,
@@ -44,8 +47,7 @@ public class AssignmentDTO {
             String instructions,
             String topic,
             @NotNull LocalDateTime dueAt,
-            BigDecimal maxScore,
-            Long subjectClassId
+            BigDecimal maxScore
     ) {}
 
     public record UpdateAssignmentRequest(
@@ -56,17 +58,12 @@ public class AssignmentDTO {
             BigDecimal maxScore
     ) {}
 
-    public record AllocateClassRequest(
-            @NotNull Long assignmentId,
-            @NotNull Long subjectClassId,
-            String classNote
-    ) {}
-
-    /** Student's view of one class assignment with their own work state. */
+    /** Student's view of one course assignment with their own work state. */
     public record AssignmentOverviewItem(
-            Long classId,
-            String classCode,
-            String className,
+            Long courseId,
+            String courseCode,
+            String courseTitle,
+            Long enrollmentId,
             Long assignmentId,
             String title,
             String instructions,

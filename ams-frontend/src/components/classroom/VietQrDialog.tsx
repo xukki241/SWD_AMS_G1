@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import api from "@/lib/axios"
+import { paymentService } from "@/services/payment.service"
 import { useToast } from "@/lib/use-toast"
 import {
   Dialog,
@@ -13,41 +13,40 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { QrCode, Loader2, Info } from "lucide-react"
+import { Loader2, Info } from "lucide-react"
 import { formatVnd } from "@/components/classroom/format"
 
 // Sandbox VietQR confirmation: no real money moves.
 export function VietQrDialog({
   open,
   onOpenChange,
-  registration,
+  enrollment,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  registration: { id: number; registrationReference: string; className?: string; amount?: number } | null
+  enrollment: { id: number; registrationReference: string; courseTitle?: string; amount?: number } | null
 }) {
   const [confirming, setConfirming] = useState(false)
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
-  const amount = registration?.amount
+  const amount = enrollment?.amount
   const qrSrc = `https://img.vietqr.io/image/mbbank-0842561752-compact2.png?amount=${
     amount ?? 50000
-  }&addInfo=AMS%20${registration?.registrationReference ?? ""}&accountName=NGUYEN%20XUAN%20KIEN`
+  }&addInfo=AMS%20${enrollment?.registrationReference ?? ""}&accountName=NGUYEN%20XUAN%20KIEN`
 
   const confirm = async () => {
-    if (!registration) return
+    if (!enrollment) return
     setConfirming(true)
     try {
-      await api.post(`/payment/confirm-vietqr/${registration.id}`)
-      queryClient.invalidateQueries({ queryKey: ["student-registrations"] })
+      await paymentService.confirmVietQr(enrollment.id)
+      queryClient.invalidateQueries({ queryKey: ["student-enrollments"] })
       queryClient.invalidateQueries({ queryKey: ["student-payments"] })
-      queryClient.invalidateQueries({ queryKey: ["student-my-classes"] })
-      queryClient.invalidateQueries({ queryKey: ["student-stats"] })
+      queryClient.invalidateQueries({ queryKey: ["sidebar-my-enrollments"] })
+      queryClient.invalidateQueries({ queryKey: ["student-dashboard"] })
       toast({
         title: "Transfer confirmed (sandbox)",
-        description: "Your class enrollment is now active.",
+        description: "Your course enrollment is now active.",
         variant: "success",
       })
       onOpenChange(false)
@@ -105,7 +104,7 @@ export function VietQrDialog({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Transfer note</span>
               <span className="font-mono text-primary">
-                AMS {registration?.registrationReference}
+                AMS {enrollment?.registrationReference}
               </span>
             </div>
           </div>

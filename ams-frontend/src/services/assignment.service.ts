@@ -1,17 +1,15 @@
 import api from '@/lib/axios';
 import {
   Assignment,
+  AssignmentOverviewItem,
   AssignmentTemplate,
   CreateAssignmentRequest,
   CreateAssignmentTemplateRequest,
-  AssignmentClass,
-  AllocateAssignmentRequest,
   Page,
 } from '@/types';
 
 export const assignmentService = {
-  // Assignments
-  getAll: async (page = 0, size = 10): Promise<Page<Assignment>> => {
+  getAll: async (page = 0, size = 100): Promise<Page<Assignment>> => {
     const res = await api.get<Page<Assignment>>('/assignments', { params: { page, size } });
     return res.data;
   },
@@ -19,8 +17,17 @@ export const assignmentService = {
     const res = await api.get<Assignment>(`/assignments/${id}`);
     return res.data;
   },
-  create: async (data: CreateAssignmentRequest): Promise<Assignment> => {
-    const res = await api.post<Assignment>('/assignments', data);
+  getByCourse: async (courseId: number): Promise<Assignment[]> => {
+    const res = await api.get<Assignment[]>(`/assignments/course/${courseId}`);
+    return res.data;
+  },
+  getMyOverview: async (): Promise<AssignmentOverviewItem[]> => {
+    const res = await api.get<AssignmentOverviewItem[]>('/assignments/overview');
+    return res.data;
+  },
+  /** Create an assignment for a course (instructor or admin). */
+  createForCourse: async (courseId: number, data: CreateAssignmentRequest): Promise<Assignment> => {
+    const res = await api.post<Assignment>(`/assignments/course/${courseId}`, data);
     return res.data;
   },
   update: async (id: number, data: Partial<CreateAssignmentRequest>): Promise<Assignment> => {
@@ -44,12 +51,8 @@ export const assignmentService = {
   delete: async (id: number): Promise<void> => {
     await api.delete(`/assignments/${id}`);
   },
-  getMyAssignments: async (): Promise<Assignment[]> => {
-    const res = await api.get<Assignment[]>('/assignments/my-assignments');
-    return res.data;
-  },
 
-  // Assignment Templates
+  // Assignment Templates (expert feature, unchanged)
   getTemplates: async (page = 0, size = 10): Promise<Page<AssignmentTemplate>> => {
     const res = await api.get<Page<AssignmentTemplate>>('/assignment-templates', {
       params: { page, size },
@@ -73,19 +76,5 @@ export const assignmentService = {
   },
   deleteTemplate: async (id: number): Promise<void> => {
     await api.delete(`/assignment-templates/${id}`);
-  },
-
-  // Assignment Class Allocation
-  allocate: async (data: AllocateAssignmentRequest): Promise<AssignmentClass> => {
-    const res = await api.post<AssignmentClass>('/assignment-classes', data);
-    return res.data;
-  },
-  getAllocations: async (assignmentId: number): Promise<AssignmentClass[]> => {
-    const res = await api.get<AssignmentClass[]>(`/assignment-classes/assignment/${assignmentId}`);
-    return res.data;
-  },
-  cancelAllocation: async (id: number): Promise<AssignmentClass> => {
-    const res = await api.patch<AssignmentClass>(`/assignment-classes/${id}/cancel`);
-    return res.data;
   },
 };

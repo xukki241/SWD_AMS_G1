@@ -1,6 +1,6 @@
 # AMS — Assignment Management System
 
-Assignment Management System (AMS) is a Google Classroom–style POC for SWD392 Group 1. Teachers and experts run subject classes with join codes, stream posts, and classwork; students join free or paid classes, pay tuition (VNPay / SePay / VietQR sandbox), submit work, and receive grades. Admins manage accounts, roles, and audit logs.
+Assignment Management System (AMS) is a course-based learning platform POC for SWD392 Group 1. Teachers build the course catalog with modules, lessons and AI-drafted outlines; students enroll in free or paid courses, pay tuition (VNPay / SePay / VietQR sandbox), submit work, and receive grades. Admins manage accounts, roles, and audit logs.
 
 ## Table of contents
 
@@ -23,13 +23,12 @@ Assignment Management System (AMS) is a Google Classroom–style POC for SWD392 
 
 ## Key features
 
-- Six-character class join codes (find/join like Google Classroom)
-- Free classes enroll as `ACTIVE`; paid classes stay `PENDING_PAYMENT` until payment succeeds
-- Class workspace: Stream (posts + materials), Assignments (submit → grade), People, Settings (rename, room, archive)
+- Course management (rubric #2): teacher-owned catalog with search/filter/pagination, thumbnail upload, module/lesson curriculum (drag-and-drop reorder), and Gemini-drafted outlines reviewed before saving
+- Enroll Course with Payment (rubric #4): free courses enroll as `ACTIVE`; paid courses stay `PENDING_PAYMENT` until payment succeeds
+- Assignments per course: submit → grade flow with student work-state overview
 - Payments: SePay (primary live/demo gateway with IPN), VNPay Sandbox, VietQR sandbox confirm
-- Course management: teacher-owned catalog with thumbnail upload, module/lesson curriculum (drag-and-drop reorder), and Gemini-drafted outlines reviewed before saving
 - Roles: `ADMIN`, `EXPERT`, `TEACHER`, `STUDENT` with JWT auth
-- Flyway-managed PostgreSQL schema (V1–V9) and seed data for demos
+- Flyway-managed PostgreSQL schema (V1–V2) and seed data for demos
 
 ## Tech stack
 
@@ -99,14 +98,14 @@ Compose notes:
 - Backend receives `DB_URL=jdbc:postgresql://postgres:5432/ams_db` inside the network (not the host port).
 - Frontend build/runtime uses `NEXT_PUBLIC_API_URL=http://localhost:8080/api` so the **browser** talks to the published backend port.
 - Secrets should come from your local `.env`. Do not commit `.env`. Compose may still ship demo defaults for some payment vars; override them in `.env` for real merchant credentials.
-- Flyway runs on **backend startup** (`V1`–`V9`). Seeds load with the API — not a separate seed container. `V2` inserts the base demo dataset; `V8` idempotently syncs join codes, 50k fees, assignment topics, and the `student1` PENDING_PAYMENT path on `SWD392-G1801`; `V9` adds the course-management tables plus six course categories.
-- A **fresh Postgres volume** gets the full demo via Flyway. An existing volume only applies migrations not yet in `flyway_schema_history` (e.g. V9 once).
+- Flyway runs on **backend startup** (`V1`–`V2`). Seeds load with the API — not a separate seed container. `V1` creates the full course-centric schema (identity, categories/courses/modules/lessons, course_enrollments, assignments, submissions, payments, evaluations, audit); `V2` inserts the demo dataset: 6 courses, 23 users, 19 enrollments, payments (including the `student17` PENDING_PAYMENT retry path on `CRS-SCRUM2`), submissions and graded evaluations.
+- A **fresh Postgres volume** gets the full demo via Flyway. The schema was rewritten (legacy class tables removed) — an existing volume must be wiped once before running the new migrations.
 
 Stop / reset:
 
 ```bash
 docker compose down
-# Full DB resync (destructive — wipes volume, then Flyway V1–V9 reseeds on next up):
+# Full DB resync (destructive — wipes volume, then Flyway V1–V2 reseeds on next up):
 docker compose down -v
 docker compose up --build
 ```
@@ -173,31 +172,29 @@ Seeded in Flyway `V2` (password is public demo data). **Password for all account
 | Admin | `admin` |
 | Experts | `expert1`, `expert2` |
 | Teachers | `teacher1`, `teacher2`, `teacher3` |
-| Students | `student1` … `student12` (`student11` is `SUSPENDED` for demo) |
+| Students | `student1` … `student17` (`student11` is `SUSPENDED` for demo) |
 
-Useful join codes (see [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for fees and teachers):
+Demo course catalog (see [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for the full matrix):
 
-| Class | Join code | Notes |
-| ----- | --------- | ----- |
-| SWD392-G1701 | `K7Q2M9` | Primary teacher1 class |
-| SWD392-G1702 | `Q2M9K7` | |
-| SWD392-G1801 | `B7X4NP` | `student1` often `PENDING_PAYMENT` (~50k VND) |
-| PRJ301-G1703 | `M4T8ZD` | Free |
-| PRJ301-G1704 | `X9R3VC` | Free |
-| DBI202-G1705 | `P6H2WS` | Paid |
-| MAE101-G1806 | `Z5J7QB` | Paid |
-| DBI202-G1807 | `T8N4LM` | Paid |
+| Course | Code | Instructor | Price | Notes |
+| ------ | ---- | ---------- | ----- | ----- |
+| Agile Software Development with Scrum | `CRS-SWD01` | teacher1 | Free | Primary demo course with assignments |
+| Scrum in Practice: Team Projects | `CRS-SCRUM2` | teacher1 | 50.000₫ | `student17` is `PENDING_PAYMENT` (golden payment path) |
+| Spring MVC Web Applications | `CRS-SPRMVC` | teacher2 | Free | |
+| Java Servlet Fundamentals | `CRS-SRVLT1` | teacher2 | Free | |
+| Database Systems with SQL | `CRS-DBSQL1` | teacher3 | 120.000₫ | Paid, graded ERD + SQL assignments |
+| Linear Algebra for Engineers | `CRS-LINALG` | teacher3 | Free | `DRAFT` (invisible in catalog) |
 
 Suggested golden-path logins:
 
 - Teacher: `teacher1` / `Password@123` → `/teacher`
-- Student: `student1` / `Password@123` → `/student` (join / pay / submit)
+- Student: `student1` / `Password@123` → `/student` (enroll / pay / submit)
 - Admin: `admin` / `Password@123` → `/admin`
 - Expert: `expert1` / `Password@123` → `/expert`
 
 ## Course management
 
-Teachers (and admins) build the course catalog and its curriculum. Students do not use these screens yet — enrollment is a separate feature.
+Teachers (and admins) build the course catalog and its curriculum. Students enroll from the course details page.
 
 | Screen | Route | Purpose |
 | ------ | ----- | ------- |
@@ -300,7 +297,7 @@ SWD_AMS_G1/
 │   ├── e2e/                     Playwright specs
 │   ├── playwright.config.ts
 │   └── src/
-│       ├── app/                 Routes (auth, dashboards, class workspace, payment returns)
+│       ├── app/                 Routes (auth, dashboards, course screens, payment returns)
 │       ├── components/          classroom/ + courses/ + layout/ + ui/
 │       ├── lib/                 axios, constants, utils
 │       ├── services/            API client modules
@@ -317,9 +314,9 @@ SWD_AMS_G1/
 ### Request lifecycle
 
 1. Browser hits Next.js (`ams-frontend`). Protected dashboards read JWT from the auth store and attach `Authorization: Bearer …` via Axios (`src/lib/axios.ts`).
-2. API request reaches Spring Security (`SecurityConfig`): public auth, public class catalog, payment IPN/return, Swagger, and `/api/files/**`; everything else requires a valid JWT (`JwtAuthenticationFilter`).
+2. API request reaches Spring Security (`SecurityConfig`): public auth, payment IPN/return, Swagger, and `/api/files/**`; everything else requires a valid JWT (`JwtAuthenticationFilter`).
 3. Controllers delegate to services; JPA repositories talk to PostgreSQL. Schema is validated (`ddl-auto: validate`) against Flyway history.
-4. JSON responses update TanStack Query caches; role home routes (`/admin`, `/teacher`, `/student`, `/expert`) and `/classes/[id]` render classroom UX.
+4. JSON responses update TanStack Query caches; role home routes (`/admin`, `/teacher`, `/student`, `/expert`) and `/courses/[id]` render the course UX.
 
 ### Auth model
 
@@ -329,18 +326,17 @@ SWD_AMS_G1/
 - Method security (`@EnableMethodSecurity`) gates role-sensitive operations on services/controllers.
 - CORS allows `localhost:3000` / `3001`, `https://*.vercel.app`, and `https://g1-ams-swd.com`.
 
-### Classroom / registration flow
+### Enroll / payment flow
 
 ```text
-Teacher/Expert creates class
-        → join_code + capacity + registration_fee (+ optional room)
-Student finds class (GET /api/subject-classes/public) and joins
-        → fee == 0  → ACTIVE
-        → fee  > 0  → PENDING_PAYMENT
+Teacher builds a course (catalog + curriculum) and publishes it
+Student opens a PUBLISHED course and enrolls (POST /api/courses/{id}/enroll)
+        → course free  → ACTIVE
+        → course paid  → PENDING_PAYMENT
 Student pays (SePay / VNPay / VietQR confirm)
         → IPN or return handler marks payment SUCCESS
-        → registration activated (idempotent)
-Student submits assignment → teacher evaluates
+        → enrollment activated (idempotent)
+Student submits assignment → instructor evaluates
 ```
 
 ### API surface (controllers)
@@ -355,14 +351,12 @@ Student submits assignment → teacher evaluates
 | `/api/courses/{id}/content` | Curriculum tree, module/lesson CRUD, reorder (`PATCH …/content/reorder`) |
 | `/api/modules/{id}`, `/api/lessons/{id}` | Rename/delete module, add/edit/delete lesson |
 | `/api/courses/{id}/ai` | Gemini outline draft + `…/outline/accept` |
-| `/api/subject-classes` | Classes, public catalog, my classes, patch, archive, remove student |
-| `/api/registrations` | My regs, class roster, register, join-by-code |
-| `/api/classes/{classId}/posts` | Stream posts (multipart) |
-| `/api/assignments` | Classwork CRUD, overview, allocate |
+| `/api/courses/{id}/enroll`, `/api/enrollments` | Enroll, my enrollments, roster, cancel |
+| `/api/assignments` | Course assignment CRUD, `GET /course/{courseId}`, student overview |
 | `/api/assignment-templates` | Expert templates |
-| `/api/submissions` | Multipart submit, list, delete |
+| `/api/submissions` | Multipart submit, list, unsubmit |
 | `/api/evaluations` | Grade + feedback |
-| `/api/payment` | VNPay / SePay create, IPN, return, VietQR confirm, my txns |
+| `/api/payment` | VNPay / SePay course create, IPN, return, VietQR confirm, my txns |
 | `/api/dashboard/{role}` | Role KPI payloads |
 | `/api/audit-logs` | Audit trail |
 | `/api/files/{*path}` | Served local uploads |
@@ -372,15 +366,12 @@ Student submits assignment → teacher evaluates
 | Route | Role / purpose |
 | ----- | -------------- |
 | `/login`, `/register` | Auth |
-| `/admin` | Users, classes overview, audit |
+| `/` | Public landing with published courses |
+| `/admin` | Users, courses overview, audit |
 | `/teacher`, `/expert`, `/student` | Role dashboards |
-| `/classes` | Class list |
-| `/classes/[id]` | Stream / classwork / people |
-| `/classes/[id]/assignments/[assignmentId]` | Assignment detail / your work |
-| `/classes/[id]/settings` | Teacher settings + archive |
-| `/courses` | Course management list (teacher/admin) |
+| `/courses` | Course catalog / management list |
 | `/courses/new` | Create course |
-| `/courses/[id]` | Course details |
+| `/courses/[id]` | Course details + enroll |
 | `/courses/[id]/edit` | Edit course |
 | `/courses/[id]/content` | Modules, lessons, reorder, AI outline |
 | `/payment/return` | VNPay browser return |
@@ -392,30 +383,22 @@ Flyway:
 
 | Version | Purpose |
 | ------- | ------- |
-| V1 | Core schema |
-| V2 | Seed users/roles/subjects/classes/assignments/payments |
-| V3 | Join code, capacity, fee, `class_posts`, max score |
-| V4 | Lower demo registration fee (~50_000 VND default) |
-| V5 | Assignment `topic` |
-| V6 | Class `room` |
-| V7 | Class `status` `ACTIVE` / `ARCHIVED` |
-| V8 | Idempotent demo sync (join codes, 50k fees, topics, `student1` PENDING on G1801) |
-| V9 | Course management: `categories`, `courses`, `modules`, `lessons`, `course_enrollments` + 6 seeded categories |
+| V1 | Full course-centric schema: identity, categories/courses/modules/lessons, course_enrollments, assignments, submissions, evaluations, payments, audit |
+| V2 | Demo dataset: users, courses + curriculum, enrollments, payments, submissions, evaluations |
 
 Core tables (simplified):
 
 ```text
 roles, users, user_roles
 system_configurations, audit_logs
-subjects, subject_classes, class_posts
-assignment_templates, assignments, assignment_classes
-class_registrations, payment_transactions
-submissions, assignment_evaluations
-categories, courses, modules, lessons, course_enrollments
+subjects, assignment_templates
+categories, courses, modules, lessons
+course_enrollments, payment_transactions
+assignments, submissions, assignment_evaluations
 ```
 
 Identity statuses: `ACTIVE` | `INACTIVE` | `SUSPENDED`.  
-Registration statuses: `PENDING_PAYMENT` | `ACTIVE` | `CANCELLED`.  
+Enrollment statuses: `PENDING_PAYMENT` | `ACTIVE` | `CANCELLED` | `COMPLETED`.  
 Payment statuses: `PENDING` | `SUCCESS` | `FAILED` | `REFUNDED`.
 
 ## Environment variables
@@ -518,7 +501,7 @@ Manual API checks: Swagger UI or curl against `/api/auth/login` then authenticat
 
 ### Demo checklist
 
-Use [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) flow matrix (login × role, create class, join, pay, submit, archive).
+Use [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) flow matrix (login × role, create course, enroll, pay, submit).
 
 ## Deployment
 
@@ -575,7 +558,7 @@ Production should not rely on Compose demo defaults for merchant secrets.
 - Rebuild frontend after changing `NEXT_PUBLIC_*` (inlined at build time).
 - Add production origin to `CorsConfig` if not covered.
 
-### SePay payment succeeds but class stays `PENDING_PAYMENT`
+### SePay payment succeeds but enrollment stays `PENDING_PAYMENT`
 
 - IPN URL must be public HTTPS and registered in SePay portal.
 - Header `X-Secret-Key` must match `SEPAY_SECRET_KEY`.

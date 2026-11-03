@@ -25,14 +25,14 @@ export type SePayCheckout = {
 export function SePayDialog({
   open,
   onOpenChange,
-  registration,
+  enrollment,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  registration: {
+  enrollment: {
     id: number
     registrationReference: string
-    className?: string
+    courseTitle?: string
     amount?: number
   } | null
 }) {
@@ -43,7 +43,7 @@ export function SePayDialog({
   const autoSubmittedRef = useRef(false)
   const queryClient = useQueryClient()
 
-  // Reset state when dialog closes or registration changes.
+  // Reset state when dialog closes or enrollment changes.
   useEffect(() => {
     if (!open) {
       setCheckout(null)
@@ -54,9 +54,9 @@ export function SePayDialog({
     }
   }, [open])
 
-  // Load signed checkout when the dialog opens for a registration.
+  // Load signed checkout when the dialog opens for an enrollment.
   useEffect(() => {
-    if (!open || !registration?.id) return
+    if (!open || !enrollment?.id) return
 
     let cancelled = false
     setLoading(true)
@@ -66,7 +66,7 @@ export function SePayDialog({
     autoSubmittedRef.current = false
 
     paymentService
-      .createSePayPayment(registration.id)
+      .createSePayPayment(enrollment.id)
       .then((data) => {
         if (!cancelled) setCheckout(data)
       })
@@ -82,7 +82,7 @@ export function SePayDialog({
     return () => {
       cancelled = true
     }
-  }, [open, registration?.id])
+  }, [open, enrollment?.id])
 
   const submitToSePay = (data: SePayCheckout) => {
     const form = document.createElement("form")
@@ -99,7 +99,8 @@ export function SePayDialog({
     form.submit()
     document.body.removeChild(form)
     queryClient.invalidateQueries({ queryKey: ["student-payments"] })
-    queryClient.invalidateQueries({ queryKey: ["student-registrations"] })
+    queryClient.invalidateQueries({ queryKey: ["student-enrollments"] })
+    queryClient.invalidateQueries({ queryKey: ["sidebar-my-enrollments"] })
   }
 
   // Auto-submit the hidden POST form once checkout is ready.
@@ -108,9 +109,10 @@ export function SePayDialog({
     autoSubmittedRef.current = true
     setRedirecting(true)
     submitToSePay(checkout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkout])
 
-  const amount = checkout?.amount ?? registration?.amount
+  const amount = checkout?.amount ?? enrollment?.amount
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

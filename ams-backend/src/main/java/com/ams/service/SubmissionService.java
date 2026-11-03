@@ -4,14 +4,14 @@ import com.ams.dto.EvaluationDTO;
 import com.ams.dto.SubmissionDTO;
 import com.ams.entity.Assignment;
 import com.ams.entity.AssignmentEvaluation;
-import com.ams.entity.ClassRegistration;
+import com.ams.entity.CourseEnrollment;
 import com.ams.entity.Submission;
 import com.ams.entity.User;
 import com.ams.exception.BadRequestException;
 import com.ams.exception.ResourceNotFoundException;
 import com.ams.repository.AssignmentEvaluationRepository;
 import com.ams.repository.AssignmentRepository;
-import com.ams.repository.ClassRegistrationRepository;
+import com.ams.repository.CourseEnrollmentRepository;
 import com.ams.repository.SubmissionRepository;
 import com.ams.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 public class SubmissionService {
 
     private final SubmissionRepository submissionRepository;
-    private final ClassRegistrationRepository registrationRepository;
+    private final CourseEnrollmentRepository enrollmentRepository;
     private final AssignmentRepository assignmentRepository;
     private final AssignmentEvaluationRepository evaluationRepository;
     private final UserRepository userRepository;
@@ -41,20 +41,21 @@ public class SubmissionService {
     private final AuditLogService auditLogService;
 
     @Transactional
-    public SubmissionDTO.SubmissionResponse submitAssignment(Long classRegistrationId, Long assignmentId, MultipartFile file) throws IOException {
+    public SubmissionDTO.SubmissionResponse submitAssignment(Long enrollmentId, Long assignmentId, MultipartFile file) throws IOException {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User student = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + username));
 
-        ClassRegistration registration = registrationRepository.findById(classRegistrationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Registration not found: " + classRegistrationId));
+        CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found: " + enrollmentId));
 
-        if (!registration.getStudent().getId().equals(student.getId())) {
-            throw new BadRequestException("You can only submit for your own registration");
+        if (!enrollment.getStudent().getId().equals(student.getId())) {
+            throw new BadRequestException("You can only submit for your own enrollment");
         }
 
-        if (registration.getStatus() != ClassRegistration.RegistrationStatus.ACTIVE) {
-            throw new BadRequestException("Registration is not active. Please complete tuition payment first.");
+        if (enrollment.getStatus() != CourseEnrollment.EnrollmentStatus.ACTIVE
+                && enrollment.getStatus() != CourseEnrollment.EnrollmentStatus.COMPLETED) {
+            throw new BadRequestException("Enrollment is not active. Please complete tuition payment first.");
         }
 
         Assignment assignment = assignmentRepository.findById(assignmentId)
@@ -68,9 +69,9 @@ public class SubmissionService {
         String metadataJson = String.format("{\"originalName\":\"%s\",\"bytes\":%d,\"format\":\"%s\"}",
                 file.getOriginalFilename(), bytes, format);
 
-        Submission submission = submissionRepository.findByClassRegistrationIdAndAssignmentId(classRegistrationId, assignmentId)
+        Submission submission = submissionRepository.findByCourseEnrollmentIdAndAssignmentId(enrollmentId, assignmentId)
                 .orElse(Submission.builder()
-                        .classRegistration(registration)
+                        .courseEnrollment(enrollment)
                         .assignment(assignment)
                         .build());
 
@@ -99,15 +100,15 @@ public class SubmissionService {
         User student = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + username));
 
-        List<ClassRegistration> registrations = registrationRepository.findByStudentId(student.getId());
-        return registrations.stream()
-                .flatMap(reg -> submissionRepository.findByClassRegistrationId(reg.getId()).stream())
+        List<CourseEnrollment> enrollments = enrollmentRepository.findByStudentId(student.getId());
+        return enrollments.stream()
+                .flatMap(enrollment -> submissionRepository.findByCourseEnrollmentId(enrollment.getId()).stream())
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     /**
-     * GC-style "Unsubmit": student withdraws a non-graded submission so they can edit and turn in again.
+     * "Unsubmit": student withdraws a non-graded submission so they can edit and turn in again.
      */
     @Transactional
     public void unsubmit(Long submissionId) {
@@ -118,7 +119,7 @@ public class SubmissionService {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found: " + submissionId));
 
-        if (!submission.getClassRegistration().getStudent().getId().equals(student.getId())) {
+        if (!submission.getCourseEnrollment().getStudent().getId().equals(student.getId())) {
             throw new BadRequestException("You can only unsubmit your own work");
         }
         if (submission.getSubmissionStatus() == Submission.SubmissionStatus.GRADED) {
@@ -147,9 +148,9 @@ public class SubmissionService {
 
         return new SubmissionDTO.SubmissionResponse(
                 s.getId(),
-                s.getClassRegistration().getId(),
-                s.getClassRegistration().getStudent().getId(),
-                s.getClassRegistration().getStudent().getFullName(),
+                s.getCourseEnrollment().getId(),
+                s.getCourseEnrollment().getStudent().getId(),
+                s.getCourseEnrollment().getStudent().getFullName(),
                 s.getAssignment().getId(),
                 s.getAssignment().getTitle(),
                 s.getSubmittedAt(),

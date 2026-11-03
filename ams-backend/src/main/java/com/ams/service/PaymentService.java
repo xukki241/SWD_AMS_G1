@@ -3,12 +3,12 @@ package com.ams.service;
 import com.ams.config.VnPayConfig;
 import com.ams.config.SePayConfig;
 import com.ams.dto.PaymentDTO;
-import com.ams.entity.ClassRegistration;
+import com.ams.entity.CourseEnrollment;
 import com.ams.entity.PaymentTransaction;
 import com.ams.entity.User;
 import com.ams.exception.BadRequestException;
 import com.ams.exception.ResourceNotFoundException;
-import com.ams.repository.ClassRegistrationRepository;
+import com.ams.repository.CourseEnrollmentRepository;
 import com.ams.repository.PaymentTransactionRepository;
 import com.ams.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,17 +37,11 @@ public class PaymentService {
 
     private final VnPayConfig vnPayConfig;
     private final SePayConfig sePayConfig;
-    private final ClassRegistrationRepository registrationRepository;
+    private final CourseEnrollmentRepository enrollmentRepository;
     private final PaymentTransactionRepository paymentRepository;
     private final UserRepository userRepository;
-    private final ClassRegistrationService registrationService;
+    private final CourseEnrollmentService enrollmentService;
     private final AuditLogService auditLogService;
-
-    /** Payment amount is always the class's registration fee — no hardcoded values. */
-    private BigDecimal feeOf(ClassRegistration registration) {
-        var fee = registration.getSubjectClass().getRegistrationFee();
-        return fee == null ? BigDecimal.ZERO : fee;
-    }
 
     @Transactional(readOnly = true)
     public List<PaymentDTO.PaymentTransactionResponse> getMyPayments() {
@@ -55,14 +49,14 @@ public class PaymentService {
                         SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: "
                         + SecurityContextHolder.getContext().getAuthentication().getName()));
-        List<Long> registrationIds = registrationRepository.findByStudentId(user.getId()).stream()
-                .map(ClassRegistration::getId)
+        List<Long> enrollmentIds = enrollmentRepository.findByStudentId(user.getId()).stream()
+                .map(CourseEnrollment::getId)
                 .toList();
-        return registrationIds.stream()
-                .flatMap(id -> paymentRepository.findByClassRegistrationId(id).stream())
+        return enrollmentIds.stream()
+                .flatMap(id -> paymentRepository.findByCourseEnrollmentId(id).stream())
                 .map(t -> new PaymentDTO.PaymentTransactionResponse(
                         t.getId(),
-                        t.getClassRegistration().getId(),
+                        t.getCourseEnrollment().getId(),
                         t.getProvider(),
                         t.getProviderReference(),
                         t.getAmount(),
@@ -72,19 +66,19 @@ public class PaymentService {
     }
 
     @Transactional
-    public void confirmVietQrPayment(Long registrationId) {
-        ClassRegistration registration = registrationRepository.findById(registrationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Registration not found: " + registrationId));
+    public void confirmVietQrPayment(Long enrollmentId) {
+        CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found: " + enrollmentId));
 
-        if (registration.getStatus() == ClassRegistration.RegistrationStatus.ACTIVE) {
+        if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE) {
             return;
         }
 
-        String txnRef = "VQR" + System.currentTimeMillis() + "-" + registration.getId();
-        BigDecimal amount = feeOf(registration);
+        String txnRef = "VQR" + System.currentTimeMillis() + "-" + enrollment.getId();
+        BigDecimal amount = enrollment.getAmount();
 
         PaymentTransaction txn = PaymentTransaction.builder()
-                .classRegistration(registration)
+                .courseEnrollment(enrollment)
                 .provider("VIETQR")
                 .providerReference(txnRef)
                 .amount(amount)
@@ -93,24 +87,24 @@ public class PaymentService {
                 .build();
         paymentRepository.save(txn);
 
-        registrationService.activateRegistration(registration.getId());
+        enrollmentService.activateEnrollment(enrollment.getId());
         auditLogService.log("PAYMENT_SUCCESS_VIETQR", "PaymentTransaction", txnRef);
     }
 
     @Transactional
-    public PaymentDTO.PaymentUrlResponse createPaymentUrl(Long registrationId, HttpServletRequest req) {
-        ClassRegistration registration = registrationRepository.findById(registrationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Registration not found: " + registrationId));
+    public PaymentDTO.PaymentUrlResponse createPaymentUrl(Long enrollmentId, HttpServletRequest req) {
+        CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found: " + enrollmentId));
 
-        if (registration.getStatus() == ClassRegistration.RegistrationStatus.ACTIVE) {
-            throw new BadRequestException("Registration is already paid and active");
+        if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE) {
+            throw new BadRequestException("Enrollment is already paid and active");
         }
 
-        BigDecimal amount = feeOf(registration);
-        String txnRef = "TXN" + System.currentTimeMillis() + "-" + registration.getId();
+        BigDecimal amount = enrollment.getAmount();
+        String txnRef = "TXN" + System.currentTimeMillis() + "-" + enrollment.getId();
 
         PaymentTransaction txn = PaymentTransaction.builder()
-                .classRegistration(registration)
+                .courseEnrollment(enrollment)
                 .provider("VNPAY")
                 .providerReference(txnRef)
                 .amount(amount)
@@ -126,7 +120,7 @@ public class PaymentService {
         vnp_Params.put("vnp_Amount", String.valueOf(amount.multiply(BigDecimal.valueOf(100)).longValue()));
         vnp_Params.put("vnp_CurrCode", "VND");
         vnp_Params.put("vnp_TxnRef", txnRef);
-        vnp_Params.put("vnp_OrderInfo", "Tuition payment for class " + registration.getSubjectClass().getClassCode());
+        vnp_Params.put("vnp_OrderInfo", "Course tuition for " + enrollment.getCourse().getCode());
         vnp_Params.put("vnp_OrderType", "other");
         vnp_Params.put("vnp_Locale", "vn");
         vnp_Params.put("vnp_ReturnUrl", vnPayConfig.getReturnUrl());
@@ -191,7 +185,7 @@ public class PaymentService {
                 if ("00".equals(responseCode)) {
                     txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
                     paymentRepository.save(txn);
-                    registrationService.activateRegistration(txn.getClassRegistration().getId());
+                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
                     auditLogService.log("PAYMENT_SUCCESS", "PaymentTransaction", txnRef);
                     return true;
                 } else {
@@ -232,7 +226,7 @@ public class PaymentService {
         if ("00".equals(responseCode)) {
             txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
             paymentRepository.save(txn);
-            registrationService.activateRegistration(txn.getClassRegistration().getId());
+            enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
         } else {
             txn.setTransactionStatus(PaymentTransaction.TransactionStatus.FAILED);
             paymentRepository.save(txn);
@@ -254,20 +248,20 @@ public class PaymentService {
             "payment_method", "success_url", "error_url", "cancel_url");
 
     /**
-     * Build the SePay hosted-checkout form for a registration. The returned
+     * Build the SePay hosted-checkout form for an enrollment. The returned
      * formFields are POSTed by the browser to checkoutUrl (SePay's /checkout/init).
      */
     @Transactional
-    public PaymentDTO.SePayCheckoutResponse createSePayCheckout(Long registrationId) {
-        ClassRegistration registration = registrationRepository.findById(registrationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Registration not found: " + registrationId));
+    public PaymentDTO.SePayCheckoutResponse createSePayCheckout(Long enrollmentId) {
+        CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found: " + enrollmentId));
 
-        if (registration.getStatus() == ClassRegistration.RegistrationStatus.ACTIVE) {
-            throw new BadRequestException("Registration is already paid and active");
+        if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE) {
+            throw new BadRequestException("Enrollment is already paid and active");
         }
 
-        BigDecimal amount = feeOf(registration);
-        String txnRef = "SEPAY" + System.currentTimeMillis() + "-" + registration.getId();
+        BigDecimal amount = enrollment.getAmount();
+        String txnRef = "SEPAY" + System.currentTimeMillis() + "-" + enrollment.getId();
 
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("merchant", sePayConfig.getMerchantId());
@@ -276,14 +270,14 @@ public class PaymentService {
         fields.put("order_invoice_number", txnRef);
         fields.put("order_amount", String.valueOf(amount.longValue()));
         fields.put("currency", "VND");
-        fields.put("order_description", "AMS tuition " + registration.getSubjectClass().getClassCode());
+        fields.put("order_description", "AMS course tuition " + enrollment.getCourse().getCode());
         fields.put("success_url", appendRef(sePayConfig.getSuccessUrl(), txnRef));
         fields.put("error_url", appendRef(sePayConfig.getErrorUrl(), txnRef));
         fields.put("cancel_url", appendRef(sePayConfig.getCancelUrl(), txnRef));
         fields.put("signature", sePaySignature(fields));
 
         PaymentTransaction txn = PaymentTransaction.builder()
-                .classRegistration(registration)
+                .courseEnrollment(enrollment)
                 .provider("SEPAY")
                 .providerReference(txnRef)
                 .amount(amount)
@@ -300,7 +294,7 @@ public class PaymentService {
     /**
      * SePay server-to-server IPN (primary activation path).
      * Verifies {@code X-Secret-Key}, handles {@code ORDER_PAID} via nested
-     * {@code order.order_invoice_number}, marks txn SUCCESS and activates registration
+     * {@code order.order_invoice_number}, marks txn SUCCESS and activates enrollment
      * (idempotent). Always returns HTTP 200 {@code {"success": true}} on accepted receipt
      * per SePay docs; mismatch → 401.
      */
@@ -335,13 +329,13 @@ public class PaymentService {
                 if (txn.getTransactionStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
                     txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
                     paymentRepository.save(txn);
-                    registrationService.activateRegistration(txn.getClassRegistration().getId());
+                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
                     auditLogService.log("PAYMENT_SUCCESS_SEPAY_IPN", "PaymentTransaction", ref);
-                    log.info("[SEPAY_IPN] ORDER_PAID → SUCCESS + activate registrationId={} txn={}",
-                            txn.getClassRegistration().getId(), ref);
+                    log.info("[SEPAY_IPN] ORDER_PAID → SUCCESS + activate enrollmentId={} txn={}",
+                            txn.getCourseEnrollment().getId(), ref);
                 } else {
                     // Already SUCCESS (retry / duplicate IPN) — ensure ACTIVE anyway
-                    registrationService.activateRegistration(txn.getClassRegistration().getId());
+                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
                     log.info("[SEPAY_IPN] ORDER_PAID idempotent skip (already SUCCESS) txn={}", ref);
                 }
                 auditLogService.log("SEPAY_IPN", "PaymentTransaction", ref);
@@ -382,14 +376,14 @@ public class PaymentService {
 
                 // success (or default): idempotent activate for local demo / IPN lag
                 if (txn.getTransactionStatus() == PaymentTransaction.TransactionStatus.SUCCESS) {
-                    registrationService.activateRegistration(txn.getClassRegistration().getId());
+                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
                     log.info("[SEPAY_RETURN] txn already SUCCESS (likely via IPN); ensured ACTIVE txn={}", txnRef);
                 } else {
                     log.warn("[SEPAY_RETURN] activating via return fallback — IPN may be unreachable locally; txn={}",
                             txnRef);
                     txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
                     paymentRepository.save(txn);
-                    registrationService.activateRegistration(txn.getClassRegistration().getId());
+                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
                     auditLogService.log("PAYMENT_SUCCESS_SEPAY_RETURN", "PaymentTransaction", txnRef);
                 }
             });
@@ -397,10 +391,8 @@ public class PaymentService {
         return Map.of("success", !"error".equals(result) && !"cancel".equals(result),
                 "message", "error".equals(result) ? "Payment failed."
                         : "cancel".equals(result) ? "Payment cancelled."
-                        : "Payment completed successfully! Class is now ACTIVE.");
+                        : "Payment completed successfully! Course enrollment is now ACTIVE.");
     }
-
-    /** HMAC-SHA256(base64) over "field=value" pairs joined with ',' — matches the SDK. */
 
     private String appendRef(String url, String ref) {
         if (url == null || url.isEmpty()) return url;

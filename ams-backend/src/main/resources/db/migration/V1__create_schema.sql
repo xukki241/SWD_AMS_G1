@@ -1,6 +1,8 @@
 -- ============================================================
 -- V1__create_schema.sql
 -- AMS – Assignment Management System – Initial Schema
+-- Course-centric model: Course -> Module -> Lesson, enrollments,
+-- assignments (per course), submissions, evaluations, payments.
 -- ============================================================
 
 -- IDENTITY & ACCESS
@@ -54,7 +56,7 @@ CREATE TABLE audit_logs (
     occurred_at        TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
--- ACADEMIC & ASSIGNMENT
+-- ACADEMIC (subjects back the expert template catalogue)
 
 CREATE TABLE subjects (
     id           BIGSERIAL    PRIMARY KEY,
@@ -65,15 +67,84 @@ CREATE TABLE subjects (
                              CHECK (status IN ('ACTIVE','INACTIVE'))
 );
 
-CREATE TABLE subject_classes (
-    id         BIGSERIAL    PRIMARY KEY,
-    subject_id BIGINT       NOT NULL REFERENCES subjects(id),
-    expert_id  BIGINT       REFERENCES users(id),
-    teacher_id BIGINT       REFERENCES users(id),
-    class_code VARCHAR(20)  NOT NULL UNIQUE,
-    class_name VARCHAR(255) NOT NULL,
-    term       VARCHAR(20)  NOT NULL
+-- COURSE CATALOG (Manage Courses)
+
+CREATE TABLE categories (
+    id   BIGSERIAL    PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
 );
+
+CREATE TABLE courses (
+    id                      BIGSERIAL      PRIMARY KEY,
+    title                   VARCHAR(255)   NOT NULL,
+    code                    VARCHAR(50)    NOT NULL UNIQUE,
+    category_id             BIGINT         NOT NULL REFERENCES categories(id),
+    description             TEXT           NOT NULL,
+    thumbnail_url           VARCHAR(1000),
+    price                   DECIMAL(15,2)  NOT NULL DEFAULT 0 CHECK (price >= 0),
+    is_free                 BOOLEAN        NOT NULL DEFAULT FALSE,
+    status                  VARCHAR(20)    NOT NULL DEFAULT 'DRAFT'
+                                           CHECK (status IN ('DRAFT','PUBLISHED')),
+    difficulty_level        VARCHAR(20)    NOT NULL DEFAULT 'BEGINNER'
+                                           CHECK (difficulty_level IN ('BEGINNER','INTERMEDIATE','ADVANCED')),
+    about                   TEXT,
+    what_students_will_learn TEXT,
+    prerequisites           TEXT,
+    instructor_id           BIGINT         NOT NULL REFERENCES users(id),
+    created_at              TIMESTAMP      NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMP      NOT NULL DEFAULT NOW(),
+    deleted                 BOOLEAN        NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX idx_courses_instructor_id ON courses(instructor_id);
+CREATE INDEX idx_courses_category_id   ON courses(category_id);
+CREATE INDEX idx_courses_status        ON courses(status);
+CREATE INDEX idx_courses_deleted       ON courses(deleted);
+
+CREATE TABLE modules (
+    id          BIGSERIAL    PRIMARY KEY,
+    course_id   BIGINT       NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    title       VARCHAR(255) NOT NULL,
+    order_index INT          NOT NULL DEFAULT 0 CHECK (order_index >= 0)
+);
+
+CREATE INDEX idx_modules_course_id ON modules(course_id);
+CREATE INDEX idx_modules_order     ON modules(course_id, order_index);
+
+CREATE TABLE lessons (
+    id          BIGSERIAL   PRIMARY KEY,
+    module_id   BIGINT      NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+    title       VARCHAR(255) NOT NULL,
+    type        VARCHAR(20) NOT NULL DEFAULT 'READING'
+                            CHECK (type IN ('VIDEO','READING','ASSIGNMENT')),
+    duration    INT         NOT NULL DEFAULT 0 CHECK (duration >= 0),
+    status      VARCHAR(20) NOT NULL DEFAULT 'DRAFT'
+                            CHECK (status IN ('DRAFT','PUBLISHED')),
+    order_index INT         NOT NULL DEFAULT 0 CHECK (order_index >= 0)
+);
+
+CREATE INDEX idx_lessons_module_id ON lessons(module_id);
+CREATE INDEX idx_lessons_order     ON lessons(module_id, order_index);
+
+-- ENROLLMENT WITH PAYMENT (Enroll Course with Payment)
+
+CREATE TABLE course_enrollments (
+    id                     BIGSERIAL      PRIMARY KEY,
+    course_id              BIGINT         NOT NULL REFERENCES courses(id),
+    student_id             BIGINT         NOT NULL REFERENCES users(id),
+    registration_reference VARCHAR(100)   NOT NULL UNIQUE,
+    status                 VARCHAR(30)    NOT NULL DEFAULT 'PENDING_PAYMENT'
+                                          CHECK (status IN ('PENDING_PAYMENT','ACTIVE','CANCELLED','COMPLETED')),
+    amount                 DECIMAL(15,2)  NOT NULL DEFAULT 0,
+    registered_at          TIMESTAMP      NOT NULL DEFAULT NOW(),
+    activated_at           TIMESTAMP,
+    UNIQUE (course_id, student_id)
+);
+
+CREATE INDEX idx_course_enrollments_course_id  ON course_enrollments(course_id);
+CREATE INDEX idx_course_enrollments_student_id ON course_enrollments(student_id);
+
+-- TEMPLATES, ASSIGNMENTS, SUBMISSION & ASSESSMENT
 
 CREATE TABLE assignment_templates (
     id               BIGSERIAL    PRIMARY KEY,
@@ -86,42 +157,23 @@ CREATE TABLE assignment_templates (
 );
 
 CREATE TABLE assignments (
-    id           BIGSERIAL    PRIMARY KEY,
-    teacher_id   BIGINT       NOT NULL REFERENCES users(id),
-    template_id  BIGINT       REFERENCES assignment_templates(id),
-    title        VARCHAR(255) NOT NULL,
+    id           BIGSERIAL      PRIMARY KEY,
+    course_id    BIGINT         NOT NULL REFERENCES courses(id),
+    teacher_id   BIGINT         NOT NULL REFERENCES users(id),
+    template_id  BIGINT         REFERENCES assignment_templates(id),
+    title        VARCHAR(255)   NOT NULL,
     instructions TEXT,
-    due_at       TIMESTAMP    NOT NULL
+    topic        VARCHAR(100),
+    max_score    DECIMAL(5,2)   NOT NULL DEFAULT 10 CHECK (max_score > 0),
+    due_at       TIMESTAMP      NOT NULL
 );
 
-CREATE TABLE assignment_classes (
-    id                BIGSERIAL   PRIMARY KEY,
-    assignment_id     BIGINT      NOT NULL REFERENCES assignments(id),
-    subject_class_id  BIGINT      NOT NULL REFERENCES subject_classes(id),
-    allocated_at      TIMESTAMP   NOT NULL DEFAULT NOW(),
-    allocation_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
-                                  CHECK (allocation_status IN ('ACTIVE','CANCELLED')),
-    class_note        TEXT,
-    UNIQUE (assignment_id, subject_class_id)
-);
-
--- REGISTRATION, SUBMISSION & ASSESSMENT
-
-CREATE TABLE class_registrations (
-    id                     BIGSERIAL    PRIMARY KEY,
-    student_id             BIGINT       NOT NULL REFERENCES users(id),
-    subject_class_id       BIGINT       NOT NULL REFERENCES subject_classes(id),
-    registered_at          TIMESTAMP    NOT NULL DEFAULT NOW(),
-    registration_reference VARCHAR(100) NOT NULL UNIQUE,
-    status                 VARCHAR(30)  NOT NULL DEFAULT 'PENDING_PAYMENT'
-                                        CHECK (status IN ('PENDING_PAYMENT','ACTIVE','CANCELLED')),
-    activated_at           TIMESTAMP,
-    UNIQUE (student_id, subject_class_id)
-);
+CREATE INDEX idx_assignments_course_id  ON assignments(course_id);
+CREATE INDEX idx_assignments_teacher_id ON assignments(teacher_id);
 
 CREATE TABLE payment_transactions (
     id                   BIGSERIAL      PRIMARY KEY,
-    class_registration_id BIGINT        NOT NULL REFERENCES class_registrations(id),
+    course_enrollment_id BIGINT         NOT NULL REFERENCES course_enrollments(id),
     provider             VARCHAR(20)    NOT NULL DEFAULT 'VNPAY',
     provider_reference   VARCHAR(255),
     amount               DECIMAL(15,2)  NOT NULL,
@@ -131,17 +183,22 @@ CREATE TABLE payment_transactions (
     UNIQUE (provider, provider_reference)
 );
 
+CREATE INDEX idx_payment_transactions_enrollment_id ON payment_transactions(course_enrollment_id);
+
 CREATE TABLE submissions (
     id                    BIGSERIAL    PRIMARY KEY,
-    class_registration_id BIGINT       NOT NULL REFERENCES class_registrations(id),
+    course_enrollment_id  BIGINT       NOT NULL REFERENCES course_enrollments(id),
     assignment_id         BIGINT       NOT NULL REFERENCES assignments(id),
     submitted_at          TIMESTAMP    NOT NULL DEFAULT NOW(),
     secure_file_reference VARCHAR(1000),
     file_metadata         TEXT,
     submission_status     VARCHAR(20)  NOT NULL DEFAULT 'DRAFT'
                                        CHECK (submission_status IN ('DRAFT','SUBMITTED','LATE','GRADED')),
-    UNIQUE (class_registration_id, assignment_id)
+    UNIQUE (course_enrollment_id, assignment_id)
 );
+
+CREATE INDEX idx_submissions_enrollment_id ON submissions(course_enrollment_id);
+CREATE INDEX idx_submissions_assignment_id ON submissions(assignment_id);
 
 CREATE TABLE assignment_evaluations (
     id               BIGSERIAL     PRIMARY KEY,
@@ -153,16 +210,9 @@ CREATE TABLE assignment_evaluations (
                                    CHECK (evaluation_status IN ('PENDING','COMPLETED','APPEALED'))
 );
 
--- INDEXES
+-- INDEXES (identity / governance)
 
-CREATE INDEX idx_user_roles_user_id         ON user_roles(user_id);
-CREATE INDEX idx_user_roles_role_id         ON user_roles(role_id);
-CREATE INDEX idx_subject_classes_subject_id ON subject_classes(subject_id);
-CREATE INDEX idx_subject_classes_teacher_id ON subject_classes(teacher_id);
-CREATE INDEX idx_assignments_teacher_id     ON assignments(teacher_id);
-CREATE INDEX idx_class_registrations_student_id ON class_registrations(student_id);
-CREATE INDEX idx_class_registrations_class_id   ON class_registrations(subject_class_id);
-CREATE INDEX idx_submissions_registration_id    ON submissions(class_registration_id);
-CREATE INDEX idx_submissions_assignment_id      ON submissions(assignment_id);
-CREATE INDEX idx_audit_logs_actor_id            ON audit_logs(actor_id);
-CREATE INDEX idx_audit_logs_occurred_at         ON audit_logs(occurred_at DESC);
+CREATE INDEX idx_user_roles_user_id      ON user_roles(user_id);
+CREATE INDEX idx_user_roles_role_id      ON user_roles(role_id);
+CREATE INDEX idx_audit_logs_actor_id     ON audit_logs(actor_id);
+CREATE INDEX idx_audit_logs_occurred_at  ON audit_logs(occurred_at DESC);

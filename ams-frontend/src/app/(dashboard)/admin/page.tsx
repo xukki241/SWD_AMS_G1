@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import Link from "next/link"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/axios"
 import { useToast } from "@/lib/use-toast"
@@ -24,21 +25,20 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
-import { ClassCard } from "@/components/classroom/ClassCard"
 import { ErrorState } from "@/components/classroom/ErrorState"
 import { EmptyState } from "@/components/classroom/EmptyState"
+import { CourseStatusBadge } from "@/components/courses/CourseStatusBadge"
 import { formatDateTime, formatVnd } from "@/components/classroom/format"
-import {
-  AdminDashboard,
-  AuditLogEntry,
-  MyClass,
-  UserInfo,
-} from "@/components/classroom/classroomTypes"
+import { AuditLogEntry, UserInfo } from "@/components/classroom/classroomTypes"
+import { courseService } from "@/services/course.service"
+import type { AdminDashboard, CourseSummary } from "@/types"
 import {
   Users,
   FolderKanban,
   Loader2,
   ScrollText,
+  GraduationCap,
+  ClipboardList,
 } from "lucide-react"
 
 const ROLE_OPTIONS = ["ROLE_STUDENT", "ROLE_TEACHER", "ROLE_EXPERT", "ROLE_ADMIN"]
@@ -46,11 +46,13 @@ const ROLE_OPTIONS = ["ROLE_STUDENT", "ROLE_TEACHER", "ROLE_EXPERT", "ROLE_ADMIN
 export default function AdminDashboardPage() {
   const [tab, setTab] = useState("users")
 
-  // Keep the sidebar hash links (#users, #audit, …) and the tabs in sync.
+  // Keep the sidebar hash links (#users, #courses, …) and the tabs in sync.
   useEffect(() => {
     const syncFromHash = () => {
-      const hash = window.location.hash.replace("#", "")
-      if (["users", "classes", "audit"].includes(hash)) setTab(hash)
+      let hash = window.location.hash.replace("#", "")
+      // Legacy #classes bookmarks land on the courses tab.
+      if (hash === "classes") hash = "courses"
+      if (["users", "courses", "audit"].includes(hash)) setTab(hash)
       // Legacy #subjects bookmarks land on users (accounts-only admin).
       if (hash === "subjects") setTab("users")
     }
@@ -71,7 +73,7 @@ export default function AdminDashboardPage() {
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Admin</h2>
         <p className="text-muted-foreground">
-          Manage accounts and roles, and review the audit trail. Teachers create classes and subjects.
+          Manage accounts and roles, review courses and the audit trail.
         </p>
       </div>
 
@@ -82,8 +84,8 @@ export default function AdminDashboardPage() {
           <TabsTrigger value="users">
             <Users className="h-4 w-4 mr-1.5" /> Users
           </TabsTrigger>
-          <TabsTrigger value="classes">
-            <FolderKanban className="h-4 w-4 mr-1.5" /> Classes
+          <TabsTrigger value="courses">
+            <FolderKanban className="h-4 w-4 mr-1.5" /> Courses
           </TabsTrigger>
           <TabsTrigger value="audit">
             <ScrollText className="h-4 w-4 mr-1.5" /> Audit trail
@@ -93,8 +95,8 @@ export default function AdminDashboardPage() {
         <TabsContent value="users">
           <UsersTab />
         </TabsContent>
-        <TabsContent value="classes">
-          <ClassesTab />
+        <TabsContent value="courses">
+          <CoursesTab />
         </TabsContent>
         <TabsContent value="audit">
           <AuditTab />
@@ -113,8 +115,7 @@ function AdminKpis() {
     refetch,
   } = useQuery({
     queryKey: ["admin-stats"],
-    queryFn: async () =>
-      (await api.get("/dashboard/admin")).data as AdminDashboard,
+    queryFn: async () => (await api.get("/dashboard/admin")).data as AdminDashboard,
   })
 
   if (isError) return <ErrorState onRetry={() => refetch()} />
@@ -126,13 +127,14 @@ function AdminKpis() {
           value: stats.totalUsers,
           hint: `${stats.totalStudents} students · ${stats.totalTeachers} teachers · ${stats.totalExperts} experts`,
         },
-        { label: "Classes", value: stats.totalClasses, hint: "teacher-owned sections" },
-        { label: "Registrations", value: stats.totalRegistrations, hint: "enrollments" },
+        { label: "Courses", value: stats.totalCourses, hint: "published course catalog" },
+        { label: "Enrollments", value: stats.totalEnrollments, hint: "student registrations" },
+        { label: "Subjects", value: stats.totalSubjects, hint: "academic subjects" },
       ]
     : null
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-4">
       {cards ? (
         cards.map((c) => (
           <Card key={c.label}>
@@ -149,6 +151,7 @@ function AdminKpis() {
         ))
       ) : (
         <>
+          <StatSkeleton />
           <StatSkeleton />
           <StatSkeleton />
           <StatSkeleton />
@@ -291,23 +294,23 @@ function UsersTab() {
   )
 }
 
-/* ---------------- Classes tab (read-only) ---------------- */
+/* ---------------- Courses tab (read-only) ---------------- */
 
-function ClassesTab() {
+function CoursesTab() {
   const {
-    data: allClasses,
+    data: courses,
     isLoading,
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["admin-classes"],
-    queryFn: async () => (await api.get("/subject-classes")).data as MyClass[],
+    queryKey: ["admin-courses"],
+    queryFn: async () => (await courseService.list({ page: 0, size: 50 })).content,
   })
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Read-only overview of class sections. Teachers create and own classes.
+        Read-only overview of the course catalog. Teachers create and own courses.
       </p>
       {isError ? (
         <ErrorState onRetry={() => refetch()} />
@@ -317,30 +320,49 @@ function ClassesTab() {
             <StatSkeleton key={i} />
           ))}
         </div>
-      ) : allClasses && allClasses.length > 0 ? (
+      ) : courses && courses.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {allClasses.map((c) => (
-            <div key={c.id} className="relative">
-              <ClassCard data={c} />
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="rounded bg-muted px-2 py-0.5 font-mono">
-                  join: {c.joinCode}
-                </span>
-                <span>
-                  capacity {c.capacity > 0 ? c.capacity : "unlimited"}
-                </span>
-                <span>fee {formatVnd(c.registrationFee)}</span>
-              </div>
-            </div>
+          {courses.map((c) => (
+            <AdminCourseCard key={c.id} course={c} />
           ))}
         </div>
       ) : (
         <EmptyState
-          title="No classes yet"
-          description="Classes appear here after teachers create them."
+          title="No courses yet"
+          description="Courses appear here after teachers create them."
         />
       )}
     </div>
+  )
+}
+
+function AdminCourseCard({ course }: { course: CourseSummary }) {
+  return (
+    <Link
+      href={`/courses/${course.id}`}
+      className="group rounded-xl border bg-card transition-shadow hover:shadow-md"
+    >
+      <div className="flex h-20 items-end rounded-t-xl bg-primary/90 p-3">
+        <span className="line-clamp-2 text-base font-semibold text-primary-foreground">
+          {course.title}
+        </span>
+      </div>
+      <div className="space-y-2 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
+            {course.code}
+          </span>
+          <CourseStatusBadge status={course.status} />
+        </div>
+        <p className="truncate text-sm text-muted-foreground">
+          {course.instructorName} · {course.categoryName}
+        </p>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{course.difficultyLevel === "BEGINNER" ? "Beginner" : course.difficultyLevel === "INTERMEDIATE" ? "Intermediate" : "Advanced"}</span>
+          <span className="font-medium text-foreground">{formatVnd(course.price)}</span>
+        </div>
+      </div>
+    </Link>
   )
 }
 

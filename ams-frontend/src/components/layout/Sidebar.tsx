@@ -6,12 +6,15 @@ import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuthStore } from "@/stores/authStore"
 import { cn } from "@/lib/utils"
-import api from "@/lib/axios"
+import {
+  enrollmentService,
+} from "@/services/enrollment.service"
+import { courseService } from "@/services/course.service"
 import {
   classBannerColor,
   classInitial,
 } from "@/components/classroom/format"
-import type { MyClass } from "@/components/classroom/classroomTypes"
+import type { CourseEnrollment, CourseSummary } from "@/types"
 import {
   Home,
   CheckSquare,
@@ -31,7 +34,7 @@ type NavLink = {
   section?: string
 }
 
-function ClassDot({ name }: { name: string }) {
+function CourseDot({ name }: { name: string }) {
   const banner = classBannerColor(name)
   return (
     <span
@@ -93,7 +96,7 @@ export function Sidebar() {
   const isExpert = roles.some((r) => r.includes("EXPERT"))
   const isTeacher = roles.some((r) => r.includes("TEACHER"))
   const isStudent = roles.some((r) => r.includes("STUDENT"))
-  const isClassroomUser = isStudent || isTeacher || isExpert
+  const isCourseUser = isStudent || isTeacher || isExpert
 
   const homePath = isAdmin
     ? "/admin"
@@ -103,40 +106,51 @@ export function Sidebar() {
         ? "/expert"
         : "/student"
 
-  const { data: myClasses } = useQuery({
-    queryKey: ["sidebar-my-classes", homePath],
-    queryFn: async () =>
-      (await api.get("/subject-classes/my")).data as MyClass[],
-    enabled: isClassroomUser && !isAdmin,
+  // Students: their enrollments; teachers/experts: courses they instruct.
+  const { data: myEnrollments } = useQuery({
+    queryKey: ["sidebar-my-enrollments", user?.userId],
+    queryFn: () => enrollmentService.getMyEnrollments(),
+    enabled: isStudent && !isAdmin,
+  })
+
+  const { data: myCoursesPage } = useQuery({
+    queryKey: ["sidebar-my-courses", user?.userId],
+    queryFn: async () => {
+      const page = await courseService.list({ page: 0, size: 50 })
+      return (page.content || []).filter(
+        (c) => user && c.instructorId === user.userId
+      )
+    },
+    enabled: (isTeacher || isExpert) && !isAdmin && !!user,
   })
 
   const primaryLinks: NavLink[] = isAdmin
     ? [
         { name: "Users & roles", href: "/admin#users", icon: Users, section: "users" },
-        { name: "Classes", href: "/admin#classes", icon: FolderKanban, section: "classes" },
-        { name: "Courses", href: "/courses", icon: BookOpen },
+        { name: "Courses", href: "/admin#courses", icon: FolderKanban, section: "courses" },
+        { name: "Course catalog", href: "/courses", icon: BookOpen },
         { name: "Audit trail", href: "/admin#audit", icon: ShieldCheck, section: "audit" },
       ]
     : isStudent
       ? [
-          { name: "Classes", href: "/student#classes", icon: Home, section: "classes" },
+          { name: "My Courses", href: "/student#classes", icon: Home, section: "classes" },
           { name: "To-do", href: "/student#work", icon: CheckSquare, section: "work" },
           { name: "Payments", href: "/student#payments", icon: CreditCard, section: "payments" },
         ]
       : isTeacher
         ? [
-            { name: "Classes", href: "/teacher#classes", icon: Home, section: "classes" },
+            { name: "My Courses", href: "/teacher#classes", icon: Home, section: "classes" },
             {
               name: "To-do",
               href: "/teacher#todo",
               icon: CheckSquare,
               section: "todo",
             },
-            { name: "Courses", href: "/courses", icon: BookOpen },
+            { name: "Manage Courses", href: "/courses", icon: BookOpen },
           ]
         : isExpert
           ? [
-              { name: "Classes", href: "/expert#classes", icon: Home, section: "classes" },
+              { name: "Published Courses", href: "/expert#courses", icon: Home, section: "courses" },
               {
                 name: "Templates",
                 href: "/expert#templates",
@@ -146,30 +160,32 @@ export function Sidebar() {
             ]
           : []
 
-  const classListLabel = isStudent ? "Enrolled" : "Teaching"
-  const classList = myClasses || []
+  const courseListLabel = isStudent ? "My Courses" : isTeacher ? "Teaching" : "Published"
+  const sidebarCourses: { id: number; title: string }[] = isStudent
+    ? (myEnrollments || [])
+        .filter((e: CourseEnrollment) => e.status !== "CANCELLED")
+        .map((e: CourseEnrollment) => ({ id: e.courseId, title: e.courseTitle }))
+    : (myCoursesPage || []).map((c: CourseSummary) => ({ id: c.id, title: c.title }))
 
   const isPrimaryActive = (link: NavLink) => {
     const base = link.href.split("#")[0]
-    if (pathname.startsWith("/classes/")) {
-      // On a class workspace, highlight Classes home link.
-      return link.section === "classes"
+    // On a course page, highlight the course list home link.
+    if (/^\/courses\/\d+/.test(pathname)) {
+      return link.section === "classes" || link.section === "courses"
     }
     // Plain routes (no hash section) also match their nested paths, e.g. /courses/[id].
     if (!link.section) {
       return pathname === link.href || pathname.startsWith(`${link.href}/`)
     }
     if (pathname !== base && pathname !== homePath) return false
-    // Empty hash (or #classes) ⇒ Classes; never light To-do on bare /teacher
-    const effectiveHash = hash || "classes"
-    if (isAdmin && !hash) {
-      return link.section === "users"
-    }
+    // Empty hash defaults to the first section of the page.
+    const defaultSection = isAdmin ? "users" : isStudent ? "classes" : isTeacher ? "classes" : "courses"
+    const effectiveHash = hash || defaultSection
     return effectiveHash === link.section
   }
 
-  const activeClassId = (() => {
-    const m = pathname.match(/^\/classes\/(\d+)/)
+  const activeCourseId = (() => {
+    const m = pathname.match(/^\/courses\/(\d+)/)
     return m ? Number(m[1]) : null
   })()
 
@@ -192,39 +208,38 @@ export function Sidebar() {
           ))}
         </div>
 
-        {isClassroomUser && !isAdmin && (
+        {isCourseUser && !isAdmin && (
           <div className="mt-4 flex min-h-0 flex-1 flex-col">
             <div className="mb-1 px-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {classListLabel}
+                {courseListLabel}
               </p>
             </div>
             <div className="flex-1 space-y-0.5 overflow-y-auto pb-3">
-              {classList.length === 0 ? (
+              {sidebarCourses.length === 0 ? (
                 <p className="px-3 py-2 text-xs text-muted-foreground">
                   {isStudent
-                    ? "Join a class to see it here."
-                    : "Create a class to see it here."}
+                    ? "Enroll in a course to see it here."
+                    : "Create a course to see it here."}
                 </p>
               ) : (
-                classList.map((c) => {
-                  const id = c.classId ?? c.id
-                  const active = activeClassId === id
+                sidebarCourses.map((c) => {
+                  const active = activeCourseId === c.id
                   return (
                     <Link
-                      key={id}
-                      href={`/classes/${id}`}
+                      key={c.id}
+                      href={`/courses/${c.id}`}
                       className={cn(
                         "flex items-center gap-3 rounded-full px-2.5 py-2 text-sm transition-colors",
                         active
                           ? "bg-accent text-accent-foreground"
                           : "text-foreground hover:bg-muted"
                       )}
-                      title={c.className}
+                      title={c.title}
                     >
-                      <ClassDot name={c.className} />
+                      <CourseDot name={c.title} />
                       <span className="min-w-0 truncate font-medium">
-                        {c.className}
+                        {c.title}
                       </span>
                     </Link>
                   )

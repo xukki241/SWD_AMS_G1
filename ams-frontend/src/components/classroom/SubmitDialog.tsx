@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useQueryClient } from "@tanstack/react-query"
-import api from "@/lib/axios"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/lib/use-toast"
 import {
   Dialog,
@@ -22,22 +21,23 @@ import {
 } from "lucide-react"
 import { formatDate, isPastDue } from "@/components/classroom/format"
 import { UploadDropzone } from "@/components/classroom/UploadDropzone"
+import { assignmentService } from "@/services/assignment.service"
+import { submissionService } from "@/services/submission.service"
 
 type UploadPhase = "idle" | "uploading" | "retrying" | "done" | "error"
 
 export function SubmitDialog({
+  enrollmentId,
+  assignmentId,
   open,
-  onOpenChange,
-  assignment,
-  classRegistrationId,
-  assignmentTitle,
+  onClose,
+  onSubmitted,
 }: {
+  enrollmentId: number
+  assignmentId: number
   open: boolean
-  onOpenChange: (open: boolean) => void
-  // The assignment being submitted: id + dueAt (the backend flags LATE automatically)
-  assignment: { id: number; dueAt: string; maxScore?: number } | null
-  classRegistrationId: number
-  assignmentTitle: string
+  onClose: () => void
+  onSubmitted?: (submissionId: number) => void
 }) {
   const [file, setFile] = useState<File | null>(null)
   const [note, setNote] = useState("")
@@ -50,15 +50,26 @@ export function SubmitDialog({
   const { toast } = useToast()
   const abortRef = useRef<AbortController | null>(null)
 
+  // Fetch the assignment for title/dueAt/maxScore display.
+  const { data: assignment } = useQuery({
+    queryKey: ["assignment", assignmentId],
+    queryFn: () => assignmentService.getById(assignmentId),
+    enabled: open && assignmentId != null,
+  })
+
   const late = isPastDue(assignment?.dueAt)
 
-  // Upload with axios progress + a retry/poll loop on transient failures.
-  // "Polling" here = the dialog watches the network call; if the first
-  // attempt fails with a 5xx / network error it backs off and re-tries
-  // up to `MAX_ATTEMPTS` times with exponential backoff. The user sees the
-  // progress bar + "Retrying..." state rather than a hard failure.
   const MAX_ATTEMPTS = 3
   const UPLOAD_TIMEOUT_MS = 60_000
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["student-submissions"] })
+    queryClient.invalidateQueries({ queryKey: ["student-assignments-overview"] })
+    queryClient.invalidateQueries({ queryKey: ["student-stats"] })
+    queryClient.invalidateQueries({ queryKey: ["submissions", assignmentId] })
+    queryClient.invalidateQueries({ queryKey: ["teacher-todo"] })
+    queryClient.invalidateQueries({ queryKey: ["teacher-stats"] })
+  }
 
   const doUpload = useCallback(
     async (attempt: number) => {
@@ -72,32 +83,29 @@ export function SubmitDialog({
         abortRef.current?.abort()
         abortRef.current = new AbortController()
 
-        const fd = new FormData()
-        fd.append("classRegistrationId", String(classRegistrationId))
-        fd.append("assignmentId", String(assignment.id))
-        if (note.trim()) fd.append("fileMetadata", note.trim())
-        fd.append("file", file)
-
-        await api.post("/submissions", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-          signal: abortRef.current.signal,
-          timeout: UPLOAD_TIMEOUT_MS,
-          onUploadProgress: (e) => {
-            if (e.total) setProgress(Math.round((e.loaded / e.total) * 100))
-          },
-        })
+        const created = await submissionService.submit(
+          enrollmentId,
+          assignment.id,
+          file,
+          {
+            signal: abortRef.current.signal,
+            timeout: UPLOAD_TIMEOUT_MS,
+            onUploadProgress: (e) => {
+              if (e.total) setProgress(Math.round((e.loaded / e.total) * 100))
+            },
+          }
+        )
 
         setPhase("done")
         setProgress(100)
-        queryClient.invalidateQueries({ queryKey: ["student-submissions"] })
-        queryClient.invalidateQueries({ queryKey: ["student-assignments-overview"] })
-        queryClient.invalidateQueries({ queryKey: ["student-stats"] })
+        invalidate()
         toast({
           title: late ? "Submitted (late)" : "Submitted",
           description: "Your work was received and is waiting for grading.",
           variant: "success",
         })
-        onOpenChange(false)
+        onSubmitted?.(created.id)
+        onClose()
         setFile(null)
         setNote("")
         setPhase("idle")
@@ -138,22 +146,11 @@ export function SubmitDialog({
           variant: "destructive",
         })
       } finally {
-        if (phase === "done") {
-          setSubmitting(false)
-        }
+        setSubmitting(false)
       }
     },
-    [
-      file,
-      assignment,
-      classRegistrationId,
-      note,
-      late,
-      onOpenChange,
-      queryClient,
-      toast,
-      phase,
-    ]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [file, assignment, enrollmentId, assignmentId, note, late, onClose, onSubmitted, toast]
   )
 
   const submit = () => {
@@ -178,12 +175,18 @@ export function SubmitDialog({
   const inFlight = phase === "uploading" || phase === "retrying"
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) cancelUpload(); onOpenChange(o) }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) cancelUpload()
+        onClose()
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-semibold">Submit work</DialogTitle>
           <DialogDescription>
-            {assignmentTitle} · due {formatDate(assignment?.dueAt)}
+            {assignment?.title ?? "Loading…"} · due {formatDate(assignment?.dueAt)}
             {late && (
               <span className="ml-1 font-medium text-warning">
                 (this is past the deadline — it will be marked late)
@@ -275,7 +278,7 @@ export function SubmitDialog({
               Cancel
             </Button>
           ) : (
-            <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-full">
+            <Button variant="ghost" onClick={() => onClose()} className="rounded-full">
               Close
             </Button>
           )}
@@ -289,7 +292,7 @@ export function SubmitDialog({
           ) : (
             <Button
               onClick={submit}
-              disabled={inFlight || !file}
+              disabled={inFlight || !file || !assignment}
               className="rounded-full shadow-gc hover:shadow-gc-lg"
             >
               {inFlight ? (

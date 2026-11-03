@@ -7,12 +7,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecificationExecutor<Course> {
 
     Optional<Course> findByIdAndDeletedFalse(Long id);
+
+    List<Course> findByDeletedFalse();
 
     Optional<Course> findByCodeIgnoreCase(String code);
 

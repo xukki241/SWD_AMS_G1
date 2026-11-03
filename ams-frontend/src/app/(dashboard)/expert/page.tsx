@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import Link from "next/link"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/axios"
 import { useToast } from "@/lib/use-toast"
@@ -25,10 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
-import { ClassCard } from "@/components/classroom/ClassCard"
 import { ErrorState } from "@/components/classroom/ErrorState"
 import { EmptyState } from "@/components/classroom/EmptyState"
-import { MyClass, Subject, TemplateItem } from "@/components/classroom/classroomTypes"
+import { SubjectItem, TemplateItem } from "@/components/classroom/classroomTypes"
+import { assignmentService } from "@/services/assignment.service"
+import { courseService } from "@/services/course.service"
+import type { ExpertDashboard } from "@/types"
 import {
   FolderKanban,
   Layers,
@@ -50,17 +53,18 @@ export default function ExpertDashboardPage() {
 
   const { data: stats, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["expert-stats"],
-    queryFn: async () => (await api.get("/dashboard/expert")).data,
+    queryFn: async () => (await api.get("/dashboard/expert")).data as ExpertDashboard,
   })
 
   const {
-    data: myClasses,
-    isLoading: classesLoading,
-    isError: classesError,
-    refetch: refetchClasses,
+    data: publishedCourses,
+    isLoading: coursesLoading,
+    isError: coursesError,
+    refetch: refetchCourses,
   } = useQuery({
-    queryKey: ["expert-my-classes"],
-    queryFn: async () => (await api.get("/subject-classes/my")).data as MyClass[],
+    queryKey: ["expert-published-courses"],
+    queryFn: async () =>
+      (await courseService.list({ status: "PUBLISHED", size: 50 })).content,
   })
 
   const {
@@ -70,26 +74,26 @@ export default function ExpertDashboardPage() {
     refetch: refetchTemplates,
   } = useQuery({
     queryKey: ["expert-templates"],
-    queryFn: async () => (await api.get("/assignment-templates")).data as TemplateItem[],
+    queryFn: async () => (await assignmentService.getTemplates(0, 50)).content,
   })
 
   const { data: subjects } = useQuery({
     queryKey: ["subjects"],
-    queryFn: async () => (await api.get("/subjects")).data as Subject[],
+    queryFn: async () => (await api.get("/subjects")).data as SubjectItem[],
     enabled: open,
   })
 
   const createTemplate = useMutation({
-    mutationFn: async () => {
-      await api.post("/assignment-templates", {
+    mutationFn: async () =>
+      assignmentService.createTemplate({
         subjectId: parseInt(subjectId),
         title: title.trim(),
-        instructions: instructions.trim() || undefined,
-        defaultDueRule: defaultDueRule.trim() || undefined,
-      })
-    },
+        instructions: instructions.trim(),
+        defaultDueRule: defaultDueRule.trim(),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expert-templates"] })
+      queryClient.invalidateQueries({ queryKey: ["expert-stats"] })
       toast({ title: "Template created", variant: "success" })
       setOpen(false)
       setTitle("")
@@ -112,7 +116,7 @@ export default function ExpertDashboardPage() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Expert dashboard</h2>
           <p className="text-muted-foreground">
-            Manage your classes and build reusable assignment blueprints.
+            Review published courses and build reusable assignment blueprints.
           </p>
         </div>
         <Button onClick={() => setOpen(true)}>
@@ -127,12 +131,12 @@ export default function ExpertDashboardPage() {
           <>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Managed Classes</CardTitle>
+                <CardTitle className="text-sm font-medium">Published Courses</CardTitle>
                 <FolderKanban className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.managedClasses}</div>
-                <p className="text-xs text-muted-foreground">class sections you oversee</p>
+                <div className="text-2xl font-bold">{stats.publishedCourses}</div>
+                <p className="text-xs text-muted-foreground">courses live in the catalog</p>
               </CardContent>
             </Card>
             <Card>
@@ -156,32 +160,49 @@ export default function ExpertDashboardPage() {
         )}
       </div>
 
-      {/* My classes */}
-      <section id="classes">
+      {/* Published courses */}
+      <section id="courses">
         <div className="mb-4">
-          <h3 className="text-xl font-bold tracking-tight">My classes</h3>
+          <h3 className="text-xl font-bold tracking-tight">Published courses</h3>
           <p className="text-sm text-muted-foreground">
-            Open a class to review its stream, assignments, and people.
+            Read-only overview of the live course catalog.
           </p>
         </div>
-        {classesError ? (
-          <ErrorState onRetry={() => refetchClasses()} />
-        ) : classesLoading ? (
+        {coursesError ? (
+          <ErrorState onRetry={() => refetchCourses()} />
+        ) : coursesLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <StatSkeleton key={i} />
             ))}
           </div>
-        ) : myClasses && myClasses.length > 0 ? (
+        ) : publishedCourses && publishedCourses.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {myClasses.map((c) => (
-              <ClassCard key={c.classId ?? c.id} data={c} />
+            {publishedCourses.map((c) => (
+              <Link
+                key={c.id}
+                href={`/courses/${c.id}`}
+                className="group rounded-xl border bg-card p-4 transition-shadow hover:shadow-md"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                    {c.code}
+                  </span>
+                  <span className="text-xs font-medium text-foreground">
+                    {c.isFree || c.price === 0 ? "Free" : `${c.price} VND`}
+                  </span>
+                </div>
+                <p className="mt-2 line-clamp-2 font-medium text-foreground">{c.title}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                  {c.categoryName} · by {c.instructorName}
+                </p>
+              </Link>
             ))}
           </div>
         ) : (
           <EmptyState
-            title="No classes yet"
-            description="Admins can assign class sections to you from the admin dashboard."
+            title="No published courses"
+            description="Courses appear here once teachers publish them."
           />
         )}
       </section>
@@ -194,7 +215,7 @@ export default function ExpertDashboardPage() {
               <ScrollText className="h-5 w-5 text-primary" /> Assignment templates
             </CardTitle>
             <CardDescription>
-              Blueprints your teachers can reuse when publishing classwork
+              Blueprints your teachers can reuse when publishing coursework
             </CardDescription>
           </CardHeader>
           <CardContent>

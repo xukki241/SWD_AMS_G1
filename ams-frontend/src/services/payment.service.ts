@@ -1,42 +1,29 @@
 import api from '@/lib/axios';
-import { PaymentTransaction, InitiatePaymentRequest, InitiatePaymentResponse } from '@/types';
-
-export interface SePayCheckoutResponse {
-  checkoutUrl: string;
-  formFields: Record<string, string>;
-  transactionRef: string;
-  amount: number;
-}
+import { PaymentTransaction, PaymentUrlResponse, SePayCheckoutResponse } from '@/types';
 
 export const paymentService = {
-  initiate: async (data: InitiatePaymentRequest): Promise<InitiatePaymentResponse> => {
-    const res = await api.post<InitiatePaymentResponse>('/payment/initiate', data);
+  /** VNPay redirect for a course enrollment. */
+  payVnPay: async (enrollmentId: number): Promise<PaymentUrlResponse> => {
+    const res = await api.post<PaymentUrlResponse>(`/payment/course/create/${enrollmentId}`);
     return res.data;
   },
-  getByRegistration: async (classRegistrationId: number): Promise<PaymentTransaction[]> => {
-    const res = await api.get<PaymentTransaction[]>(
-      `/payment/registration/${classRegistrationId}`
+  /** SePay hosted-checkout form fields for a course enrollment. */
+  createSePayPayment: async (enrollmentId: number): Promise<SePayCheckoutResponse> => {
+    const res = await api.post<SePayCheckoutResponse>(`/payment/course/create-sepay/${enrollmentId}`);
+    return res.data;
+  },
+  confirmVietQr: async (enrollmentId: number): Promise<{ success: boolean; message: string }> => {
+    const res = await api.post<{ success: boolean; message: string }>(
+      `/payment/course/confirm-vietqr/${enrollmentId}`
     );
     return res.data;
   },
-  getById: async (id: number): Promise<PaymentTransaction> => {
-    const res = await api.get<PaymentTransaction>(`/payment/${id}`);
+  getMyPayments: async (): Promise<PaymentTransaction[]> => {
+    const res = await api.get<PaymentTransaction[]>('/payment/my');
     return res.data;
   },
-  handleVnpayReturn: async (params: Record<string, string>): Promise<PaymentTransaction> => {
-    const res = await api.get<PaymentTransaction>('/payment/vnpay-return', { params });
-    return res.data;
-  },
-  payVnPay: async (registrationId: number): Promise<{ paymentUrl: string; transactionRef: string; amount: number }> => {
-    const res = await api.post(`/payment/create/${registrationId}`);
-    return res.data;
-  },
-  createSePayPayment: async (registrationId: number): Promise<SePayCheckoutResponse> => {
-    const res = await api.post<SePayCheckoutResponse>(`/payment/create-sepay/${registrationId}`);
-    return res.data;
-  },
-  confirmVietQr: async (registrationId: number): Promise<{ success: boolean; message: string }> => {
-    const res = await api.post<{ success: boolean; message: string }>(`/payment/confirm-vietqr/${registrationId}`);
+  handleVnpayReturn: async (params: Record<string, string>): Promise<{ success: boolean; message: string }> => {
+    const res = await api.get<{ success: boolean; message: string }>('/payment/vnpay-return', { params });
     return res.data;
   },
 };

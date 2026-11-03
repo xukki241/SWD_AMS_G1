@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/assignments")
 @RequiredArgsConstructor
-@Tag(name = "Assignments", description = "Teacher Assignment Management APIs")
+@Tag(name = "Assignments", description = "Course Assignment Management APIs")
 public class AssignmentController {
 
     private final AssignmentService assignmentService;
@@ -34,30 +35,42 @@ public class AssignmentController {
         return ResponseEntity.ok(assignmentService.getAssignmentById(id));
     }
 
-    @GetMapping("/class/{subjectClassId}")
+    @GetMapping("/course/{courseId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT', 'STUDENT')")
-    @Operation(summary = "Get assignments allocated to a subject class")
-    public ResponseEntity<List<AssignmentDTO.AssignmentResponse>> getAssignmentsByClass(@PathVariable Long subjectClassId) {
-        return ResponseEntity.ok(assignmentService.getAssignmentsByClass(subjectClassId));
+    @Operation(summary = "Get assignments of a course")
+    public ResponseEntity<List<AssignmentDTO.AssignmentResponse>> getAssignmentsByCourse(@PathVariable Long courseId) {
+        return ResponseEntity.ok(assignmentService.getAssignmentsByCourse(courseId));
     }
 
     @GetMapping("/overview")
     @PreAuthorize("hasRole('STUDENT')")
-    @Operation(summary = "Student's pending-work overview: own active-class assignments with work state")
+    @Operation(summary = "Student's pending-work overview: own course assignments with work state")
     public ResponseEntity<List<AssignmentDTO.AssignmentOverviewItem>> getOverview() {
         return ResponseEntity.ok(assignmentService.getMyAssignmentsOverview());
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
-    @Operation(summary = "Create an assignment")
-    public ResponseEntity<AssignmentDTO.AssignmentResponse> createAssignment(@Valid @RequestBody AssignmentDTO.CreateAssignmentRequest request) {
-        return ResponseEntity.ok(assignmentService.createAssignment(request));
+    @Operation(summary = "Create an assignment (courseId in body)")
+    public ResponseEntity<AssignmentDTO.AssignmentResponse> createAssignment(
+            @Valid @RequestBody CreateWithCourseRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(assignmentService.createAssignment(request.courseId(), request.toCreateRequest()));
+    }
+
+    @PostMapping("/course/{courseId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @Operation(summary = "Create an assignment for a course")
+    public ResponseEntity<AssignmentDTO.AssignmentResponse> createForCourse(
+            @PathVariable Long courseId,
+            @Valid @RequestBody AssignmentDTO.CreateAssignmentRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(assignmentService.createAssignment(courseId, request));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('TEACHER')")
-    @Operation(summary = "Update an assignment (optional topic, title, instructions, due, maxScore); owning teacher only")
+    @Operation(summary = "Update an assignment; owning teacher only")
     public ResponseEntity<AssignmentDTO.AssignmentResponse> updateAssignment(
             @PathVariable Long id,
             @RequestBody AssignmentDTO.UpdateAssignmentRequest request
@@ -67,7 +80,7 @@ public class AssignmentController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('TEACHER')")
-    @Operation(summary = "Partial update assignment (dueAt/title and other fields); owning teacher only")
+    @Operation(summary = "Partial update assignment; owning teacher only")
     public ResponseEntity<AssignmentDTO.AssignmentResponse> patchAssignment(
             @PathVariable Long id,
             @RequestBody AssignmentDTO.UpdateAssignmentRequest request
@@ -75,11 +88,27 @@ public class AssignmentController {
         return ResponseEntity.ok(assignmentService.updateAssignment(id, request));
     }
 
-    @PostMapping("/allocate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
-    @Operation(summary = "Allocate assignment to a class")
-    public ResponseEntity<Void> allocateToClass(@Valid @RequestBody AssignmentDTO.AllocateClassRequest request) {
-        assignmentService.allocateToClass(request);
-        return ResponseEntity.ok().build();
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Delete an assignment; owning teacher only")
+    public ResponseEntity<Void> deleteAssignment(@PathVariable Long id) {
+        assignmentService.deleteAssignment(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Body variant that carries courseId explicitly. */
+    public record CreateWithCourseRequest(
+            Long templateId,
+            @jakarta.validation.constraints.NotBlank String title,
+            String instructions,
+            String topic,
+            @jakarta.validation.constraints.NotNull java.time.LocalDateTime dueAt,
+            java.math.BigDecimal maxScore,
+            @jakarta.validation.constraints.NotNull Long courseId
+    ) {
+        public AssignmentDTO.CreateAssignmentRequest toCreateRequest() {
+            return new AssignmentDTO.CreateAssignmentRequest(
+                    templateId, title, instructions, topic, dueAt, maxScore);
+        }
     }
 }

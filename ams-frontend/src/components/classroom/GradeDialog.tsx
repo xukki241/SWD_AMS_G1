@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
-import api from "@/lib/axios"
+import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useToast } from "@/lib/use-toast"
 import {
   Dialog,
@@ -17,27 +16,41 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Award, Loader2, CheckCircle2 } from "lucide-react"
 import { ScoreInput } from "@/components/classroom/ScoreInput"
+import { assignmentService } from "@/services/assignment.service"
+import { evaluationService } from "@/services/evaluation.service"
+import type { Submission } from "@/types"
 
 export function GradeDialog({
-  open,
-  onOpenChange,
   submission,
-  maxScore,
-  assignmentTitle,
-  invalidateKey,
+  open,
+  onClose,
+  onGraded,
 }: {
+  submission: Submission | null
   open: boolean
-  onOpenChange: (open: boolean) => void
-  submission: { id: number; studentName?: string; evaluation?: any } | null
-  maxScore: number
-  assignmentTitle: string
-  invalidateKey: (string | number)[]
+  onClose: () => void
+  onGraded?: (submissionId: number) => void
 }) {
   const [score, setScore] = useState("")
   const [feedback, setFeedback] = useState("")
   const [saving, setSaving] = useState(false)
-  const queryClient = useQueryClient()
   const { toast } = useToast()
+
+  // Reset fields whenever the dialog opens for a new submission.
+  useEffect(() => {
+    if (open) {
+      setScore("")
+      setFeedback("")
+    }
+  }, [open, submission?.id])
+
+  // Max score comes from the parent assignment.
+  const { data: assignment } = useQuery({
+    queryKey: ["assignment", submission?.assignmentId],
+    queryFn: () => assignmentService.getById(submission!.assignmentId),
+    enabled: open && submission != null,
+  })
+  const maxScore = assignment?.maxScore ?? 10
 
   const existing = submission?.evaluation
   // Grades are final: backend 400s on re-grade, so a graded submission is read-only.
@@ -47,20 +60,18 @@ export function GradeDialog({
     if (!submission || isGraded) return
     setSaving(true)
     try {
-      await api.post("/evaluations", {
+      await evaluationService.create({
         submissionId: submission.id,
         score: Number(score),
         feedback: feedback.trim() || undefined,
       })
-      queryClient.invalidateQueries({ queryKey: invalidateKey })
       toast({
         title: "Grade saved",
         description: `${submission.studentName || "Submission"} · ${score} / ${maxScore}`,
         variant: "success",
       })
-      onOpenChange(false)
-      setScore("")
-      setFeedback("")
+      onGraded?.(submission.id)
+      onClose()
     } catch (err: any) {
       const status = err.response?.status
       if (status === 400) {
@@ -73,7 +84,7 @@ export function GradeDialog({
       } else if (status === 403) {
         toast({
           title: "Not authorized",
-          description: "Only the assignment teacher or class expert can grade this work.",
+          description: "Only the course teacher can grade this work.",
           variant: "destructive",
         })
       } else {
@@ -89,7 +100,7 @@ export function GradeDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => (o ? undefined : onClose())}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-semibold">
@@ -97,7 +108,7 @@ export function GradeDialog({
           </DialogTitle>
           <DialogDescription>
             {submission?.studentName ? `${submission.studentName} · ` : ""}
-            {assignmentTitle}
+            {submission?.assignmentTitle || assignment?.title || ""}
           </DialogDescription>
         </DialogHeader>
 
@@ -157,12 +168,12 @@ export function GradeDialog({
 
         <DialogFooter>
           {isGraded ? (
-            <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-full">
+            <Button variant="ghost" onClick={() => onClose()} className="rounded-full">
               Close
             </Button>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-full">
+              <Button variant="ghost" onClick={() => onClose()} className="rounded-full">
                 Cancel
               </Button>
               <Button

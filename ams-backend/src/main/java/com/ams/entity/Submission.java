@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "submissions", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"class_registration_id", "assignment_id"})
+        @UniqueConstraint(columnNames = {"course_enrollment_id", "assignment_id"})
 })
 @Data
 @NoArgsConstructor
@@ -20,8 +20,8 @@ public class Submission {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "class_registration_id", nullable = false)
-    private ClassRegistration classRegistration;
+    @JoinColumn(name = "course_enrollment_id", nullable = false)
+    private CourseEnrollment courseEnrollment;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignment_id", nullable = false)

@@ -9,6 +9,6 @@ import java.util.Optional;
 
 @Repository
 public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long> {
-    List<PaymentTransaction> findByClassRegistrationId(Long classRegistrationId);
+    List<PaymentTransaction> findByCourseEnrollmentId(Long courseEnrollmentId);
     Optional<PaymentTransaction> findByProviderAndProviderReference(String provider, String providerReference);
 }

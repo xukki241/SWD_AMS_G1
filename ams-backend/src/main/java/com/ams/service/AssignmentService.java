@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,9 +21,8 @@ public class AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
     private final AssignmentTemplateRepository templateRepository;
-    private final SubjectClassRepository subjectClassRepository;
-    private final AssignmentClassRepository assignmentClassRepository;
-    private final ClassRegistrationRepository registrationRepository;
+    private final CourseRepository courseRepository;
+    private final CourseEnrollmentRepository enrollmentRepository;
     private final SubmissionRepository submissionRepository;
     private final AssignmentEvaluationRepository evaluationRepository;
     private final UserRepository userRepository;
@@ -45,19 +43,25 @@ public class AssignmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<AssignmentDTO.AssignmentResponse> getAssignmentsByClass(Long subjectClassId) {
-        List<AssignmentClass> list = assignmentClassRepository.findBySubjectClassId(subjectClassId);
-        return list.stream()
-                .filter(ac -> ac.getAllocationStatus() == AssignmentClass.AllocationStatus.ACTIVE)
-                .map(ac -> mapToResponse(ac.getAssignment()))
+    public List<AssignmentDTO.AssignmentResponse> getAssignmentsByCourse(Long courseId) {
+        return assignmentRepository.findByCourseIdOrderByDueAtAsc(courseId).stream()
+                .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional
-    public AssignmentDTO.AssignmentResponse createAssignment(AssignmentDTO.CreateAssignmentRequest request) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User teacher = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found: " + username));
+    public AssignmentDTO.AssignmentResponse createAssignment(Long courseId, AssignmentDTO.CreateAssignmentRequest request) {
+        User teacher = currentUser();
+
+        Course course = courseRepository.findById(courseId)
+                .filter(c -> !c.isDeleted())
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
+
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!isAdmin && (course.getInstructor() == null || !course.getInstructor().getId().equals(teacher.getId()))) {
+            throw new AccessDeniedException("Only the course instructor can add assignments to this course");
+        }
 
         AssignmentTemplate template = null;
         if (request.templateId() != null) {
@@ -65,6 +69,7 @@ public class AssignmentService {
         }
 
         Assignment assignment = Assignment.builder()
+                .course(course)
                 .teacher(teacher)
                 .template(template)
                 .title(request.title())
@@ -75,69 +80,31 @@ public class AssignmentService {
                 .build();
 
         assignment = assignmentRepository.save(assignment);
-
-        if (request.subjectClassId() != null) {
-            SubjectClass sc = subjectClassRepository.findById(request.subjectClassId())
-                    .orElseThrow(() -> new ResourceNotFoundException("SubjectClass not found: " + request.subjectClassId()));
-            AssignmentClass ac = AssignmentClass.builder()
-                    .assignment(assignment)
-                    .subjectClass(sc)
-                    .allocationStatus(AssignmentClass.AllocationStatus.ACTIVE)
-                    .allocatedAt(LocalDateTime.now())
-                    .build();
-            assignmentClassRepository.save(ac);
-        }
-
         auditLogService.log("CREATE_ASSIGNMENT", "Assignment", assignment.getTitle());
         return mapToResponse(assignment);
     }
 
-    @Transactional
-    public void allocateToClass(AssignmentDTO.AllocateClassRequest request) {
-        Assignment assignment = assignmentRepository.findById(request.assignmentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found with id: " + request.assignmentId()));
-
-        SubjectClass sc = subjectClassRepository.findById(request.subjectClassId())
-                .orElseThrow(() -> new ResourceNotFoundException("SubjectClass not found with id: " + request.subjectClassId()));
-
-        AssignmentClass ac = assignmentClassRepository.findByAssignmentIdAndSubjectClassId(assignment.getId(), sc.getId())
-                .orElse(AssignmentClass.builder()
-                        .assignment(assignment)
-                        .subjectClass(sc)
-                        .allocatedAt(LocalDateTime.now())
-                        .build());
-
-        ac.setAllocationStatus(AssignmentClass.AllocationStatus.ACTIVE);
-        ac.setClassNote(request.classNote());
-        assignmentClassRepository.save(ac);
-
-        auditLogService.log("ALLOCATE_ASSIGNMENT", "AssignmentClass", assignment.getTitle() + " -> " + sc.getClassCode());
-    }
-
     /**
-     * STUDENT "pending work" view (spec 4.4): for each of the student's ACTIVE
-     * registrations, list the class's ACTIVE assignments with the student's own
-     * work state (NOT_STARTED / DRAFT / SUBMITTED / LATE / GRADED).
+     * STUDENT "pending work" view: for each of the student's non-cancelled
+     * enrollments, list the course's assignments with the student's own work
+     * state (NOT_STARTED / DRAFT / SUBMITTED / LATE / GRADED).
      */
     @Transactional(readOnly = true)
     public List<AssignmentDTO.AssignmentOverviewItem> getMyAssignmentsOverview() {
         User student = currentUser();
         List<AssignmentDTO.AssignmentOverviewItem> items = new ArrayList<>();
 
-        for (ClassRegistration reg : registrationRepository.findByStudentId(student.getId())) {
-            if (reg.getStatus() != ClassRegistration.RegistrationStatus.ACTIVE) {
+        for (CourseEnrollment enrollment : enrollmentRepository.findByStudentId(student.getId())) {
+            if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.CANCELLED) {
                 continue;
             }
-            SubjectClass sc = reg.getSubjectClass();
+            Course course = enrollment.getCourse();
 
-            for (AssignmentClass ac : assignmentClassRepository.findBySubjectClassId(sc.getId())) {
-                if (ac.getAllocationStatus() != AssignmentClass.AllocationStatus.ACTIVE) {
-                    continue;
-                }
-                Assignment a = ac.getAssignment();
+            for (Assignment a : assignmentRepository.findByCourseIdOrderByDueAtAsc(course.getId())) {
+                Submission submission = submissionRepository
+                        .findByCourseEnrollmentIdAndAssignmentId(enrollment.getId(), a.getId())
+                        .orElse(null);
 
-                Submission submission =
-                        submissionRepository.findByClassRegistrationIdAndAssignmentId(reg.getId(), a.getId()).orElse(null);
                 String workState = "NOT_STARTED";
                 Long submissionId = null;
                 BigDecimal score = null;
@@ -153,9 +120,10 @@ public class AssignmentService {
                 }
 
                 items.add(new AssignmentDTO.AssignmentOverviewItem(
-                        sc.getId(),
-                        sc.getClassCode(),
-                        sc.getClassName(),
+                        course.getId(),
+                        course.getCode(),
+                        course.getTitle(),
+                        enrollment.getId(),
                         a.getId(),
                         a.getTitle(),
                         a.getInstructions(),
@@ -198,16 +166,31 @@ public class AssignmentService {
         return mapToResponse(assignment);
     }
 
+    @Transactional
+    public void deleteAssignment(Long id) {
+        Assignment assignment = assignmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found with id: " + id));
+        requireOwningTeacher(assignment);
+        assignmentRepository.delete(assignment);
+        auditLogService.log("DELETE_ASSIGNMENT", "Assignment", assignment.getTitle());
+    }
+
     private void requireOwningTeacher(Assignment assignment) {
         User user = currentUser();
-        if (assignment.getTeacher() == null || !user.getId().equals(assignment.getTeacher().getId())) {
-            throw new AccessDeniedException("Only the assignment owner can update this assignment");
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!isAdmin && (assignment.getTeacher() == null || !user.getId().equals(assignment.getTeacher().getId()))) {
+            throw new AccessDeniedException("Only the assignment owner can modify this assignment");
         }
     }
 
     private AssignmentDTO.AssignmentResponse mapToResponse(Assignment a) {
+        Course course = a.getCourse();
         return new AssignmentDTO.AssignmentResponse(
                 a.getId(),
+                course.getId(),
+                course.getCode(),
+                course.getTitle(),
                 a.getTeacher().getId(),
                 a.getTeacher().getFullName(),
                 a.getTemplate() != null ? a.getTemplate().getId() : null,

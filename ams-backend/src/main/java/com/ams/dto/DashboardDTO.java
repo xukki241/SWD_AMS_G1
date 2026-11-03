@@ -10,20 +10,20 @@ public class DashboardDTO {
             long totalTeachers,
             long totalExperts,
             long totalSubjects,
-            long totalClasses,
-            long totalRegistrations
+            long totalCourses,
+            long totalEnrollments
     ) {}
 
     public record TeacherDashboardResponse(
             long totalAssignments,
-            long totalClasses,
+            long totalCourses,
             long pendingEvaluations,
             long completedEvaluations
     ) {}
 
     public record StudentDashboardResponse(
-            long totalRegistrations,
-            long activeClasses,
+            long totalEnrollments,
+            long activeCourses,
             long submittedAssignments,
             long gradedAssignments,
             BigDecimal averageScore
@@ -31,6 +31,6 @@ public class DashboardDTO {
 
     public record ExpertDashboardResponse(
             long totalTemplates,
-            long managedClasses
+            long publishedCourses
     ) {}
 }

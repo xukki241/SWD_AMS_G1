@@ -1,8 +1,9 @@
 "use client"
 
-import React, { useState } from "react"
+import React from "react"
 import { useAuthStore } from "@/stores/authStore"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Avatar } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -12,17 +13,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Search, Menu, LogOut, BookOpen, Plus, FolderPlus } from "lucide-react"
+import { Search, Menu, LogOut, BookOpen, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { CreateClassDialog } from "@/components/classroom/CreateClassDialog"
 
 export function Header() {
   const { user, logout } = useAuthStore()
   const router = useRouter()
-  const [createOpen, setCreateOpen] = useState(false)
 
   const roles = user?.roles || []
-  const canCreateClass =
+  const canCreateCourse =
     roles.some((r) => r.includes("TEACHER")) ||
     roles.some((r) => r.includes("EXPERT"))
 
@@ -58,31 +57,14 @@ export function Header() {
           <span className="text-sm text-muted-foreground">Search</span>
         </div>
 
-        {canCreateClass && (
-          <>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  aria-label="Create"
-                >
-                  <Plus className="h-5 w-5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 rounded-lg shadow-gc">
-                <DropdownMenuItem onClick={() => setCreateOpen(true)}>
-                  <FolderPlus className="mr-2 h-4 w-4" />
-                  Create class
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <CreateClassDialog
-              hideTrigger
-              open={createOpen}
-              onOpenChange={setCreateOpen}
-            />
-          </>
+        {canCreateCourse && (
+          <Link
+            href="/courses/new"
+            className="flex items-center gap-1.5 rounded-full bg-[hsl(var(--success))] px-4 py-2 text-sm font-medium text-white shadow-gc transition hover:shadow-gc-lg"
+          >
+            <Plus className="h-4 w-4" />
+            Create course
+          </Link>
         )}
 
         {user && (
