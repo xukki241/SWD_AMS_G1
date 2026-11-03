@@ -24,7 +24,6 @@ import { ErrorState } from "@/components/classroom/ErrorState"
 import { EmptyState } from "@/components/classroom/EmptyState"
 import { StatusBadge } from "@/components/classroom/StatusBadge"
 import { formatDate } from "@/components/classroom/format"
-import { toApiDateTime } from "@/lib/datetime"
 import type {
   AssignmentItem,
   MyClass,
@@ -461,7 +460,7 @@ function ClassworkSection({ classId }: { classId: number }) {
     try {
       await api.patch(`/assignments/${id}`, {
         title: draft.title.trim(),
-        dueAt: toApiDateTime(draft.dueAt),
+        dueAt: draft.dueAt,
       })
       queryClient.invalidateQueries({ queryKey: ["class-assignments", classId] })
       toast({ title: "Assignment updated", variant: "success" })

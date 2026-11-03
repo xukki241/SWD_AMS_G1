@@ -237,6 +237,144 @@ export interface AdminDashboard {
   totalRegistrations: number;
 }
 
+// Categories
+export interface Category {
+  id: number
+  name: string
+}
+
+// Course management
+export type CourseStatus = "DRAFT" | "PUBLISHED"
+export type CourseDifficulty = "BEGINNER" | "INTERMEDIATE" | "ADVANCED"
+export type LessonType = "VIDEO" | "READING" | "ASSIGNMENT"
+
+export interface CourseSummary {
+  id: number
+  title: string
+  code: string
+  categoryId: number
+  categoryName: string
+  thumbnailUrl?: string | null
+  price: number
+  isFree: boolean
+  status: CourseStatus
+  difficultyLevel: CourseDifficulty
+  instructorId: number
+  instructorName: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CourseMetrics {
+  moduleCount: number
+  lessonCount: number
+  totalDurationMinutes: number
+}
+
+export interface CurriculumModuleSummary {
+  id: number
+  title: string
+  orderIndex: number
+  lessonCount: number
+}
+
+export interface CourseDetail extends CourseSummary {
+  description: string
+  about?: string | null
+  whatStudentsWillLearn?: string | null
+  prerequisites?: string | null
+  metrics: CourseMetrics
+  curriculum: CurriculumModuleSummary[]
+}
+
+export interface CourseRequestPayload {
+  title: string
+  code: string
+  categoryId: number
+  description: string
+  thumbnailUrl?: string | null
+  price: number
+  isFree: boolean
+  status: CourseStatus
+  difficultyLevel: CourseDifficulty
+  about?: string | null
+  whatStudentsWillLearn?: string | null
+  prerequisites?: string | null
+}
+
+export interface CourseListParams {
+  keyword?: string
+  categoryId?: number
+  status?: CourseStatus
+  page?: number
+  size?: number
+}
+
+// Course content (modules + lessons)
+export interface Lesson {
+  id: number
+  moduleId: number
+  title: string
+  type: LessonType
+  duration: number
+  status: CourseStatus
+  orderIndex: number
+}
+
+export interface CourseModule {
+  id: number
+  courseId: number
+  title: string
+  orderIndex: number
+  lessons: Lesson[]
+}
+
+export interface CourseContent {
+  courseId: number
+  courseTitle: string
+  modules: CourseModule[]
+  moduleCount: number
+  lessonCount: number
+  totalDurationMinutes: number
+}
+
+export interface LessonRequestPayload {
+  title: string
+  type: LessonType
+  duration: number
+  status?: CourseStatus
+}
+
+export interface ModuleOrderPayload {
+  id: number
+  lessonIds: number[]
+}
+
+// AI outline
+export interface OutlineLesson {
+  title: string
+  type?: LessonType
+  duration?: number
+}
+
+export interface OutlineModule {
+  title: string
+  lessons: OutlineLesson[]
+}
+
+export interface OutlineRequestPayload {
+  topic?: string
+  level?: string
+  moduleCount?: number
+}
+
+export interface OutlineResponse {
+  topic?: string
+  level?: string
+  moduleCount: number
+  modules: OutlineModule[]
+}
+
 // Pagination
 export interface Page<T> {
   content: T[];
@@ -251,4 +389,5 @@ export interface ApiError {
   message: string;
   status: number;
   timestamp: string;
+  validationErrors?: Record<string, string>;
 }

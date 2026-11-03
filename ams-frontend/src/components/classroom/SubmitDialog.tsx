@@ -79,6 +79,7 @@ export function SubmitDialog({
         fd.append("file", file)
 
         await api.post("/submissions", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
           signal: abortRef.current.signal,
           timeout: UPLOAD_TIMEOUT_MS,
           onUploadProgress: (e) => {
@@ -91,7 +92,6 @@ export function SubmitDialog({
         queryClient.invalidateQueries({ queryKey: ["student-submissions"] })
         queryClient.invalidateQueries({ queryKey: ["student-assignments-overview"] })
         queryClient.invalidateQueries({ queryKey: ["student-stats"] })
-        queryClient.invalidateQueries({ queryKey: ["class-assignment-submissions"] })
         toast({
           title: late ? "Submitted (late)" : "Submitted",
           description: "Your work was received and is waiting for grading.",
@@ -138,7 +138,9 @@ export function SubmitDialog({
           variant: "destructive",
         })
       } finally {
-        setSubmitting(false)
+        if (phase === "done") {
+          setSubmitting(false)
+        }
       }
     },
     [

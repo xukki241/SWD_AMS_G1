@@ -5,19 +5,11 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Request interceptor: attach JWT token; let the browser set multipart boundaries
+// Request interceptor: attach JWT token
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('ams_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
-  }
-  // Default Content-Type is application/json — that breaks FormData uploads
-  // (and a bare "multipart/form-data" header without boundary also fails).
-  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-    if (config.headers && typeof config.headers === 'object') {
-      delete (config.headers as Record<string, unknown>)['Content-Type'];
-      delete (config.headers as Record<string, unknown>)['content-type'];
-    }
   }
   return config;
 });

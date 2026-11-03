@@ -11,6 +11,7 @@ Assignment Management System (AMS) is a Google Classroom–style POC for SWD392 
 - [Quick start (Docker)](#quick-start-docker)
 - [Local development (without Docker app containers)](#local-development-without-docker-app-containers)
 - [Demo accounts](#demo-accounts)
+- [Course management](#course-management)
 - [Payment sandboxes](#payment-sandboxes)
 - [Architecture](#architecture)
 - [Environment variables](#environment-variables)
@@ -26,8 +27,9 @@ Assignment Management System (AMS) is a Google Classroom–style POC for SWD392 
 - Free classes enroll as `ACTIVE`; paid classes stay `PENDING_PAYMENT` until payment succeeds
 - Class workspace: Stream (posts + materials), Assignments (submit → grade), People, Settings (rename, room, archive)
 - Payments: SePay (primary live/demo gateway with IPN), VNPay Sandbox, VietQR sandbox confirm
+- Course management: teacher-owned catalog with thumbnail upload, module/lesson curriculum (drag-and-drop reorder), and Gemini-drafted outlines reviewed before saving
 - Roles: `ADMIN`, `EXPERT`, `TEACHER`, `STUDENT` with JWT auth
-- Flyway-managed PostgreSQL schema (V1–V8) and seed data for demos
+- Flyway-managed PostgreSQL schema (V1–V9) and seed data for demos
 
 ## Tech stack
 
@@ -97,14 +99,14 @@ Compose notes:
 - Backend receives `DB_URL=jdbc:postgresql://postgres:5432/ams_db` inside the network (not the host port).
 - Frontend build/runtime uses `NEXT_PUBLIC_API_URL=http://localhost:8080/api` so the **browser** talks to the published backend port.
 - Secrets should come from your local `.env`. Do not commit `.env`. Compose may still ship demo defaults for some payment vars; override them in `.env` for real merchant credentials.
-- Flyway runs on **backend startup** (`V1`–`V8`). Seeds load with the API — not a separate seed container. `V2` inserts the base demo dataset; `V8` idempotently syncs join codes, 50k fees, assignment topics, and the `student1` PENDING_PAYMENT path on `SWD392-G1801`.
-- A **fresh Postgres volume** gets the full demo via Flyway. An existing volume only applies migrations not yet in `flyway_schema_history` (e.g. V8 once).
+- Flyway runs on **backend startup** (`V1`–`V9`). Seeds load with the API — not a separate seed container. `V2` inserts the base demo dataset; `V8` idempotently syncs join codes, 50k fees, assignment topics, and the `student1` PENDING_PAYMENT path on `SWD392-G1801`; `V9` adds the course-management tables plus six course categories.
+- A **fresh Postgres volume** gets the full demo via Flyway. An existing volume only applies migrations not yet in `flyway_schema_history` (e.g. V9 once).
 
 Stop / reset:
 
 ```bash
 docker compose down
-# Full DB resync (destructive — wipes volume, then Flyway V1–V8 reseeds on next up):
+# Full DB resync (destructive — wipes volume, then Flyway V1–V9 reseeds on next up):
 docker compose down -v
 docker compose up --build
 ```
@@ -141,7 +143,7 @@ cd ams-backend
 ./mvnw spring-boot:run
 ```
 
-Spring Boot reads `DB_*`, `JWT_*`, `CLOUDINARY_*`, `VNPAY_*`, `SEPAY_*`, `FILE_STORAGE_*`, and `PORT` from the environment / `.env` (depending how you inject them). Defaults also exist in `ams-backend/src/main/resources/application.yml`.
+Spring Boot reads `DB_*`, `JWT_*`, `CLOUDINARY_*`, `VNPAY_*`, `SEPAY_*`, `GEMINI_*`, `FILE_STORAGE_*`, and `PORT` from the environment / `.env` (depending how you inject them). Defaults also exist in `ams-backend/src/main/resources/application.yml`.
 
 Swagger: http://localhost:8080/swagger-ui.html
 
@@ -192,6 +194,48 @@ Suggested golden-path logins:
 - Student: `student1` / `Password@123` → `/student` (join / pay / submit)
 - Admin: `admin` / `Password@123` → `/admin`
 - Expert: `expert1` / `Password@123` → `/expert`
+
+## Course management
+
+Teachers (and admins) build the course catalog and its curriculum. Students do not use these screens yet — enrollment is a separate feature.
+
+| Screen | Route | Purpose |
+| ------ | ----- | ------- |
+| List | `/courses` | Search by title/code, filter by category and status, paginate, delete |
+| Add / Edit | `/courses/new`, `/courses/[id]/edit` | Course fields, pricing, publishing, thumbnail upload |
+| Details | `/courses/[id]` | Read-only summary, outcomes, prerequisites, curriculum metrics |
+| Manage content | `/courses/[id]/content` | Modules + lessons, drag-and-drop reorder, AI outline dialog |
+
+Access rules:
+
+- `TEACHER` and `ADMIN` only (`401` when anonymous, `403` for other roles).
+- Only the course owner or an `ADMIN` may update, delete, or change content (`403` otherwise).
+- Admins creating a course become its instructor.
+
+Behaviour worth knowing:
+
+- **Course code** is normalized to uppercase and must be unique. A duplicate returns `409` with `Course code already exists`, shown inline on the code field.
+- **Thumbnail**: PNG/JPG only, max 5MB, 1280×720 recommended. Validated in the browser for instant feedback and again on the server.
+- **Curriculum**: `Module` (not "Section") groups lessons. `orderIndex` starts at 0 and stays contiguous per parent; reordering sends the full module/lesson payload in one transaction.
+- **Delete** is a soft delete (`deleted` flag). Courses that already have enrollments are blocked — the API returns `400` with a readable message instead of orphaning students.
+- **AI outline**: Gemini drafts modules and lessons, but nothing is persisted until you press **Accept & save**. Failures (timeout after 30s, unusable JSON, quota) leave the existing curriculum untouched and offer a retry.
+
+### Gemini setup
+
+The API key is read from the `GEMINI_API_KEY` environment variable — it is never hardcoded and never sent to the browser.
+
+```bash
+# .env (repo root, gitignored)
+GEMINI_API_KEY=your-key-from-https://aistudio.google.com/apikey
+GEMINI_MODEL=gemini-2.0-flash        # optional
+GEMINI_TIMEOUT_SECONDS=30            # optional
+```
+
+`docker compose up` passes these through to the backend container. For a host JVM, export them before `./mvnw spring-boot:run`.
+
+Without a key the rest of the feature works; only `POST /api/courses/{id}/ai/outline` fails, returning `502` with a readable message that the dialog shows with a retry button.
+
+Try it: log in as `teacher1` / `Password@123` → **Courses** in the sidebar → open a course → **Manage content**.
 
 ## Payment sandboxes
 
@@ -250,14 +294,14 @@ SWD_AMS_G1/
 │       │   └── service/
 │       └── resources/
 │           ├── application.yml
-│           └── db/migration/    Flyway V1–V8
+│           └── db/migration/    Flyway V1–V9
 ├── ams-frontend/                Next.js App Router UI
 │   ├── Dockerfile
 │   ├── e2e/                     Playwright specs
 │   ├── playwright.config.ts
 │   └── src/
 │       ├── app/                 Routes (auth, dashboards, class workspace, payment returns)
-│       ├── components/          classroom/ + layout/ + ui/
+│       ├── components/          classroom/ + courses/ + layout/ + ui/
 │       ├── lib/                 axios, constants, utils
 │       ├── services/            API client modules
 │       ├── stores/              Zustand auth store
@@ -306,6 +350,11 @@ Student submits assignment → teacher evaluates
 | `/api/auth` | Login, register |
 | `/api/users` | User CRUD / role assignment (admin) |
 | `/api/subjects` | Subject catalog / create |
+| `/api/categories` | Course categories (teacher/admin) |
+| `/api/courses` | Course list/search/filter, CRUD (JSON or multipart + thumbnail), soft delete |
+| `/api/courses/{id}/content` | Curriculum tree, module/lesson CRUD, reorder (`PATCH …/content/reorder`) |
+| `/api/modules/{id}`, `/api/lessons/{id}` | Rename/delete module, add/edit/delete lesson |
+| `/api/courses/{id}/ai` | Gemini outline draft + `…/outline/accept` |
 | `/api/subject-classes` | Classes, public catalog, my classes, patch, archive, remove student |
 | `/api/registrations` | My regs, class roster, register, join-by-code |
 | `/api/classes/{classId}/posts` | Stream posts (multipart) |
@@ -329,6 +378,11 @@ Student submits assignment → teacher evaluates
 | `/classes/[id]` | Stream / classwork / people |
 | `/classes/[id]/assignments/[assignmentId]` | Assignment detail / your work |
 | `/classes/[id]/settings` | Teacher settings + archive |
+| `/courses` | Course management list (teacher/admin) |
+| `/courses/new` | Create course |
+| `/courses/[id]` | Course details |
+| `/courses/[id]/edit` | Edit course |
+| `/courses/[id]/content` | Modules, lessons, reorder, AI outline |
 | `/payment/return` | VNPay browser return |
 | `/payment/sepay-return` | SePay browser return |
 
@@ -346,6 +400,7 @@ Flyway:
 | V6 | Class `room` |
 | V7 | Class `status` `ACTIVE` / `ARCHIVED` |
 | V8 | Idempotent demo sync (join codes, 50k fees, topics, `student1` PENDING on G1801) |
+| V9 | Course management: `categories`, `courses`, `modules`, `lessons`, `course_enrollments` + 6 seeded categories |
 
 Core tables (simplified):
 
@@ -356,6 +411,7 @@ subjects, subject_classes, class_posts
 assignment_templates, assignments, assignment_classes
 class_registrations, payment_transactions
 submissions, assignment_evaluations
+categories, courses, modules, lessons, course_enrollments
 ```
 
 Identity statuses: `ACTIVE` | `INACTIVE` | `SUSPENDED`.  
@@ -379,6 +435,10 @@ Payment statuses: `PENDING` | `SUCCESS` | `FAILED` | `REFUNDED`.
 | `SEPAY_MERCHANT_ID` / `SEPAY_SECRET_KEY` | For SePay | From SePay portal — **do not commit** |
 | `SEPAY_SUCCESS_URL` / `SEPAY_ERROR_URL` / `SEPAY_CANCEL_URL` | For SePay | Frontend return URLs |
 | `SEPAY_IPN_URL` | For SePay IPN | Public HTTPS IPN endpoint |
+| `GEMINI_API_KEY` | For AI outlines | Google AI Studio key — never commit it |
+| `GEMINI_MODEL` | No | Default `gemini-2.0-flash` |
+| `GEMINI_BASE_URL` | No | Default `https://generativelanguage.googleapis.com` |
+| `GEMINI_TIMEOUT_SECONDS` | No | Default `30` |
 | `FILE_STORAGE_PATH` / `FILE_STORAGE_BASE_URL` | No | Local upload root + public base URL |
 
 ### Frontend (`ams-frontend/.env.local`)
@@ -448,6 +508,12 @@ cd ams-backend
 ./mvnw test
 ```
 
+Course-management unit tests (`CourseServiceTest`, `CourseContentServiceTest`, `AIServiceTest`) mock the Gemini client, so no API key or network access is required. If the host JDK is older than 21, run them in the build image instead:
+
+```bash
+docker run --rm -v "$PWD:/app" -w /app maven:3.9.6-eclipse-temurin-21-alpine mvn test
+```
+
 Manual API checks: Swagger UI or curl against `/api/auth/login` then authenticated routes.
 
 ### Demo checklist
@@ -501,7 +567,7 @@ Production should not rely on Compose demo defaults for merchant secrets.
 ### Flyway / schema errors
 
 - `ddl-auto: validate` means the DB must match migrations. Do not hand-edit schema out of band.
-- Fresh demo DB (full Flyway reseed V1–V8): `docker compose down -v && docker compose up --build`.
+- Fresh demo DB (full Flyway reseed V1–V9): `docker compose down -v && docker compose up --build`.
 
 ### Frontend calls wrong API / CORS errors
 
@@ -523,6 +589,13 @@ Production should not rely on Compose demo defaults for merchant secrets.
 ### File upload / stream materials missing after restart
 
 - Local disk under `ams-backend/storage/` (or Compose volume `ams_storage`) is for demos. Prefer Cloudinary / durable object storage in production (Render filesystem is ephemeral).
+
+### Course management errors
+
+- **`502` on `POST /api/courses/{id}/ai/outline`** — check `GEMINI_API_KEY` is set for the backend process/container and the model name is valid. The response message distinguishes missing key, quota, timeout, and unusable JSON.
+- **`409 Course code already exists`** — codes are unique and stored uppercase; pick another code or edit the existing course.
+- **`400` when deleting a course** — the course has enrollments. Enrollment is outside this feature; remove the guard only with a migration plan.
+- **`403` on save/delete** — only the owning teacher or an admin may modify a course.
 
 ### Port already in use
 

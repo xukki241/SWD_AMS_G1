@@ -85,6 +85,7 @@ export function YourWorkPanel({
         fd.append("file", file)
 
         await api.post("/submissions", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
           signal: abortRef.current.signal,
           timeout: UPLOAD_TIMEOUT_MS,
           onUploadProgress: (e) => {

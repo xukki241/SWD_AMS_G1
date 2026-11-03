@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   FolderKanban,
   FileText,
+  BookOpen,
 } from "lucide-react"
 
 type NavLink = {
@@ -61,37 +62,7 @@ function NavItem({
   return (
     <Link
       href={href}
-      scroll={false}
-      onClick={(e) => {
-        // Same-path hash links often don't fire navigation in App Router —
-        // force hash + scroll ourselves so Classes ↔ To-do always responds.
-        const [path, section = ""] = href.split("#")
-        if (
-          typeof window !== "undefined" &&
-          (window.location.pathname === path ||
-            window.location.pathname === path.replace(/\/$/, ""))
-        ) {
-          e.preventDefault()
-          const nextHash = section ? `#${section}` : ""
-          if (window.location.hash !== nextHash) {
-            window.history.pushState(null, "", `${path}${nextHash}`)
-          } else {
-            // Re-click same section: still scroll
-            window.dispatchEvent(new HashChangeEvent("hashchange"))
-          }
-          // Ensure listeners (Sidebar + useHashSection) see the new hash
-          window.dispatchEvent(new HashChangeEvent("hashchange"))
-          if (section) {
-            requestAnimationFrame(() => {
-              document.getElementById(section)?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-              })
-            })
-          }
-        }
-        onNavigate?.(href)
-      }}
+      onClick={() => onNavigate?.(href)}
       className={cn(
         "flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium transition-colors",
         active
@@ -143,6 +114,7 @@ export function Sidebar() {
     ? [
         { name: "Users & roles", href: "/admin#users", icon: Users, section: "users" },
         { name: "Classes", href: "/admin#classes", icon: FolderKanban, section: "classes" },
+        { name: "Courses", href: "/courses", icon: BookOpen },
         { name: "Audit trail", href: "/admin#audit", icon: ShieldCheck, section: "audit" },
       ]
     : isStudent
@@ -160,6 +132,7 @@ export function Sidebar() {
               icon: CheckSquare,
               section: "todo",
             },
+            { name: "Courses", href: "/courses", icon: BookOpen },
           ]
         : isExpert
           ? [
@@ -182,8 +155,11 @@ export function Sidebar() {
       // On a class workspace, highlight Classes home link.
       return link.section === "classes"
     }
+    // Plain routes (no hash section) also match their nested paths, e.g. /courses/[id].
+    if (!link.section) {
+      return pathname === link.href || pathname.startsWith(`${link.href}/`)
+    }
     if (pathname !== base && pathname !== homePath) return false
-    if (!link.section) return pathname === link.href
     // Empty hash (or #classes) ⇒ Classes; never light To-do on bare /teacher
     const effectiveHash = hash || "classes"
     if (isAdmin && !hash) {

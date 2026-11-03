@@ -5,7 +5,6 @@ import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import api from "@/lib/axios"
 import { useToast } from "@/lib/use-toast"
-import { useHashSection } from "@/hooks/useHashSection"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
@@ -26,7 +25,6 @@ import {
   Registration,
   PaymentTransaction,
   AssignmentOverviewItem,
-  SubmissionItem,
 } from "@/components/classroom/classroomTypes"
 import {
   Clock,
@@ -36,11 +34,9 @@ import {
   Loader2,
   QrCode,
   Plus,
-  FileText,
 } from "lucide-react"
 
 export default function StudentDashboardPage() {
-  useHashSection()
   const { toast } = useToast()
 
   const [vnPayBusyId, setVnPayBusyId] = useState<number | null>(null)
@@ -68,11 +64,6 @@ export default function StudentDashboardPage() {
       (await api.get("/assignments/overview")).data as AssignmentOverviewItem[],
   })
 
-  const { data: mySubmissions, isLoading: subLoading, isError: subError, refetch: refetchSubs } = useQuery({
-    queryKey: ["student-submissions"],
-    queryFn: async () => (await api.get("/submissions/my")).data as SubmissionItem[],
-  })
-
   const pendingRegs = useMemo(
     () => (registrations || []).filter((r) => r.status === "PENDING_PAYMENT"),
     [registrations]
@@ -81,17 +72,9 @@ export default function StudentDashboardPage() {
   const upcoming = useMemo(
     () =>
       [...(overview || [])]
-        .filter((o) => !["SUBMITTED", "LATE", "GRADED"].includes(o.workState))
+        .filter((o) => new Date(o.dueAt).getTime() >= Date.now() - 365 * 24 * 3600 * 1000)
         .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()),
     [overview]
-  )
-
-  const submissionHistory = useMemo(
-    () =>
-      [...(mySubmissions || [])].sort(
-        (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
-      ),
-    [mySubmissions]
   )
 
   const upcomingByClass = useMemo(() => {
@@ -187,13 +170,13 @@ export default function StudentDashboardPage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section id="work" className="space-y-4">
+        <section id="work">
           <Card className="shadow-gc">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-5 w-5 text-[hsl(var(--success))]" /> Việc cần làm
+                <Clock className="h-5 w-5 text-[hsl(var(--success))]" /> Sắp đến hạn
               </CardTitle>
-              <CardDescription>Bài chưa nộp / sắp đến hạn</CardDescription>
+              <CardDescription>Bài tập sắp tới theo hạn nộp</CardDescription>
             </CardHeader>
             <CardContent>
               {overviewError ? (
@@ -213,7 +196,7 @@ export default function StudentDashboardPage() {
                           <div className="truncate font-medium text-foreground">{o.title}</div>
                           <div className="truncate text-xs text-muted-foreground">
                             {o.className} · hạn {formatDate(o.dueAt)}
-                            {pastDue && (
+                            {pastDue && o.workState !== "GRADED" && (
                               <span className="ml-1 text-amber-600">(quá hạn)</span>
                             )}
                           </div>
@@ -233,51 +216,9 @@ export default function StudentDashboardPage() {
                 </ul>
               ) : (
                 <EmptyState
-                  title="Không còn bài cần nộp"
-                  description="Bài tập mới sẽ hiện ở đây khi giáo viên giao."
+                  title="Không có bài sắp đến hạn"
+                  description="Bài tập sẽ hiện ở đây khi giáo viên giao."
                 />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-gc">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FileText className="h-5 w-5 text-[hsl(var(--success))]" /> Lịch sử nộp bài
-              </CardTitle>
-              <CardDescription>Các lần bạn đã nộp (kèm trạng thái / điểm)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {subError ? (
-                <ErrorState onRetry={() => refetchSubs()} />
-              ) : subLoading ? (
-                <TableSkeleton rows={3} cols={3} />
-              ) : submissionHistory.length > 0 ? (
-                <ul className="space-y-2">
-                  {submissionHistory.slice(0, 12).map((s) => (
-                    <li
-                      key={s.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate font-medium text-foreground">
-                          {s.assignmentTitle || `Assignment #${s.assignmentId}`}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Nộp {formatDateTime(s.submittedAt)}
-                          {s.evaluation?.score != null && (
-                            <span className="ml-2 font-medium text-[hsl(var(--success))]">
-                              Điểm {s.evaluation.score}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <StatusBadge status={s.submissionStatus} />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-xs text-muted-foreground">Chưa có lần nộp nào.</p>
               )}
             </CardContent>
           </Card>
@@ -370,24 +311,13 @@ export default function StudentDashboardPage() {
                             key={p.id}
                             className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm"
                           >
-                            <div className="min-w-0">
-                              <div className="truncate font-medium text-foreground">
-                                {p.className || `Đăng ký #${p.classRegistrationId}`}
-                                {p.classCode ? (
-                                  <span className="ml-1 font-normal text-muted-foreground">
-                                    ({p.classCode})
-                                  </span>
-                                ) : null}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                <span className="font-mono">{p.provider}</span>
-                                {p.providerReference && (
-                                  <span className="truncate font-mono opacity-80">
-                                    {p.providerReference}
-                                  </span>
-                                )}
-                                <span>{formatDateTime(p.createdAt)}</span>
-                              </div>
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {p.provider}
+                              </span>
+                              <span className="truncate text-muted-foreground">
+                                {formatDateTime(p.createdAt)}
+                              </span>
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
                               <span className="font-medium text-foreground">

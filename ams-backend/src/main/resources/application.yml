@@ -20,13 +20,8 @@ spring:
     baseline-on-migrate: true
   servlet:
     multipart:
-      max-file-size: 25MB
-      max-request-size: 30MB
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
-    deserialization:
-      adjust-dates-to-context-time-zone: false
+      max-file-size: 5MB
+      max-request-size: 6MB
 
 server:
   port: ${PORT:8080}
@@ -61,6 +56,13 @@ file:
   storage:
     path: ${FILE_STORAGE_PATH:./storage/files}
     base-url: ${FILE_STORAGE_BASE_URL:http://localhost:8080}
+
+# Gemini AI (course outline generation). Never hardcode the key.
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-2.0-flash}
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:30}
 
 springdoc:
   api-docs:

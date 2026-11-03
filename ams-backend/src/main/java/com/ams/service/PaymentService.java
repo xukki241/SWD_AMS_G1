@@ -60,20 +60,14 @@ public class PaymentService {
                 .toList();
         return registrationIds.stream()
                 .flatMap(id -> paymentRepository.findByClassRegistrationId(id).stream())
-                .map(t -> {
-                    var sc = t.getClassRegistration().getSubjectClass();
-                    return new PaymentDTO.PaymentTransactionResponse(
-                            t.getId(),
-                            t.getClassRegistration().getId(),
-                            sc != null ? sc.getClassName() : null,
-                            sc != null ? sc.getClassCode() : null,
-                            t.getProvider(),
-                            t.getProviderReference(),
-                            t.getAmount(),
-                            t.getTransactionStatus(),
-                            t.getCreatedAt());
-                })
-                .sorted((a, b) -> b.createdAt().compareTo(a.createdAt()))
+                .map(t -> new PaymentDTO.PaymentTransactionResponse(
+                        t.getId(),
+                        t.getClassRegistration().getId(),
+                        t.getProvider(),
+                        t.getProviderReference(),
+                        t.getAmount(),
+                        t.getTransactionStatus(),
+                        t.getCreatedAt()))
                 .toList();
     }
 

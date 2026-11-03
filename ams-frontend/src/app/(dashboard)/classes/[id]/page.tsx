@@ -3,10 +3,9 @@
 import React, { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams, useSearchParams } from "next/navigation"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import api from "@/lib/axios"
 import { useAuthStore } from "@/stores/authStore"
-import { useToast } from "@/lib/use-toast"
 import { Button } from "@/components/ui/button"
 import {
   Tabs,
@@ -24,7 +23,6 @@ import { EmptyState } from "@/components/classroom/EmptyState"
 import { StatusBadge } from "@/components/classroom/StatusBadge"
 import { ClassBanner } from "@/components/classroom/ClassBanner"
 import { CreateAssignmentDialog } from "@/components/classroom/CreateAssignmentDialog"
-import { EditAssignmentDialog } from "@/components/classroom/EditAssignmentDialog"
 import { Avatar } from "@/components/ui/avatar"
 import { FileChip } from "@/components/classroom/FileChip"
 import {
@@ -48,7 +46,6 @@ import {
   ChevronDown,
   ChevronRight,
   FolderOpen,
-  Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -581,10 +578,6 @@ function StaffAssignmentRow({
   classId: number
 }) {
   const [grading, setGrading] = useState<SubmissionItem | null>(null)
-  const [editing, setEditing] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
 
   const {
     data: submissions,
@@ -596,26 +589,6 @@ function StaffAssignmentRow({
     queryFn: async () =>
       (await api.get(`/submissions/assignment/${assignment.id}`)).data as SubmissionItem[],
   })
-
-  const removeFromClass = async () => {
-    if (!confirm(`Gỡ bài "${assignment.title}" khỏi lớp này? Học sinh sẽ không còn thấy bài.`)) {
-      return
-    }
-    setDeleting(true)
-    try {
-      await api.delete(`/assignments/${assignment.id}/classes/${classId}`)
-      queryClient.invalidateQueries({ queryKey: ["class-assignments", classId] })
-      toast({ title: "Đã gỡ bài tập khỏi lớp", variant: "success" })
-    } catch (err: any) {
-      toast({
-        title: "Không gỡ được",
-        description: err.response?.data?.message || "Thử lại sau.",
-        variant: "destructive",
-      })
-    } finally {
-      setDeleting(false)
-    }
-  }
 
   return (
     <div>
@@ -640,33 +613,7 @@ function StaffAssignmentRow({
             <span>tối đa {assignment.maxScore} điểm</span>
           </p>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="rounded-full"
-            onClick={() => setEditing(true)}
-          >
-            Sửa
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="rounded-full text-destructive hover:text-destructive"
-            onClick={removeFromClass}
-            disabled={deleting}
-          >
-            {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Gỡ"}
-          </Button>
-        </div>
       </div>
-
-      <EditAssignmentDialog
-        open={editing}
-        onOpenChange={setEditing}
-        assignment={assignment}
-        classId={classId}
-      />
 
       <div className="mt-4 space-y-2 border-t pt-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
