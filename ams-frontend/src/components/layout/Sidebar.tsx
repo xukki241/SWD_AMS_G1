@@ -116,10 +116,14 @@ export function Sidebar() {
   const { data: myCoursesPage } = useQuery({
     queryKey: ["sidebar-my-courses", user?.userId],
     queryFn: async () => {
-      const page = await courseService.list({ page: 0, size: 50 })
-      return (page.content || []).filter(
-        (c) => user && c.instructorId === user.userId
-      )
+      const page = isTeacher
+        ? await courseService.list({ page: 0, size: 50 })
+        : await courseService.listPublic({ page: 0, size: 50 })
+      const content = page.content || []
+      // Teachers see their own courses; experts browse the published catalog.
+      return isTeacher
+        ? content.filter((c) => user && c.instructorId === user.userId)
+        : content
     },
     enabled: (isTeacher || isExpert) && !isAdmin && !!user,
   })
@@ -172,8 +176,11 @@ export function Sidebar() {
     // On a course page, keep the course-list entry highlighted instead of a hash section.
     if (/^\/courses\/\d+/.test(pathname)) {
       if (!link.section) return link.href === "/courses"
-      // Students reach a course from "My Courses"; teachers/admins use "Manage Courses"/"Course catalog".
-      return isStudent && !isAdmin && link.section === "classes"
+      // Students reach a course from "My Courses"; experts from "Published Courses";
+      // teachers/admins use "Manage Courses"/"Course catalog".
+      if (isStudent && !isAdmin) return link.section === "classes"
+      if (isExpert && !isTeacher && !isAdmin) return link.section === "courses"
+      return false
     }
     // Plain routes (no hash section) also match their nested paths, e.g. /courses/[id].
     if (!link.section) {

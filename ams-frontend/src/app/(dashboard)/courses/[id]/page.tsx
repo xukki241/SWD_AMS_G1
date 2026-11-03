@@ -14,8 +14,8 @@ import {
   PlayCircle,
   Users,
 } from "lucide-react"
-import { CourseStaffGuard } from "@/components/courses/CourseStaffGuard"
 import { CourseStatusBadge, DifficultyBadge } from "@/components/courses/CourseStatusBadge"
+import { useAuthStore } from "@/stores/authStore"
 import {
   formatDate,
   formatDuration,
@@ -31,18 +31,32 @@ import { cn } from "@/lib/utils"
 function DetailsInner() {
   const params = useParams<{ id: string }>()
   const courseId = Number(params?.id)
+  const { user } = useAuthStore()
+  const roles = user?.roles ?? []
+  const canManage = roles.some((role) => {
+    const name = role.toUpperCase()
+    return name.includes("TEACHER") || name.includes("ADMIN")
+  })
+  const isExpert = roles.some((role) => role.toUpperCase().includes("EXPERT"))
+  const backHref = canManage ? "/courses" : isExpert ? "/expert#courses" : "/student#classes"
+  const backLabel = canManage
+    ? "Back to courses"
+    : isExpert
+      ? "Back to published courses"
+      : "Back to my courses"
 
   const { data: course, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["course", courseId],
-    queryFn: () => courseService.getById(courseId),
-    enabled: Number.isFinite(courseId) && courseId > 0,
+    queryKey: ["course", courseId, canManage ? "manage" : "public"],
+    queryFn: () =>
+      canManage ? courseService.getById(courseId) : courseService.getPublicById(courseId),
+    enabled: Number.isFinite(courseId) && courseId > 0 && Boolean(user),
   })
 
   if (!Number.isFinite(courseId) || courseId <= 0) {
     return <Notice>Invalid course id.</Notice>
   }
 
-  if (isLoading) {
+  if (!user || isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-56 w-full" />
@@ -74,9 +88,9 @@ function DetailsInner() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2 text-muted-foreground">
-            <Link href="/courses">
+            <Link href={backHref}>
               <ChevronLeft className="mr-1 h-4 w-4" />
-              Back to courses
+              {backLabel}
             </Link>
           </Button>
           <div className="flex flex-wrap items-center gap-2">
@@ -85,20 +99,22 @@ function DetailsInner() {
           </div>
           <p className="mt-1 font-mono text-sm text-muted-foreground">{course.code}</p>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/courses/${course.id}/edit`}>
-              <Pencil className="mr-1.5 h-4 w-4" />
-              Edit Course
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href={`/courses/${course.id}/content`}>
-              <Layers className="mr-1.5 h-4 w-4" />
-              Manage Content
-            </Link>
-          </Button>
-        </div>
+        {canManage && (
+          <div className="flex shrink-0 gap-2">
+            <Button asChild variant="outline">
+              <Link href={`/courses/${course.id}/edit`}>
+                <Pencil className="mr-1.5 h-4 w-4" />
+                Edit Course
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href={`/courses/${course.id}/content`}>
+                <Layers className="mr-1.5 h-4 w-4" />
+                Manage Content
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Hero + meta */}
@@ -246,12 +262,14 @@ function DetailsInner() {
               )}
             </div>
 
-            <Button asChild variant="secondary" className="mt-4 w-full">
-              <Link href={`/courses/${course.id}/content`}>
-                <Layers className="mr-1.5 h-4 w-4" />
-                Manage Content
-              </Link>
-            </Button>
+            {canManage && (
+              <Button asChild variant="secondary" className="mt-4 w-full">
+                <Link href={`/courses/${course.id}/content`}>
+                  <Layers className="mr-1.5 h-4 w-4" />
+                  Manage Content
+                </Link>
+              </Button>
+            )}
           </section>
         </aside>
       </div>
@@ -297,10 +315,8 @@ function Notice({ children }: { children: React.ReactNode }) {
 
 export default function CourseDetailsPage() {
   return (
-    <CourseStaffGuard>
-      <div className="mx-auto max-w-5xl">
-        <DetailsInner />
-      </div>
-    </CourseStaffGuard>
+    <div className="mx-auto max-w-5xl">
+      <DetailsInner />
+    </div>
   )
 }

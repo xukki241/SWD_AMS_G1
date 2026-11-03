@@ -28,7 +28,7 @@ public class GeminiAiClient implements AiClient {
 
     public GeminiAiClient(
             @Value("${gemini.api-key:}") String apiKey,
-            @Value("${gemini.model:gemini-2.0-flash}") String model,
+            @Value("${gemini.model:gemini-3.6-flash}") String model,
             @Value("${gemini.base-url:https://generativelanguage.googleapis.com}") String baseUrl,
             @Value("${gemini.timeout-seconds:30}") int timeoutSeconds) {
 
@@ -68,9 +68,7 @@ public class GeminiAiClient implements AiClient {
                     .retrieve()
                     .body(JsonNode.class);
 
-            String text = response == null
-                    ? null
-                    : response.path("candidates").path(0).path("content").path(0).path("text").asText(null);
+            String text = extractCandidateText(response);
             if (text == null || text.isBlank()) {
                 throw new AiGenerationException("The AI returned an empty outline. Please try again.");
             }
@@ -85,6 +83,11 @@ public class GeminiAiClient implements AiClient {
                 throw new AiGenerationException(
                         "The AI request was rejected. Check that GEMINI_API_KEY is valid.", ex);
             }
+            if (status == 404) {
+                throw new AiGenerationException(
+                        "The configured Gemini model was not found. Set GEMINI_MODEL to an available model, such as gemini-3.6-flash.",
+                        ex);
+            }
             throw new AiGenerationException("The AI service returned an error (" + status + "). Please try again.", ex);
         } catch (ResourceAccessException ex) {
             throw new AiGenerationException("The AI request timed out. Please try again.", ex);
@@ -94,5 +97,11 @@ public class GeminiAiClient implements AiClient {
             log.warn("Gemini request could not be completed: {}", ex.getMessage());
             throw new AiGenerationException("Could not reach the AI service. Please try again.", ex);
         }
+    }
+
+    static String extractCandidateText(JsonNode response) {
+        return response == null
+                ? null
+                : response.path("candidates").path(0).path("content").path("parts").path(0).path("text").asText(null);
     }
 }

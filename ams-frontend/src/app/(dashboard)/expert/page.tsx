@@ -64,7 +64,7 @@ export default function ExpertDashboardPage() {
   } = useQuery({
     queryKey: ["expert-published-courses"],
     queryFn: async () =>
-      (await courseService.list({ status: "PUBLISHED", size: 50 })).content,
+      (await courseService.listPublic({ size: 50 })).content,
   })
 
   const {

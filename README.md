@@ -28,7 +28,7 @@ Assignment Management System (AMS) is a course-based learning platform POC for S
 - Assignments per course: submit → grade flow with student work-state overview
 - Payments: SePay (primary live/demo gateway with IPN), VNPay Sandbox, VietQR sandbox confirm
 - Roles: `ADMIN`, `EXPERT`, `TEACHER`, `STUDENT` with JWT auth
-- Flyway-managed PostgreSQL schema (V1–V2) and seed data for demos
+- Flyway-managed PostgreSQL schema (V1–V3) and seed data for demos
 
 ## Tech stack
 
@@ -105,7 +105,7 @@ Stop / reset:
 
 ```bash
 docker compose down
-# Full DB resync (destructive — wipes volume, then Flyway V1–V2 reseeds on next up):
+# Full DB resync (destructive — wipes volume, then Flyway V1–V3 reseeds on next up):
 docker compose down -v
 docker compose up --build
 ```
@@ -214,8 +214,8 @@ Behaviour worth knowing:
 - **Course code** is normalized to uppercase and must be unique. A duplicate returns `409` with `Course code already exists`, shown inline on the code field.
 - **Thumbnail**: PNG/JPG only, max 5MB, 1280×720 recommended. Validated in the browser for instant feedback and again on the server.
 - **Curriculum**: `Module` (not "Section") groups lessons. `orderIndex` starts at 0 and stays contiguous per parent; reordering sends the full module/lesson payload in one transaction.
-- **Delete** is a soft delete (`deleted` flag). Courses that already have enrollments are blocked — the API returns `400` with a readable message instead of orphaning students.
-- **AI outline**: Gemini drafts modules and lessons, but nothing is persisted until you press **Accept & save**. Failures (timeout after 30s, unusable JSON, quota) leave the existing curriculum untouched and offer a retry.
+- **Delete** is a soft delete (`deleted` flag). Courses that already have any enrollment are blocked — the API returns `400` with a readable message instead of orphaning students. Because the unique index only covers active courses, a deleted course's code can be reused.
+- **AI outline**: Gemini drafts modules and lessons, but nothing is persisted until you press **Accept**. Failures (timeout after 30s, unusable JSON, quota) leave the existing curriculum untouched and offer a retry.
 
 ### Gemini setup
 
@@ -291,7 +291,7 @@ SWD_AMS_G1/
 │       │   └── service/
 │       └── resources/
 │           ├── application.yml
-│           └── db/migration/    Flyway V1–V9
+│           └── db/migration/    Flyway V1–V3
 ├── ams-frontend/                Next.js App Router UI
 │   ├── Dockerfile
 │   ├── e2e/                     Playwright specs
@@ -348,6 +348,7 @@ Student submits assignment → instructor evaluates
 | `/api/subjects` | Subject catalog / create |
 | `/api/categories` | Course categories (teacher/admin) |
 | `/api/courses` | Course list/search/filter, CRUD (JSON or multipart + thumbnail), soft delete |
+| `/api/public/courses` | Public read-only catalog (PUBLISHED, non-deleted only; no JWT required) |
 | `/api/courses/{id}/content` | Curriculum tree, module/lesson CRUD, reorder (`PATCH …/content/reorder`) |
 | `/api/modules/{id}`, `/api/lessons/{id}` | Rename/delete module, add/edit/delete lesson |
 | `/api/courses/{id}/ai` | Gemini outline draft + `…/outline/accept` |
@@ -550,7 +551,7 @@ Production should not rely on Compose demo defaults for merchant secrets.
 ### Flyway / schema errors
 
 - `ddl-auto: validate` means the DB must match migrations. Do not hand-edit schema out of band.
-- Fresh demo DB (full Flyway reseed V1–V9): `docker compose down -v && docker compose up --build`.
+- Fresh demo DB (full Flyway reseed V1–V3): `docker compose down -v && docker compose up --build`.
 
 ### Frontend calls wrong API / CORS errors
 

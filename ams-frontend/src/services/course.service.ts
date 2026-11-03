@@ -49,6 +49,24 @@ export const courseService = {
     return res.data;
   },
 
+  /** Public, read-only catalog (published courses only). Works without a token. */
+  listPublic: async (params: CourseListParams = {}): Promise<Page<CourseSummary>> => {
+    const res = await api.get<Page<CourseSummary>>('/public/courses', {
+      params: {
+        keyword: params.keyword?.trim() || undefined,
+        categoryId: params.categoryId,
+        page: params.page ?? 0,
+        size: params.size ?? 10,
+      },
+    });
+    return res.data;
+  },
+
+  getPublicById: async (id: number): Promise<CourseDetail> => {
+    const res = await api.get<CourseDetail>(`/public/courses/${id}`);
+    return res.data;
+  },
+
   create: async (
     data: CourseRequestPayload,
     thumbnail?: File | null

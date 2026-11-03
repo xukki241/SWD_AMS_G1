@@ -3,7 +3,7 @@
 **Cập nhật:** 2026-11-03
 **Repo:** `E:\Semester7\SWD392\SWD_AMS_G1`
 **Kết luận:** Sẵn sàng demo end-to-end trên mô hình **Course** (Class domain đã bị xoá hoàn toàn).
-**Seed path:** Flyway on backend start (`V1`–`V2`). Fresh volume = full demo. Reset: `docker compose down -v` rồi `docker compose up --build`.
+**Seed path:** Flyway on backend start (`V1`–`V3`). Fresh volume = full demo. Reset: `docker compose down -v` rồi `docker compose up --build`.
 
 ---
 
@@ -17,12 +17,13 @@
 | Postgres | localhost:**5433** → container `ams-postgres` (`ams_db` / `ams_user`) | Healthy |
 | SePay tunnel (IPN) | trycloudflare tunnel URL | Có trong env backend (không lưu trong DB) |
 
-**Flyway:** V1 (schema thuần Course) → V2 (demo dataset). Schema cũ dựng Class (V1–V8 thời class) đã bị viết lại — **phải wipe volume một lần** trước khi chạy bộ migration mới.
+**Flyway:** V1 (schema thuần Course) → V2 (demo dataset) → V3 (unique index mã course chỉ áp dụng cho course chưa xoá). Schema cũ dựng Class (V1–V8 thời class) đã bị viết lại — **phải wipe volume một lần** trước khi chạy bộ migration mới.
 
 | Version | Mô tả |
 |---|---|
 | **V1** | Schema Course-centric: roles/users/user_roles, audit, subjects, categories/courses/modules/lessons, course_enrollments (có amount + PENDING_PAYMENT), assignment_templates, assignments (course_id, topic, max_score), payment_transactions (course_enrollment_id), submissions (course_enrollment_id), evaluations |
 | **V2** | Demo: 4 roles, 23 users (student1–student17), 4 subjects, 8 templates, 6 categories, 6 courses (CRS-SWD01, CRS-SCRUM2, CRS-SPRMVC, CRS-SRVLT1, CRS-DBSQL1, CRS-LINALG) + curriculum, 19 enrollments, 7 payments, 14 submissions, 5 evaluations |
+| **V3** | Bỏ UNIQUE constraint toàn bảng trên `courses.code`, thay bằng partial unique index `uq_courses_code_active ... WHERE deleted = FALSE` — cho phép tái sử dụng mã của course đã soft-delete |
 
 ---
 
@@ -53,6 +54,7 @@
 | Nhóm | Endpoint |
 |---|---|
 | Courses | `GET/POST /api/courses`, `GET/PUT/DELETE /api/courses/{id}`, content/ai |
+| Public catalog | `GET /api/public/courses`, `GET /api/public/courses/{id}` — chỉ course PUBLISHED, không cần JWT (landing page, student, expert) |
 | Enrollments | `POST /api/courses/{id}/enroll`, `GET /api/enrollments/my`, `GET /api/courses/{id}/enrollments[/me]`, `DELETE /api/enrollments/{id}` |
 | Assignments | `GET /api/assignments/course/{courseId}`, `POST /api/assignments/course/{courseId}`, `PATCH /api/assignments/{id}`, `GET /api/assignments/overview` |
 | Submissions | `POST /api/submissions` (multipart: courseEnrollmentId + assignmentId + file), `DELETE /api/submissions/{id}` |

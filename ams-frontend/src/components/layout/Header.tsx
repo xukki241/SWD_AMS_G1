@@ -23,7 +23,7 @@ export function Header() {
   const roles = user?.roles || []
   const canCreateCourse =
     roles.some((r) => r.includes("TEACHER")) ||
-    roles.some((r) => r.includes("EXPERT"))
+    roles.some((r) => r.includes("ADMIN"))
 
   const handleLogout = () => {
     logout()

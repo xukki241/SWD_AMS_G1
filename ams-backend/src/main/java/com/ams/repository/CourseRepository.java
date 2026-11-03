@@ -19,11 +19,16 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
 
     Optional<Course> findByCodeIgnoreCase(String code);
 
-    boolean existsByCodeIgnoreCase(String code);
+    /** Only non-deleted courses reserve a code, so a soft-deleted course can be recreated. */
+    boolean existsByCodeIgnoreCaseAndDeletedFalse(String code);
 
-    boolean existsByCodeIgnoreCaseAndIdNot(String code, Long id);
+    boolean existsByCodeIgnoreCaseAndIdNotAndDeletedFalse(String code, Long id);
 
-    @Query(value = "SELECT COUNT(*) > 0 FROM course_enrollments e " +
-            "WHERE e.course_id = :courseId AND e.status IN ('ACTIVE','COMPLETED')", nativeQuery = true)
+    /**
+     * Any enrollment (including PENDING_PAYMENT / CANCELLED) blocks deletion so
+     * students never keep a dangling enrollment to a hidden course.
+     */
+    @Query(value = "SELECT COUNT(*) > 0 FROM course_enrollments e WHERE e.course_id = :courseId",
+            nativeQuery = true)
     boolean hasEnrollments(@Param("courseId") Long courseId);
 }

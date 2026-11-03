@@ -7,6 +7,7 @@ import com.ams.entity.Role;
 import com.ams.entity.User;
 import com.ams.exception.BadRequestException;
 import com.ams.exception.DuplicateResourceException;
+import com.ams.exception.ResourceNotFoundException;
 import com.ams.repository.CategoryRepository;
 import com.ams.repository.CourseRepository;
 import com.ams.repository.LessonRepository;
@@ -66,7 +67,7 @@ class CourseServiceTest {
     @Test
     void createCourseForcesZeroPriceForFreeCoursesAndNormalizesCode() {
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
-        when(courseRepository.existsByCodeIgnoreCase("SWD101")).thenReturn(false);
+        when(courseRepository.existsByCodeIgnoreCaseAndDeletedFalse("SWD101")).thenReturn(false);
         when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> {
             Course course = invocation.getArgument(0);
             course.setId(10L);
@@ -89,7 +90,7 @@ class CourseServiceTest {
     @Test
     void createCourseRejectsDuplicateCodeCaseInsensitively() {
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
-        when(courseRepository.existsByCodeIgnoreCase("SWD101")).thenReturn(true);
+        when(courseRepository.existsByCodeIgnoreCaseAndDeletedFalse("SWD101")).thenReturn(true);
 
         DuplicateResourceException ex = assertThrows(DuplicateResourceException.class,
                 () -> courseService.createCourse(request("swd101", BigDecimal.TEN, false), null));
@@ -165,6 +166,42 @@ class CourseServiceTest {
 
         assertEquals(10L, response.id());
         assertEquals("Teacher One", response.instructorName());
+    }
+
+    @Test
+    void getPublishedCourseReturnsPublishedCourse() {
+        Course course = existingCourse(teacher);
+        when(courseRepository.findByIdAndDeletedFalse(10L)).thenReturn(Optional.of(course));
+        stubEmptyMetrics(10L);
+
+        CourseDTO.CourseDetailResponse response = courseService.getPublishedCourse(10L);
+
+        assertEquals(10L, response.id());
+        assertEquals("SWD101", response.code());
+    }
+
+    @Test
+    void getPublishedCourseHidesDraftCourses() {
+        Course draft = existingCourse(teacher);
+        draft.setStatus(Course.Status.DRAFT);
+        when(courseRepository.findByIdAndDeletedFalse(10L)).thenReturn(Optional.of(draft));
+
+        assertThrows(ResourceNotFoundException.class, () -> courseService.getPublishedCourse(10L));
+        verifyNoInteractions(moduleRepository, lessonRepository);
+    }
+
+    @Test
+    void listPublishedCoursesDoesNotRequireAuthentication() {
+        SecurityContextHolder.clearContext();
+        Course course = existingCourse(teacher);
+        when(courseRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(course)));
+
+        Page<CourseDTO.CourseSummaryResponse> result =
+                courseService.listPublishedCourses(null, null, 0, 10);
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals("SWD101", result.getContent().get(0).code());
     }
 
     private void stubEmptyMetrics(Long courseId) {

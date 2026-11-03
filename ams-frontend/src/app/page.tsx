@@ -31,7 +31,7 @@ export default function Home() {
 
   const { data: catalog, isLoading, isError, refetch } = useQuery({
     queryKey: ["public-courses"],
-    queryFn: () => courseService.list({ status: "PUBLISHED", size: 12 }),
+    queryFn: () => courseService.listPublic({ size: 12 }),
   })
 
   useEffect(() => {

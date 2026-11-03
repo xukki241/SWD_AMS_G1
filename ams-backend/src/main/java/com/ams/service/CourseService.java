@@ -86,6 +86,45 @@ public class CourseService {
         return courseRepository.findAll(specification, pageable).map(this::mapSummary);
     }
 
+    /** Public catalog: only published, non-deleted courses. No auth context required. */
+    @Transactional(readOnly = true)
+    public Page<CourseDTO.CourseSummaryResponse> listPublishedCourses(
+            String keyword, Long categoryId, int page, int size) {
+
+        String normalizedKeyword = normalizeKeyword(keyword);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Specification<Course> specification = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isFalse(root.get("deleted")));
+            predicates.add(cb.equal(root.get("status"), Course.Status.PUBLISHED));
+            if (normalizedKeyword != null) {
+                String like = "%" + normalizedKeyword + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("title")), like),
+                        cb.like(cb.lower(root.get("code")), like)
+                ));
+            }
+            if (categoryId != null) {
+                predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return courseRepository.findAll(specification, pageable).map(this::mapSummary);
+    }
+
+    /** Public detail: only published, non-deleted courses are visible. */
+    @Transactional(readOnly = true)
+    public CourseDTO.CourseDetailResponse getPublishedCourse(Long id) {
+        Course course = courseRepository.findByIdAndDeletedFalse(id)
+                .filter(found -> found.getStatus() == Course.Status.PUBLISHED)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + id));
+        return mapDetail(course);
+    }
+
     @Transactional(readOnly = true)
     public CourseDTO.CourseDetailResponse getCourse(Long id) {
         return mapDetail(getAccessibleCourse(id));
@@ -110,7 +149,7 @@ public class CourseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.categoryId()));
 
         String code = normalizeCode(request.code());
-        if (courseRepository.existsByCodeIgnoreCase(code)) {
+        if (courseRepository.existsByCodeIgnoreCaseAndDeletedFalse(code)) {
             throw new DuplicateResourceException("Course code already exists");
         }
 
@@ -153,7 +192,7 @@ public class CourseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.categoryId()));
 
         String code = normalizeCode(request.code());
-        if (courseRepository.existsByCodeIgnoreCaseAndIdNot(code, id)) {
+        if (courseRepository.existsByCodeIgnoreCaseAndIdNotAndDeletedFalse(code, id)) {
             throw new DuplicateResourceException("Course code already exists");
         }
 
