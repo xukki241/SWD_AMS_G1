@@ -1,10 +1,12 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   BookOpen,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -59,13 +61,23 @@ const PAGE_SIZE = 10
 export default function CoursesPage() {
   return (
     <CourseStaffGuard>
-      <CoursesList />
+      <Suspense
+        fallback={
+          <div className="space-y-6">
+            <CoursesTableSkeleton />
+          </div>
+        }
+      >
+        <CoursesList />
+      </Suspense>
     </CourseStaffGuard>
   )
 }
 
 function CoursesList() {
   const queryClient = useQueryClient()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [keyword, setKeyword] = useState("")
   const [debouncedKeyword, setDebouncedKeyword] = useState("")
   const [categoryId, setCategoryId] = useState("all")
@@ -73,6 +85,20 @@ function CoursesList() {
   const [page, setPage] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<CourseSummary | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    const created = searchParams.get("created")
+    const updated = searchParams.get("updated")
+    const deleted = searchParams.get("deleted")
+    if (created) setSuccessMessage("Course created successfully.")
+    else if (updated) setSuccessMessage("Course updated successfully.")
+    else if (deleted) setSuccessMessage("Course deleted successfully.")
+    if (created || updated || deleted) {
+      // Remove the flag so refreshing the page does not repeat the banner.
+      router.replace("/courses")
+    }
+  }, [searchParams, router])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -109,6 +135,7 @@ function CoursesList() {
     mutationFn: (id: number) => courseService.delete(id),
     onSuccess: () => {
       setActionError(null)
+      setSuccessMessage("Course deleted successfully.")
       if ((data?.content.length ?? 0) <= 1 && page > 0) {
         setPage((prev) => prev - 1)
       }
@@ -143,7 +170,7 @@ function CoursesList() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Manage courses</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Manage Courses</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Create courses, build their curriculum, and publish them to students.
           </p>
@@ -151,7 +178,7 @@ function CoursesList() {
         <Button asChild>
           <Link href="/courses/new">
             <Plus className="mr-1.5 h-4 w-4" />
-            New course
+            Add New Course
           </Link>
         </Button>
       </div>
@@ -224,6 +251,23 @@ function CoursesList() {
         </div>
       </div>
 
+      {successMessage && (
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 px-4 py-3 text-sm text-[hsl(var(--success))]">
+          <span className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            {successMessage}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage(null)}
+            className="rounded-full p-0.5 hover:bg-[hsl(var(--success))]/10"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {actionError && (
         <div className="flex items-start justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           <span>{actionError}</span>
@@ -257,11 +301,11 @@ function CoursesList() {
               <BookOpen className="h-6 w-6 text-muted-foreground" />
             </div>
             <p className="text-sm font-medium">
-              {hasFilters ? "No courses match these filters" : "No courses yet"}
+              No courses found
             </p>
             <p className="max-w-sm text-xs text-muted-foreground">
               {hasFilters
-                ? "Try a different keyword or clear the filters."
+                ? "No course matches this keyword and filters. Try changing or clearing them."
                 : "Create your first course to start building a curriculum."}
             </p>
             {hasFilters ? (
@@ -272,7 +316,7 @@ function CoursesList() {
               <Button asChild size="sm">
                 <Link href="/courses/new">
                   <Plus className="mr-1.5 h-4 w-4" />
-                  Create course
+                  Add New Course
                 </Link>
               </Button>
             )}

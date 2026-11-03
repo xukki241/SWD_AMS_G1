@@ -169,9 +169,11 @@ export function Sidebar() {
 
   const isPrimaryActive = (link: NavLink) => {
     const base = link.href.split("#")[0]
-    // On a course page, highlight the course list home link.
+    // On a course page, keep the course-list entry highlighted instead of a hash section.
     if (/^\/courses\/\d+/.test(pathname)) {
-      return link.section === "classes" || link.section === "courses"
+      if (!link.section) return link.href === "/courses"
+      // Students reach a course from "My Courses"; teachers/admins use "Manage Courses"/"Course catalog".
+      return isStudent && !isAdmin && link.section === "classes"
     }
     // Plain routes (no hash section) also match their nested paths, e.g. /courses/[id].
     if (!link.section) {

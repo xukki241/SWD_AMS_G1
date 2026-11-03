@@ -18,7 +18,7 @@ export default function NewCoursePage() {
               Back to courses
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight">New course</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Add New Course</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Fill in the basics now — you can build the curriculum with modules
             and lessons right after.

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
+  CheckCircle2,
   ClipboardList,
   FileText,
   GripVertical,
@@ -12,18 +13,12 @@ import {
   Plus,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { useToast } from "@/lib/use-toast"
 import { courseContentService } from "@/services/course.service"
 import { ModuleDialog } from "@/components/courses/ModuleDialog"
 import { LessonDialog } from "@/components/courses/LessonDialog"
@@ -54,7 +49,6 @@ const LESSON_ICON: Record<LessonType, React.ComponentType<{ className?: string }
 
 export function CurriculumEditor({ courseId }: { courseId: number }) {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
 
   const contentQuery = useQuery({
     queryKey: ["course-content", courseId],
@@ -67,6 +61,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
   const [moduleOverId, setModuleOverId] = useState<number | null>(null)
   const [lessonDrop, setLessonDrop] = useState<{ moduleId: number; index: number } | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const [moduleDialog, setModuleDialog] = useState<{
     open: boolean
@@ -120,6 +115,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onError: (error: unknown) => {
       // Re-sync from the server so a failed drag never leaves a wrong order on screen.
       queryClient.invalidateQueries({ queryKey: ["course-content", courseId] })
+      setSuccessMessage(null)
       setActionError(
         getApiErrorMessage(error, "Could not save the new order. The previous order was restored.")
       )
@@ -131,6 +127,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     const ordered = withOrder(next)
     setModules(ordered)
     setActionError(null)
+    setSuccessMessage(null)
     reorderMutation.mutate(ordered)
   }
 
@@ -139,11 +136,13 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setModuleDialog({ open: false, module: null })
       setActionError(null)
+      setSuccessMessage("Module added.")
       invalidateAll()
-      toast({ title: "Module added", variant: "success" })
     },
-    onError: (error: unknown) =>
-      setActionError(getApiErrorMessage(error, "Could not add the module. Please try again.")),
+    onError: (error: unknown) => {
+      setSuccessMessage(null)
+      setActionError(getApiErrorMessage(error, "Could not add the module. Please try again."))
+    },
   })
 
   const renameModule = useMutation({
@@ -152,11 +151,13 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setModuleDialog({ open: false, module: null })
       setActionError(null)
+      setSuccessMessage("Module updated.")
       invalidateAll()
-      toast({ title: "Module renamed", variant: "success" })
     },
-    onError: (error: unknown) =>
-      setActionError(getApiErrorMessage(error, "Could not rename the module.")),
+    onError: (error: unknown) => {
+      setSuccessMessage(null)
+      setActionError(getApiErrorMessage(error, "Could not rename the module."))
+    },
   })
 
   const deleteModule = useMutation({
@@ -164,11 +165,12 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setDeleteTarget(null)
       setActionError(null)
+      setSuccessMessage("Module deleted.")
       invalidateAll()
-      toast({ title: "Module deleted", variant: "success" })
     },
     onError: (error: unknown) => {
       setDeleteTarget(null)
+      setSuccessMessage(null)
       setActionError(getApiErrorMessage(error, "Could not delete the module."))
     },
   })
@@ -179,11 +181,13 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setLessonDialog({ open: false, moduleId: null, lesson: null })
       setActionError(null)
+      setSuccessMessage("Lesson added.")
       invalidateAll()
-      toast({ title: "Lesson added", variant: "success" })
     },
-    onError: (error: unknown) =>
-      setActionError(getApiErrorMessage(error, "Could not add the lesson.")),
+    onError: (error: unknown) => {
+      setSuccessMessage(null)
+      setActionError(getApiErrorMessage(error, "Could not add the lesson."))
+    },
   })
 
   const updateLesson = useMutation({
@@ -192,11 +196,13 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setLessonDialog({ open: false, moduleId: null, lesson: null })
       setActionError(null)
+      setSuccessMessage("Lesson updated.")
       invalidateAll()
-      toast({ title: "Lesson updated", variant: "success" })
     },
-    onError: (error: unknown) =>
-      setActionError(getApiErrorMessage(error, "Could not update the lesson.")),
+    onError: (error: unknown) => {
+      setSuccessMessage(null)
+      setActionError(getApiErrorMessage(error, "Could not update the lesson."))
+    },
   })
 
   const deleteLesson = useMutation({
@@ -204,11 +210,12 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setDeleteTarget(null)
       setActionError(null)
+      setSuccessMessage("Lesson deleted.")
       invalidateAll()
-      toast({ title: "Lesson deleted", variant: "success" })
     },
     onError: (error: unknown) => {
       setDeleteTarget(null)
+      setSuccessMessage(null)
       setActionError(getApiErrorMessage(error, "Could not delete the lesson."))
     },
   })
@@ -332,14 +339,31 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setAiOpen(true)}>
             <Sparkles className="mr-1.5 h-4 w-4" />
-            AI outline
+            Generate Outline with AI
           </Button>
           <Button onClick={openAddModule}>
             <Plus className="mr-1.5 h-4 w-4" />
-            Add module
+            Add Module
           </Button>
         </div>
       </div>
+
+      {successMessage && (
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 px-4 py-3 text-sm text-[hsl(var(--success))]">
+          <span className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            {successMessage}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage(null)}
+            className="rounded-full p-0.5 hover:bg-[hsl(var(--success))]/10"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {actionError && (
         <div
@@ -363,11 +387,11 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
           <div className="mt-1 flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setAiOpen(true)}>
               <Sparkles className="mr-1.5 h-4 w-4" />
-              Generate with AI
+              Generate Outline with AI
             </Button>
             <Button size="sm" onClick={openAddModule}>
               <Plus className="mr-1.5 h-4 w-4" />
-              Add module
+              Add Module
             </Button>
           </div>
         </div>
@@ -440,36 +464,25 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                     className="hidden sm:inline-flex"
                   >
                     <Plus className="mr-1 h-3.5 w-3.5" />
-                    Lesson
+                    Add Lesson
                   </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Module actions for ${module.title}`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem onSelect={() => openRenameModule(module)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Rename module
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => openAddLesson(module.id)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add lesson
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                        onSelect={() => setDeleteTarget({ kind: "module", module })}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete module
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Edit ${module.title}`}
+                    onClick={() => openRenameModule(module)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    aria-label={`Delete ${module.title}`}
+                    onClick={() => setDeleteTarget({ kind: "module", module })}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
 
@@ -604,7 +617,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                     className="mt-1 flex w-full items-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    Add lesson
+                    Add Lesson
                   </button>
                 )}
               </div>
@@ -692,6 +705,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
         onAccepted={() => {
           setAiOpen(false)
           invalidateAll()
+          setSuccessMessage("AI outline added to the end of the curriculum.")
         }}
       />
     </div>

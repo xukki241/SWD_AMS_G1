@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -31,7 +32,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { useToast } from "@/lib/use-toast"
 import { courseAiService } from "@/services/course.service"
 import {
   DIFFICULTY_LABEL,
@@ -65,7 +65,6 @@ export function AIOutlineDialog({
   courseTitle?: string
   onAccepted: () => void
 }) {
-  const { toast } = useToast()
   const [phase, setPhase] = useState<Phase>("form")
   const [topic, setTopic] = useState("")
   const [level, setLevel] = useState<CourseDifficulty>("BEGINNER")
@@ -117,11 +116,6 @@ export function AIOutlineDialog({
         }))
       ),
     onSuccess: () => {
-      toast({
-        title: "Outline saved",
-        description: "The new modules were appended to your curriculum.",
-        variant: "success",
-      })
       onAccepted()
     },
     onError: (error: unknown) => {
@@ -266,16 +260,17 @@ export function AIOutlineDialog({
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="ai-topic">Course topic</Label>
-              <Input
+              <Label htmlFor="ai-topic">Topic or description</Label>
+              <Textarea
                 id="ai-topic"
                 value={topic}
-                maxLength={255}
-                placeholder="e.g. Data structures for beginners"
+                rows={4}
+                maxLength={2000}
+                placeholder="e.g. A practical introduction to data structures for second-year students, covering arrays, linked lists, trees and graphs."
                 onChange={(event) => setTopic(event.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Leave blank to use the course title.
+                Leave blank to use the course title and description.
               </p>
             </div>
 
@@ -325,7 +320,7 @@ export function AIOutlineDialog({
               </Button>
               <Button onClick={startGenerate}>
                 <Wand2 className="mr-1.5 h-4 w-4" />
-                Generate draft
+                Generate outline
               </Button>
             </DialogFooter>
           </div>
@@ -524,7 +519,7 @@ export function AIOutlineDialog({
                 ) : (
                   <Check className="mr-1.5 h-4 w-4" />
                 )}
-                Accept & save
+                Accept
               </Button>
             </DialogFooter>
           </div>

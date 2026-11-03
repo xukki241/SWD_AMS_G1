@@ -9,8 +9,8 @@ import {
 } from '@/types';
 
 export const assignmentService = {
-  getAll: async (page = 0, size = 100): Promise<Page<Assignment>> => {
-    const res = await api.get<Page<Assignment>>('/assignments', { params: { page, size } });
+  getAll: async (): Promise<Assignment[]> => {
+    const res = await api.get<Assignment[]>('/assignments');
     return res.data;
   },
   getById: async (id: number): Promise<Assignment> => {

@@ -62,7 +62,7 @@ function EditCourseInner() {
             Back to course
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Edit course</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Edit Course</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Editing <span className="font-medium text-foreground">{course.title}</span>{" "}
           <span className="ml-1 font-mono text-xs">({course.code})</span>

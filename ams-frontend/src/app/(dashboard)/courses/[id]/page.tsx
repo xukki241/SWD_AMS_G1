@@ -89,13 +89,13 @@ function DetailsInner() {
           <Button asChild variant="outline">
             <Link href={`/courses/${course.id}/edit`}>
               <Pencil className="mr-1.5 h-4 w-4" />
-              Edit
+              Edit Course
             </Link>
           </Button>
           <Button asChild>
             <Link href={`/courses/${course.id}/content`}>
               <Layers className="mr-1.5 h-4 w-4" />
-              Manage content
+              Manage Content
             </Link>
           </Button>
         </div>
@@ -214,10 +214,42 @@ function DetailsInner() {
                 label="Duration"
               />
             </div>
+
+            <div className="mt-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Curriculum summary
+              </h3>
+              {course.curriculum.length > 0 ? (
+                <ol className="mt-2 space-y-1.5">
+                  {course.curriculum.map((module, index) => (
+                    <li
+                      key={module.id}
+                      className="flex items-start justify-between gap-2 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs"
+                    >
+                      <span className="flex min-w-0 items-start gap-1.5">
+                        <span className="text-muted-foreground">{index + 1}.</span>
+                        <span className="truncate font-medium text-foreground">
+                          {module.title}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-muted-foreground">
+                        {module.lessonCount}{" "}
+                        {module.lessonCount === 1 ? "lesson" : "lessons"}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="mt-2 text-xs italic text-muted-foreground">
+                  This course has no modules yet.
+                </p>
+              )}
+            </div>
+
             <Button asChild variant="secondary" className="mt-4 w-full">
               <Link href={`/courses/${course.id}/content`}>
                 <Layers className="mr-1.5 h-4 w-4" />
-                Manage curriculum
+                Manage Content
               </Link>
             </Button>
           </section>

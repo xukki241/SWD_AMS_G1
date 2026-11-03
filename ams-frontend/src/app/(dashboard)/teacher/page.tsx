@@ -56,8 +56,8 @@ export default function TeacherDashboardPage() {
   } = useQuery({
     queryKey: ["teacher-todo"],
     queryFn: async () => {
-      const page = await assignmentService.getAll(0, 100)
-      const mine = page.content.filter((a) => a.teacherId === userId)
+      const assignments = await assignmentService.getAll()
+      const mine = assignments.filter((a) => a.teacherId === userId)
       return Promise.all(
         mine.map(async (a) => {
           const submissions = await submissionService.getByAssignment(a.id)

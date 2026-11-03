@@ -66,7 +66,7 @@ export function ModuleDialog({
           <DialogDescription>
             {isEdit
               ? "The new title is visible to students immediately."
-              : "Modules group lessons into a section of the curriculum. You can reorder them later."}
+              : "Modules group lessons into a clear learning sequence. You can reorder them later."}
           </DialogDescription>
         </DialogHeader>
 
@@ -104,7 +104,7 @@ export function ModuleDialog({
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-              {isEdit ? "Save" : "Add module"}
+              {isEdit ? "Save" : "Add Module"}
             </Button>
           </DialogFooter>
         </form>

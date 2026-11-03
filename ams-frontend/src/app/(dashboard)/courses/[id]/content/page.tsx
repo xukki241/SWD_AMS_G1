@@ -41,7 +41,7 @@ function ManageContentInner() {
             </Link>
           </Button>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">Manage content</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Manage Content</h1>
             {course && <CourseStatusBadge status={course.status} />}
           </div>
           {isLoading ? (
@@ -69,7 +69,7 @@ function ManageContentInner() {
           <Button asChild variant="outline">
             <Link href={`/courses/${courseId}/edit`}>
               <Pencil className="mr-1.5 h-4 w-4" />
-              Edit details
+              Edit Course
             </Link>
           </Button>
         </div>

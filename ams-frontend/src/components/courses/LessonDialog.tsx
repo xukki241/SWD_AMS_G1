@@ -192,7 +192,7 @@ export function LessonDialog({
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-              {isEdit ? "Save lesson" : "Add lesson"}
+              {isEdit ? "Save Lesson" : "Add Lesson"}
             </Button>
           </DialogFooter>
         </form>

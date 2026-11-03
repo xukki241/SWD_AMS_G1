@@ -84,6 +84,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
   const [form, setForm] = useState<FormState>(() => toFormState(course))
   const [thumbnail, setThumbnail] = useState<File | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [thumbnailError, setThumbnailError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
   const { data: categories, isLoading: categoriesLoading } = useQuery({
@@ -152,7 +153,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
     onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ["courses"] })
       queryClient.invalidateQueries({ queryKey: ["course", saved.id] })
-      router.push(`/courses/${saved.id}`)
+      router.push(isEdit ? "/courses?updated=1" : "/courses?created=1")
     },
     onError: (error: unknown) => {
       const serverErrors = getValidationErrors(error)
@@ -164,7 +165,11 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
         error,
         "Could not save the course. Please try again."
       )
-      if (status === 409) {
+      if (serverErrors.thumbnailUrl) {
+        setThumbnailError(serverErrors.thumbnailUrl)
+      } else if (/thumbnail/i.test(message)) {
+        setThumbnailError(message)
+      } else if (status === 409) {
         setErrors((prev) => ({ ...prev, code: message }))
       } else if (Object.keys(serverErrors).length === 0) {
         setFormError(message)
@@ -445,8 +450,18 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
             <ThumbnailUpload
               file={thumbnail}
               existingUrl={course?.thumbnailUrl}
-              onChange={setThumbnail}
-              error={errors.thumbnail}
+              onChange={(next) => {
+                setThumbnail(next)
+                setThumbnailError(null)
+                setFormError(null)
+                setErrors((prev) => {
+                  const copy = { ...prev }
+                  delete copy.thumbnail
+                  delete copy.thumbnailUrl
+                  return copy
+                })
+              }}
+              error={thumbnailError ?? errors.thumbnail}
               disabled={mutation.isPending}
             />
           </Section>
@@ -463,7 +478,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => router.back()}
+            onClick={() => router.push("/courses")}
             disabled={mutation.isPending}
           >
             Cancel
@@ -476,7 +491,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
             ) : (
               <Check className="mr-1.5 h-4 w-4" />
             )}
-            {isEdit ? "Save changes" : "Create course"}
+            {isEdit ? "Save Changes" : "Create Course"}
           </Button>
         </div>
       </div>
