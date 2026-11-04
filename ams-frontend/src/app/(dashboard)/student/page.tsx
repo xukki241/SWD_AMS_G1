@@ -25,6 +25,7 @@ import {
 import { enrollmentService } from "@/services/enrollment.service"
 import { paymentService } from "@/services/payment.service"
 import { assignmentService } from "@/services/assignment.service"
+import { formatNumber, getApiErrorMessage, useI18n } from "@/i18n"
 import type {
   CourseEnrollment,
   PaymentTransaction,
@@ -46,6 +47,7 @@ import {
 
 export default function StudentDashboardPage() {
   const { toast } = useToast()
+  const { t, formatDate } = useI18n()
 
   const [vnPayBusyId, setVnPayBusyId] = useState<number | null>(null)
   const [qrEnrollment, setQrEnrollment] = useState<CourseEnrollment | null>(null)
@@ -102,11 +104,11 @@ export default function StudentDashboardPage() {
   )
 
   const kpis = [
-    { label: "Enrolled courses", value: stats?.totalEnrollments ?? 0, icon: BookOpen },
-    { label: "Active courses", value: stats?.activeCourses ?? 0, icon: GraduationCap },
-    { label: "Submitted", value: stats?.submittedAssignments ?? 0, icon: CheckCircle2 },
+    { label: t("dashboard.student.kpi.enrolled"), value: formatNumber(stats?.totalEnrollments ?? 0), icon: BookOpen },
+    { label: t("dashboard.student.kpi.active"), value: formatNumber(stats?.activeCourses ?? 0), icon: GraduationCap },
+    { label: t("dashboard.student.kpi.submitted"), value: formatNumber(stats?.submittedAssignments ?? 0), icon: CheckCircle2 },
     {
-      label: "Average score",
+      label: t("dashboard.student.kpi.averageScore"),
       value:
         stats?.averageScore !== null && stats?.averageScore !== undefined
           ? Number(stats.averageScore).toFixed(1)
@@ -122,8 +124,8 @@ export default function StudentDashboardPage() {
       window.location.href = res.paymentUrl
     } catch (err: any) {
       toast({
-        title: "Could not start payment",
-        description: err.response?.data?.message || "Please try again.",
+        title: t("dashboard.student.payments.payFailed"),
+        description: getApiErrorMessage(err, t("common.actions.tryAgain")),
         variant: "destructive",
       })
     } finally {
@@ -135,9 +137,11 @@ export default function StudentDashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">My learning</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            {t("dashboard.student.title")}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Your courses, upcoming work and payments in one place.
+            {t("dashboard.student.subtitle")}
           </p>
         </div>
       </div>
@@ -165,9 +169,11 @@ export default function StudentDashboardPage() {
       <section id="classes" className="scroll-mt-20">
         <div className="mb-3 flex items-end justify-between">
           <div>
-            <h3 className="text-lg font-medium tracking-tight text-foreground">My Courses</h3>
+            <h3 className="text-lg font-medium tracking-tight text-foreground">
+              {t("dashboard.nav.myCourses")}
+            </h3>
             <p className="text-sm text-muted-foreground">
-              Courses you are enrolled in. Open one to learn and submit work.
+              {t("dashboard.student.courses.description")}
             </p>
           </div>
         </div>
@@ -231,8 +237,8 @@ export default function StudentDashboardPage() {
           </div>
         ) : (
           <EmptyState
-            title="No courses yet"
-            description="Browse the catalog and enroll in a course to get started."
+            title={t("dashboard.student.courses.emptyTitle")}
+            description={t("dashboard.student.courses.emptyDescription")}
           />
         )}
       </section>
@@ -242,9 +248,10 @@ export default function StudentDashboardPage() {
           <Card className="shadow-gc">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-5 w-5 text-[hsl(var(--success))]" /> Pending work
+                <Clock className="h-5 w-5 text-[hsl(var(--success))]" />{" "}
+                {t("dashboard.student.work.title")}
               </CardTitle>
-              <CardDescription>Assignments waiting for your submission</CardDescription>
+              <CardDescription>{t("dashboard.student.work.description")}</CardDescription>
             </CardHeader>
             <CardContent>
               {overviewError ? (
@@ -263,9 +270,14 @@ export default function StudentDashboardPage() {
                         <div className="min-w-0">
                           <div className="truncate font-medium text-foreground">{o.title}</div>
                           <div className="truncate text-xs text-muted-foreground">
-                            {o.courseCode} · due {formatDate(o.dueAt)}
+                            {t("dashboard.student.work.dueItem", {
+                              code: o.courseCode,
+                              date: formatDate(o.dueAt),
+                            })}
                             {pastDue && (
-                              <span className="ml-1 text-amber-600">(overdue)</span>
+                              <span className="ml-1 text-amber-600">
+                                {t("dashboard.student.work.overdue")}
+                              </span>
                             )}
                           </div>
                         </div>
@@ -275,7 +287,7 @@ export default function StudentDashboardPage() {
                             href={`/courses/${o.courseId}`}
                             className="text-xs font-medium text-primary hover:underline"
                           >
-                            Open
+                            {t("common.actions.open")}
                           </Link>
                           <Button
                             size="sm"
@@ -283,7 +295,7 @@ export default function StudentDashboardPage() {
                             className="rounded-full"
                             onClick={() => setSubmitItem(o)}
                           >
-                            Submit
+                            {t("common.actions.submit")}
                           </Button>
                         </div>
                       </li>
@@ -292,8 +304,8 @@ export default function StudentDashboardPage() {
                 </ul>
               ) : (
                 <EmptyState
-                  title="Nothing pending"
-                  description="All caught up — new assignments will appear here."
+                  title={t("dashboard.student.work.emptyTitle")}
+                  description={t("dashboard.student.work.emptyDescription")}
                 />
               )}
             </CardContent>
@@ -304,10 +316,11 @@ export default function StudentDashboardPage() {
           <Card className="shadow-gc">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <CreditCard className="h-5 w-5 text-[hsl(var(--success))]" /> Tuition &amp; payments
+                <CreditCard className="h-5 w-5 text-[hsl(var(--success))]" />{" "}
+                {t("dashboard.student.payments.title")}
               </CardTitle>
               <CardDescription>
-                SePay &amp; PayOS (bank transfer / QR), VNPay / VietQR sandbox
+                {t("dashboard.student.payments.description")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -324,7 +337,9 @@ export default function StudentDashboardPage() {
                 <>
                   {pendingEnrollments.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-sm font-semibold text-foreground">Awaiting payment</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {t("dashboard.student.payments.awaiting")}
+                      </p>
                       {pendingEnrollments.map((e) => (
                         <div
                           key={e.id}
@@ -335,7 +350,9 @@ export default function StudentDashboardPage() {
                               {e.courseTitle}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              Ref: {e.registrationReference} ·{" "}
+                              {t("dashboard.student.payments.ref", {
+                                ref: e.registrationReference,
+                              })}{" "}
                               <span className="font-medium">{formatVnd(Number(e.amount))}</span>
                             </div>
                           </div>
@@ -388,7 +405,7 @@ export default function StudentDashboardPage() {
 
                   <div>
                     <p className="mb-2 text-sm font-semibold text-foreground">
-                      Payment history
+                      {t("dashboard.student.payments.history")}
                     </p>
                     {payments && payments.length > 0 ? (
                       <ul className="space-y-1.5">
@@ -415,7 +432,9 @@ export default function StudentDashboardPage() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-muted-foreground">No transactions yet.</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("dashboard.student.payments.noTransactions")}
+                      </p>
                     )}
                   </div>
                 </>

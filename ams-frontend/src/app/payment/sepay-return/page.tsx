@@ -7,10 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, XCircle, ArrowRight } from "lucide-react"
 import { PaymentResultSkeleton } from "@/components/ui/loading"
+import { useI18n, getApiErrorMessage } from "@/i18n"
 
 function SePayReturnContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { t } = useI18n()
   const [loading, setLoading] = useState(true)
   const [success, setSuccess] = useState(false)
   const [message, setMessage] = useState("")
@@ -24,7 +26,7 @@ function SePayReturnContent() {
       })
       .catch((err) => {
         setSuccess(false)
-        setMessage(err.response?.data?.message || "Failed to process the SePay callback.")
+        setMessage(getApiErrorMessage(err, t("payments.return.sepayError")))
       })
       .finally(() => setLoading(false))
   }, [searchParams])
@@ -39,7 +41,7 @@ function SePayReturnContent() {
             <div className="mx-auto my-2 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
               <CheckCircle2 className="h-10 w-10" />
             </div>
-            <CardTitle className="text-2xl font-bold">Payment Successful!</CardTitle>
+            <CardTitle className="text-2xl font-bold">{t("payments.return.successTitle")}</CardTitle>
             <CardDescription>{message}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -47,7 +49,7 @@ function SePayReturnContent() {
               onClick={() => router.push("/student")}
               className="w-full flex items-center justify-center gap-2 rounded-full shadow-gc hover:shadow-gc-lg"
             >
-              <span>Return to Student Dashboard</span>
+              <span>{t("payments.return.returnDashboard")}</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </CardContent>
@@ -58,7 +60,7 @@ function SePayReturnContent() {
             <div className="mx-auto my-2 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive">
               <XCircle className="h-10 w-10" />
             </div>
-            <CardTitle className="text-2xl font-bold">Payment Not Confirmed</CardTitle>
+            <CardTitle className="text-2xl font-bold">{t("payments.return.notConfirmedTitle")}</CardTitle>
             <CardDescription>{message}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -66,7 +68,7 @@ function SePayReturnContent() {
               onClick={() => router.push("/student")}
               className="w-full flex items-center justify-center gap-2 rounded-full shadow-gc hover:shadow-gc-lg"
             >
-              <span>Return to Student Dashboard</span>
+              <span>{t("payments.return.returnDashboard")}</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </CardContent>
@@ -77,9 +79,10 @@ function SePayReturnContent() {
 }
 
 export default function SePayReturnPage() {
+  const { t } = useI18n()
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Suspense fallback={<div>Loading transaction details...</div>}>
+      <Suspense fallback={<div>{t("payments.return.loading")}</div>}>
         <SePayReturnContent />
       </Suspense>
     </div>

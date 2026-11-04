@@ -18,6 +18,7 @@ import { Award, Loader2, CheckCircle2 } from "lucide-react"
 import { ScoreInput } from "@/components/classroom/ScoreInput"
 import { assignmentService } from "@/services/assignment.service"
 import { evaluationService } from "@/services/evaluation.service"
+import { useI18n } from "@/i18n"
 import type { Submission } from "@/types"
 
 export function GradeDialog({
@@ -35,6 +36,7 @@ export function GradeDialog({
   const [feedback, setFeedback] = useState("")
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
+  const { t } = useI18n()
 
   // Reset fields whenever the dialog opens for a new submission.
   useEffect(() => {
@@ -66,8 +68,12 @@ export function GradeDialog({
         feedback: feedback.trim() || undefined,
       })
       toast({
-        title: "Grade saved",
-        description: `${submission.studentName || "Submission"} · ${score} / ${maxScore}`,
+        title: t("classroom.grade.savedToast"),
+        description: t("classroom.grade.savedDescription", {
+          student: submission.studentName || t("classroom.grade.studentFallback"),
+          score,
+          max: maxScore,
+        }),
         variant: "success",
       })
       onGraded?.(submission.id)
@@ -76,21 +82,21 @@ export function GradeDialog({
       const status = err.response?.status
       if (status === 400) {
         toast({
-          title: "Already graded",
+          title: t("classroom.grade.alreadyGradedTitle"),
           description:
-            err.response?.data?.message || "This submission has already been graded.",
+            err.response?.data?.message || t("classroom.grade.alreadyGradedFallback"),
           variant: "destructive",
         })
       } else if (status === 403) {
         toast({
-          title: "Not authorized",
-          description: "Only the course teacher can grade this work.",
+          title: t("classroom.grade.notAuthorizedTitle"),
+          description: t("classroom.grade.notAuthorizedDescription"),
           variant: "destructive",
         })
       } else {
         toast({
-          title: "Could not save grade",
-          description: err.response?.data?.message || "Please try again.",
+          title: t("classroom.grade.failedTitle"),
+          description: err.response?.data?.message || t("classroom.grade.failedFallback"),
           variant: "destructive",
         })
       }
@@ -104,7 +110,7 @@ export function GradeDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-semibold">
-            {isGraded ? "View grade" : "Grade submission"}
+            {isGraded ? t("classroom.grade.viewTitle") : t("classroom.grade.title")}
           </DialogTitle>
           <DialogDescription>
             {submission?.studentName ? `${submission.studentName} · ` : ""}
@@ -121,14 +127,16 @@ export function GradeDialog({
                   {existing.score} <span className="text-base text-muted-foreground">/ {maxScore}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Graded by {existing.evaluatorName || "teacher"}
+                  {t("classroom.grade.gradedBy", {
+                    name: existing.evaluatorName || t("classroom.grade.graderFallback"),
+                  })}
                 </p>
               </div>
             </div>
             {existing.feedback && (
               <div className="rounded-lg bg-muted/60 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Feedback
+                  {t("classroom.grade.feedbackLabel")}
                 </p>
                 <p className="mt-1 text-sm italic text-foreground">
                   &ldquo;{existing.feedback}&rdquo;
@@ -136,29 +144,31 @@ export function GradeDialog({
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Grades are final — re-grading is not supported.
+              {t("classroom.grade.finalNote")}
             </p>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="space-y-1">
               <Label className="text-xs font-medium text-muted-foreground">
-                Score (0 – {maxScore})
+                {t("classroom.grade.scoreLabel", { max: maxScore })}
               </Label>
               <ScoreInput
                 value={score}
                 onValueChange={setScore}
                 max={maxScore}
-                placeholder={`e.g. ${maxScore === 10 ? 8.5 : maxScore * 0.8}`}
+                placeholder={t("classroom.grade.scorePlaceholder", {
+                  value: maxScore === 10 ? 8.5 : maxScore * 0.8,
+                })}
               />
             </div>
             <div className="space-y-1">
               <Label htmlFor="grade-feedback" className="text-xs font-medium text-muted-foreground">
-                Feedback
+                {t("classroom.grade.feedbackLabel")}
               </Label>
               <Textarea
                 id="grade-feedback"
-                placeholder="Constructive feedback for the student…"
+                placeholder={t("classroom.grade.feedbackPlaceholder")}
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
               />
@@ -169,12 +179,12 @@ export function GradeDialog({
         <DialogFooter>
           {isGraded ? (
             <Button variant="ghost" onClick={() => onClose()} className="rounded-full">
-              Close
+              {t("common.actions.close")}
             </Button>
           ) : (
             <>
               <Button variant="ghost" onClick={() => onClose()} className="rounded-full">
-                Cancel
+                {t("common.actions.cancel")}
               </Button>
               <Button
                 onClick={save}
@@ -192,7 +202,7 @@ export function GradeDialog({
                 ) : (
                   <Award className="mr-1.5 h-4 w-4" />
                 )}
-                Save &amp; grade
+                {t("classroom.grade.save")}
               </Button>
             </>
           )}

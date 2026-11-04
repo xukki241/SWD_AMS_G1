@@ -23,6 +23,7 @@ import { formatDate, isPastDue } from "@/components/classroom/format"
 import { UploadDropzone } from "@/components/classroom/UploadDropzone"
 import { assignmentService } from "@/services/assignment.service"
 import { submissionService } from "@/services/submission.service"
+import { useI18n } from "@/i18n"
 
 type UploadPhase = "idle" | "uploading" | "retrying" | "done" | "error"
 
@@ -48,6 +49,7 @@ export function SubmitDialog({
   const [retryCount, setRetryCount] = useState(0)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { t } = useI18n()
   const abortRef = useRef<AbortController | null>(null)
 
   // Fetch the assignment for title/dueAt/maxScore display.
@@ -100,8 +102,8 @@ export function SubmitDialog({
         setProgress(100)
         invalidate()
         toast({
-          title: late ? "Submitted (late)" : "Submitted",
-          description: "Your work was received and is waiting for grading.",
+          title: late ? t("classroom.submit.submittedLateToast") : t("classroom.submit.submittedToast"),
+          description: t("classroom.submit.submittedDescription"),
           variant: "success",
         })
         onSubmitted?.(created.id)
@@ -135,13 +137,13 @@ export function SubmitDialog({
         const msg =
           err?.response?.data?.message ||
           (err?.code === "ECONNABORTED"
-            ? "Upload timed out — the connection dropped before it finished."
+            ? t("classroom.submit.timeoutError")
             : err?.code === "ERR_NETWORK"
-              ? "Network error while uploading."
-              : "Could not upload your file.")
+              ? t("classroom.submit.networkError")
+              : t("classroom.submit.uploadError"))
         setErrorMsg(msg)
         toast({
-          title: "Submission failed",
+          title: t("classroom.submit.failedToast"),
           description: msg,
           variant: "destructive",
         })
@@ -184,12 +186,13 @@ export function SubmitDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-semibold">Submit work</DialogTitle>
+          <DialogTitle className="font-semibold">{t("classroom.submit.title")}</DialogTitle>
           <DialogDescription>
-            {assignment?.title ?? "Loading…"} · due {formatDate(assignment?.dueAt)}
+            {assignment?.title ?? t("classroom.submit.loading")} ·{" "}
+            {t("classroom.common.dueDate", { date: formatDate(assignment?.dueAt) })}
             {late && (
               <span className="ml-1 font-medium text-warning">
-                (this is past the deadline — it will be marked late)
+                {t("classroom.submit.pastDeadline")}
               </span>
             )}
           </DialogDescription>
@@ -198,7 +201,7 @@ export function SubmitDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
-              File to submit
+              {t("classroom.submit.fileLabel")}
             </label>
             <UploadDropzone
               file={file}
@@ -232,10 +235,10 @@ export function SubmitDialog({
                 )}
                 <span className="font-medium">
                   {phase === "retrying"
-                    ? `Retrying (${retryCount}/${MAX_ATTEMPTS})…`
+                    ? t("classroom.submit.retrying", { attempt: retryCount, max: MAX_ATTEMPTS })
                     : phase === "done"
-                      ? "Upload complete"
-                      : "Uploading…"}
+                      ? t("classroom.submit.done")
+                      : t("classroom.submit.uploading")}
                 </span>
                 {inFlight && (
                   <span className="ml-auto tabular-nums text-muted-foreground">
@@ -259,11 +262,11 @@ export function SubmitDialog({
 
           <div className="space-y-1.5">
             <label htmlFor="submission-note" className="text-xs font-medium text-muted-foreground">
-              Note (optional)
+              {t("classroom.submit.noteLabel")}
             </label>
             <Input
               id="submission-note"
-              placeholder="Anything the teacher should know"
+              placeholder={t("classroom.submit.notePlaceholder")}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className="rounded-full"
@@ -275,11 +278,11 @@ export function SubmitDialog({
         <DialogFooter className={inFlight ? "justify-between" : ""}>
           {inFlight ? (
             <Button variant="ghost" onClick={cancelUpload} className="rounded-full">
-              Cancel
+              {t("common.actions.cancel")}
             </Button>
           ) : (
             <Button variant="ghost" onClick={() => onClose()} className="rounded-full">
-              Close
+              {t("common.actions.close")}
             </Button>
           )}
           {phase === "error" ? (
@@ -287,7 +290,7 @@ export function SubmitDialog({
               onClick={retry}
               className="rounded-full shadow-gc hover:shadow-gc-lg"
             >
-              Retry
+              {t("common.actions.retry")}
             </Button>
           ) : (
             <Button
@@ -300,7 +303,7 @@ export function SubmitDialog({
               ) : (
                 <Upload className="mr-1.5 h-4 w-4" />
               )}
-              {inFlight ? "Uploading…" : "Submit"}
+              {inFlight ? t("classroom.submit.uploading") : t("classroom.submit.submit")}
             </Button>
           )}
         </DialogFooter>

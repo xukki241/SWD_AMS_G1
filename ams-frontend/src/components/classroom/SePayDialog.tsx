@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Loader2, Wallet, ExternalLink } from "lucide-react"
 import { formatVnd } from "@/components/classroom/format"
+import { useI18n } from "@/i18n"
 
 export type SePayCheckout = {
   checkoutUrl: string
@@ -42,6 +43,7 @@ export function SePayDialog({
   const [redirecting, setRedirecting] = useState(false)
   const autoSubmittedRef = useRef(false)
   const queryClient = useQueryClient()
+  const { t } = useI18n()
 
   // Reset state when dialog closes or enrollment changes.
   useEffect(() => {
@@ -72,7 +74,7 @@ export function SePayDialog({
       })
       .catch((err: any) => {
         if (!cancelled) {
-          setError(err.response?.data?.message || "Could not start SePay payment.")
+          setError(err.response?.data?.message || t("payments.sepay.createError"))
         }
       })
       .finally(() => {
@@ -120,15 +122,14 @@ export function SePayDialog({
         <DialogHeader>
           <div className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
-            <DialogTitle>Pay tuition — SePay (bank transfer)</DialogTitle>
+            <DialogTitle>{t("payments.sepay.title")}</DialogTitle>
           </div>
           <DialogDescription>
             {redirecting ? (
-              <>Redirecting to SePay…</>
+              <>{t("payments.sepay.redirecting")}</>
             ) : (
               <>
-                You will be redirected to SePay to complete a bank transfer of{" "}
-                <span className="font-semibold text-emerald-600">{formatVnd(amount)}</span>.
+                {t("payments.sepay.description", { amount: formatVnd(amount) })}
               </>
             )}
           </DialogDescription>
@@ -141,22 +142,22 @@ export function SePayDialog({
         ) : redirecting || loading ? (
           <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            {redirecting ? "Redirecting to SePay…" : "Preparing checkout…"}
+            {redirecting ? t("payments.sepay.redirecting") : t("payments.sepay.preparing")}
           </div>
         ) : checkout ? (
           <div className="space-y-2 rounded-lg bg-muted/50 p-3 text-xs">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Gateway</span>
-              <span className="font-medium">SePay · Bank transfer</span>
+              <span className="text-muted-foreground">{t("payments.dialog.gateway")}</span>
+              <span className="font-medium">{t("payments.sepay.gatewayValue")}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Order</span>
+              <span className="text-muted-foreground">{t("payments.dialog.order")}</span>
               <span className="font-mono text-primary">
                 {checkout.formFields.order_invoice_number}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Amount</span>
+              <span className="text-muted-foreground">{t("payments.dialog.amount")}</span>
               <span className="font-semibold text-emerald-600">
                 {formatVnd(Number(checkout.formFields.order_amount))}
               </span>
@@ -166,7 +167,7 @@ export function SePayDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {t("common.actions.close")}
           </Button>
           {checkout && (
             <Button
@@ -177,7 +178,7 @@ export function SePayDialog({
               disabled={loading}
             >
               <ExternalLink className="h-4 w-4 mr-1.5" />
-              Open SePay
+              {t("payments.sepay.open")}
             </Button>
           )}
         </DialogFooter>

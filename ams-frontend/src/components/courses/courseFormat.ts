@@ -1,4 +1,5 @@
 import type { CourseDifficulty, CourseStatus, LessonType } from '@/types';
+import { translate } from '@/i18n';
 
 export const MAX_THUMBNAIL_BYTES = 5 * 1024 * 1024;
 
@@ -20,7 +21,7 @@ export const LESSON_TYPE_LABEL: Record<LessonType, string> = {
 };
 
 export function formatPrice(price: number, isFree: boolean): string {
-  if (isFree || !price) return 'Free';
+  if (isFree || !price) return translate('common.units.free');
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -30,10 +31,16 @@ export function formatPrice(price: number, isFree: boolean): string {
 
 export function formatDuration(minutes?: number | null): string {
   const total = Math.max(minutes ?? 0, 0);
-  if (total < 60) return `${total} min`;
+  if (total === 1) return translate('common.units.minute');
+  if (total < 60) return translate('common.units.minutes', { count: total });
   const hours = Math.floor(total / 60);
   const rest = total % 60;
-  return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
+  if (rest === 0) {
+    return hours === 1
+      ? translate('common.units.hour')
+      : translate('common.units.hours', { count: hours });
+  }
+  return translate('common.units.hourMinute', { hours, minutes: rest });
 }
 
 export function formatDate(value?: string | null): string {
@@ -71,10 +78,10 @@ export function isTimeoutError(error: unknown): boolean {
 export function validateThumbnailFile(file: File): string | null {
   const type = (file.type || '').toLowerCase();
   if (type !== 'image/png' && type !== 'image/jpeg' && type !== 'image/jpg') {
-    return 'Thumbnail must be a PNG or JPG image.';
+    return translate('errors.thumbnailType');
   }
   if (file.size > MAX_THUMBNAIL_BYTES) {
-    return 'Thumbnail must be 5MB or smaller.';
+    return translate('errors.thumbnailTooLarge');
   }
   return null;
 }

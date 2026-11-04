@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/i18n"
 
 export function ModuleDialog({
   open,
@@ -32,6 +33,7 @@ export function ModuleDialog({
   onSubmit: (title: string) => void
 }) {
   const isEdit = Boolean(module)
+  const { t } = useI18n()
   const [title, setTitle] = useState("")
   const [localError, setLocalError] = useState<string | null>(null)
 
@@ -45,11 +47,11 @@ export function ModuleDialog({
     event.preventDefault()
     const trimmed = title.trim()
     if (!trimmed) {
-      setLocalError("Module title is required.")
+      setLocalError(t("errors.validation.moduleTitleRequired"))
       return
     }
     if (trimmed.length > 255) {
-      setLocalError("Module title must be 255 characters or fewer.")
+      setLocalError(t("errors.validation.moduleTitleTooLong"))
       return
     }
     setLocalError(null)
@@ -62,23 +64,23 @@ export function ModuleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Rename module" : "Add module"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("courses.moduleDialog.renameTitle") : t("courses.moduleDialog.addTitle")}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "The new title is visible to students immediately."
-              : "Modules group lessons into a clear learning sequence. You can reorder them later."}
+              ? t("courses.moduleDialog.renameDescription")
+              : t("courses.moduleDialog.addDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-3" noValidate>
           <div className="space-y-1.5">
-            <Label htmlFor="module-title">Module title</Label>
+            <Label htmlFor="module-title">{t("courses.moduleDialog.titleLabel")}</Label>
             <Input
               id="module-title"
               autoFocus
               value={title}
               maxLength={255}
-              placeholder="e.g. Getting started"
+              placeholder={t("courses.moduleDialog.titlePlaceholder")}
               aria-invalid={Boolean(message)}
               className={cn(message && "border-destructive focus-visible:ring-destructive")}
               onChange={(e) => {
@@ -100,11 +102,11 @@ export function ModuleDialog({
               onClick={() => onOpenChange(false)}
               disabled={submitting}
             >
-              Cancel
+              {t("common.actions.cancel")}
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-              {isEdit ? "Save" : "Add Module"}
+              {isEdit ? t("common.actions.save") : t("courses.moduleDialog.add")}
             </Button>
           </DialogFooter>
         </form>

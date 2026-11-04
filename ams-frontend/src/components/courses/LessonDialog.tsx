@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { LESSON_TYPE_LABEL } from "@/components/courses/courseFormat"
+import { useI18n, type TranslationKey } from "@/i18n"
 import type { CourseStatus, Lesson, LessonRequestPayload, LessonType } from "@/types"
 
 export function LessonDialog({
@@ -43,6 +44,7 @@ export function LessonDialog({
   onSubmit: (payload: LessonRequestPayload) => void
 }) {
   const isEdit = Boolean(lesson)
+  const { t } = useI18n()
   const [title, setTitle] = useState("")
   const [type, setType] = useState<LessonType>("VIDEO")
   const [duration, setDuration] = useState("10")
@@ -61,15 +63,15 @@ export function LessonDialog({
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
     const next: Record<string, string> = {}
-    if (!title.trim()) next.title = "Lesson title is required."
+    if (!title.trim()) next.title = t("errors.validation.lessonTitleRequired")
     else if (title.trim().length > 255)
-      next.title = "Lesson title must be 255 characters or fewer."
+      next.title = t("errors.validation.lessonTitleTooLong")
 
     const minutes = Number(duration)
-    if (duration.trim() === "") next.duration = "Duration is required."
+    if (duration.trim() === "") next.duration = t("errors.validation.durationRequired")
     else if (!Number.isInteger(minutes) || minutes < 0)
-      next.duration = "Duration must be a whole number of minutes."
-    else if (minutes > 6000) next.duration = "Duration is too large."
+      next.duration = t("courses.lessonDialog.durationWhole")
+    else if (minutes > 6000) next.duration = t("errors.validation.durationTooLarge")
 
     setErrors(next)
     if (Object.keys(next).length > 0) return
@@ -86,14 +88,14 @@ export function LessonDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit lesson" : "Add lesson"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("courses.lessonDialog.editTitle") : t("courses.lessonDialog.addTitle")}</DialogTitle>
           <DialogDescription>
             {moduleTitle ? (
               <>
-                Lesson in <span className="font-medium text-foreground">{moduleTitle}</span>
+                {t("courses.lessonDialog.inModule", { module: moduleTitle })}
               </>
             ) : (
-              "Lessons live inside a module and appear in the order you arrange them."
+              t("courses.lessonDialog.description")
             )}
           </DialogDescription>
         </DialogHeader>
@@ -101,14 +103,14 @@ export function LessonDialog({
         <form onSubmit={submit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
             <Label htmlFor="lesson-title">
-              Lesson title<span className="ml-0.5 text-destructive">*</span>
+              {t("courses.lessonDialog.titleLabel")}<span className="ml-0.5 text-destructive">*</span>
             </Label>
             <Input
               id="lesson-title"
               autoFocus
               value={title}
               maxLength={255}
-              placeholder="e.g. Installing the toolchain"
+              placeholder={t("courses.lessonDialog.titlePlaceholder")}
               aria-invalid={Boolean(errors.title)}
               className={cn(errors.title && "border-destructive focus-visible:ring-destructive")}
               onChange={(e) => {
@@ -125,7 +127,7 @@ export function LessonDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="lesson-type">Type</Label>
+              <Label htmlFor="lesson-type">{t("courses.lessonDialog.typeLabel")}</Label>
               <Select value={type} onValueChange={(value) => setType(value as LessonType)}>
                 <SelectTrigger id="lesson-type">
                   <SelectValue />
@@ -133,7 +135,7 @@ export function LessonDialog({
                 <SelectContent>
                   {(Object.keys(LESSON_TYPE_LABEL) as LessonType[]).map((value) => (
                     <SelectItem key={value} value={value}>
-                      {LESSON_TYPE_LABEL[value]}
+                      {t(`courses.lessonTypes.${value}` as TranslationKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -142,7 +144,7 @@ export function LessonDialog({
 
             <div className="space-y-1.5">
               <Label htmlFor="lesson-duration">
-                Duration (minutes)<span className="ml-0.5 text-destructive">*</span>
+                {t("courses.lessonDialog.durationLabel")}<span className="ml-0.5 text-destructive">*</span>
               </Label>
               <Input
                 id="lesson-duration"
@@ -169,14 +171,14 @@ export function LessonDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="lesson-status">Status</Label>
+            <Label htmlFor="lesson-status">{t("courses.lessonDialog.statusLabel")}</Label>
             <Select value={status} onValueChange={(value) => setStatus(value as CourseStatus)}>
               <SelectTrigger id="lesson-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="DRAFT">Draft — hidden from students</SelectItem>
-                <SelectItem value="PUBLISHED">Published — visible to students</SelectItem>
+                <SelectItem value="DRAFT">{t("courses.lessonDialog.statusDraft")}</SelectItem>
+                <SelectItem value="PUBLISHED">{t("courses.lessonDialog.statusPublished")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -188,11 +190,11 @@ export function LessonDialog({
               onClick={() => onOpenChange(false)}
               disabled={submitting}
             >
-              Cancel
+              {t("common.actions.cancel")}
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-              {isEdit ? "Save Lesson" : "Add Lesson"}
+              {isEdit ? t("courses.lessonDialog.save") : t("courses.lessonDialog.add")}
             </Button>
           </DialogFooter>
         </form>

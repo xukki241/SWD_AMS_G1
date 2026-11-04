@@ -9,12 +9,14 @@ import { CourseStaffGuard } from "@/components/courses/CourseStaffGuard"
 import { CourseStatusBadge } from "@/components/courses/CourseStatusBadge"
 import { CurriculumEditor } from "@/components/courses/CurriculumEditor"
 import { courseService } from "@/services/course.service"
+import { useI18n } from "@/i18n"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
 function ManageContentInner() {
   const params = useParams<{ id: string }>()
   const courseId = Number(params?.id)
+  const { t } = useI18n()
 
   const { data: course, isLoading } = useQuery({
     queryKey: ["course", courseId],
@@ -25,7 +27,7 @@ function ManageContentInner() {
   if (!Number.isFinite(courseId) || courseId <= 0) {
     return (
       <div className="rounded-lg border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
-        Invalid course id.
+        {t("courses.details.invalidId")}
       </div>
     )
   }
@@ -37,11 +39,11 @@ function ManageContentInner() {
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2 text-muted-foreground">
             <Link href={`/courses/${courseId}`}>
               <ChevronLeft className="mr-1 h-4 w-4" />
-              Back to course
+              {t("courses.edit.backToCourse")}
             </Link>
           </Button>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">Manage Content</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t("courses.details.manageContent")}</h1>
             {course && <CourseStatusBadge status={course.status} />}
           </div>
           {isLoading ? (
@@ -54,7 +56,7 @@ function ManageContentInner() {
                   <span className="font-mono text-xs">({course.code})</span>
                 </>
               ) : (
-                "Build the module and lesson tree for this course."
+                t("courses.editor.buildHint")
               )}
             </p>
           )}
@@ -63,13 +65,13 @@ function ManageContentInner() {
           <Button asChild variant="outline">
             <Link href={`/courses/${courseId}`}>
               <Eye className="mr-1.5 h-4 w-4" />
-              View course
+              {t("courses.editor.viewCourse")}
             </Link>
           </Button>
           <Button asChild variant="outline">
             <Link href={`/courses/${courseId}/edit`}>
               <Pencil className="mr-1.5 h-4 w-4" />
-              Edit Course
+              {t("courses.details.edit")}
             </Link>
           </Button>
         </div>

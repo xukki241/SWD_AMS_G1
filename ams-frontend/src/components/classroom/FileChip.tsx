@@ -1,6 +1,9 @@
+"use client"
+
 import { Paperclip } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { openFreshTab } from "@/lib/tab"
+import { useI18n } from "@/i18n"
 
 export function FileChip({
   name,
@@ -17,7 +20,8 @@ export function FileChip({
   label?: string
   className?: string
 }) {
-  const display = name || label || "attachment"
+  const { t } = useI18n()
+  const display = name || label || t("classroom.fileChip.fallback")
   const chip = (
     <span
       className={cn(

@@ -21,6 +21,7 @@ import {
   parseFileMeta,
 } from "@/components/classroom/format"
 import { submissionService } from "@/services/submission.service"
+import { useI18n } from "@/i18n"
 import type { Assignment } from "@/types"
 import {
   Upload,
@@ -56,6 +57,7 @@ export function YourWorkPanel({
   const [unsubmitting, setUnsubmitting] = useState(false)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { t } = useI18n()
   const abortRef = useRef<AbortController | null>(null)
 
   const { data: submissions, refetch: refetchSubmissions } = useQuery({
@@ -116,8 +118,8 @@ export function YourWorkPanel({
         setProgress(100)
         invalidate()
         toast({
-          title: late ? "Đã nộp (muộn)" : "Đã nộp bài",
-          description: "Bài của bạn đang chờ chấm điểm.",
+          title: late ? t("classroom.work.submittedLateToast") : t("classroom.work.submittedToast"),
+          description: t("classroom.work.submittedDescription"),
           variant: "success",
         })
         setFile(null)
@@ -151,10 +153,10 @@ export function YourWorkPanel({
         const msg =
           err?.response?.data?.message ||
           (err?.code === "ECONNABORTED"
-            ? "Upload timed out."
-            : "Không thể nộp bài.")
+            ? t("classroom.work.timeoutError")
+            : t("classroom.work.uploadError"))
         setErrorMsg(msg)
-        toast({ title: "Nộp bài thất bại", description: msg, variant: "destructive" })
+        toast({ title: t("classroom.work.failedToast"), description: msg, variant: "destructive" })
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -174,11 +176,11 @@ export function YourWorkPanel({
       await submissionService.unsubmit(mySubmission.id)
       invalidate()
       refetchSubmissions()
-      toast({ title: "Đã hủy nộp", description: "Bạn có thể chỉnh sửa và nộp lại." })
+      toast({ title: t("classroom.work.unsubmittedToast"), description: t("classroom.work.unsubmitDescription") })
     } catch (err: any) {
       toast({
-        title: "Không hủy được",
-        description: err.response?.data?.message || "Thử lại sau.",
+        title: t("classroom.work.unsubmitFailedToast"),
+        description: err.response?.data?.message || t("classroom.work.unsubmitFailedFallback"),
         variant: "destructive",
       })
     } finally {
@@ -193,31 +195,35 @@ export function YourWorkPanel({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-semibold">
-            Bài tập của bạn
+            {t("classroom.work.title")}
           </DialogTitle>
           <DialogDescription>
-            {assignment.title} · Hạn {formatDate(assignment.dueAt)}
+            {assignment.title} ·{" "}
+            {t("classroom.common.dueDate", { date: formatDate(assignment.dueAt) })}
             {late && !graded && (
-              <span className="ml-1 font-medium text-warning">(đã quá hạn)</span>
+              <span className="ml-1 font-medium text-warning">{t("classroom.common.pastDeadline")}</span>
             )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm text-muted-foreground">Trạng thái</span>
+            <span className="text-sm text-muted-foreground">{t("classroom.work.statusLabel")}</span>
             {mySubmission ? (
               <StatusBadge status={mySubmission.submissionStatus} />
             ) : (
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                Chưa nộp
+                {t("classroom.work.notSubmitted")}
               </span>
             )}
           </div>
 
           {graded && (
             <p className="text-sm font-semibold text-[hsl(var(--success))]">
-              Điểm: {mySubmission!.evaluation!.score} / {assignment.maxScore}
+              {t("classroom.work.score", {
+                score: mySubmission!.evaluation!.score ?? 0,
+                max: assignment.maxScore,
+              })}
             </p>
           )}
 
@@ -226,7 +232,7 @@ export function YourWorkPanel({
               href={mySubmission.secureFileReference}
               name={meta?.name}
               sizeLabel={meta?.sizeLabel}
-              label="File đã nộp"
+              label={t("classroom.work.submittedFile")}
             />
           )}
 
@@ -266,8 +272,8 @@ export function YourWorkPanel({
                     )}
                     <span className="font-medium">
                       {phase === "retrying"
-                        ? `Đang thử lại (${retryCount}/${MAX_ATTEMPTS})…`
-                        : "Đang tải lên…"}
+                        ? t("classroom.work.retrying", { attempt: retryCount, max: MAX_ATTEMPTS })
+                        : t("classroom.work.uploading")}
                     </span>
                     {inFlight && (
                       <span className="ml-auto tabular-nums text-muted-foreground">
@@ -290,7 +296,7 @@ export function YourWorkPanel({
               )}
 
               <Input
-                placeholder="Ghi chú (tuỳ chọn)"
+                placeholder={t("classroom.work.notePlaceholder")}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 className="rounded-full"
@@ -307,7 +313,7 @@ export function YourWorkPanel({
                 ) : (
                   <Upload className="mr-1.5 h-4 w-4" />
                 )}
-                {inFlight ? "Đang nộp…" : "Nộp bài"}
+                {inFlight ? t("classroom.work.submitting") : t("classroom.work.submit")}
               </Button>
             </div>
           )}
@@ -324,14 +330,14 @@ export function YourWorkPanel({
               ) : (
                 <Undo2 className="mr-1.5 h-4 w-4" />
               )}
-              Hủy nộp
+              {t("classroom.work.unsubmit")}
             </Button>
           )}
 
           {turnedIn && graded && (
             <div className="flex items-center gap-2 text-sm text-[hsl(var(--success))]">
               <CheckCircle2 className="h-4 w-4" />
-              Đã chấm điểm
+              {t("classroom.work.graded")}
             </div>
           )}
         </div>

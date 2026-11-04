@@ -1,27 +1,33 @@
+"use client"
+
 import { Badge } from "@/components/ui/badge"
 import type { BadgeProps } from "@/components/ui/badge"
+import { useI18n, type TranslationKey } from "@/i18n"
 
 // Single source of truth for status → label + color across the whole app.
 // Covers: registration status, submission/work state, payment status.
-const STATUS_MAP: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
+const STATUS_MAP: Record<
+  string,
+  { key: TranslationKey; variant: BadgeProps["variant"] }
+> = {
   // Registrations
-  PENDING_PAYMENT: { label: "Pending Payment", variant: "warning" },
-  ACTIVE: { label: "Active", variant: "success" },
-  CANCELLED: { label: "Cancelled", variant: "destructive" },
+  PENDING_PAYMENT: { key: "common.status.pendingPayment", variant: "warning" },
+  ACTIVE: { key: "common.status.active", variant: "success" },
+  CANCELLED: { key: "common.status.cancelled", variant: "destructive" },
   // Submissions / work state
-  NOT_STARTED: { label: "Not Started", variant: "outline" },
-  DRAFT: { label: "Draft", variant: "secondary" },
-  SUBMITTED: { label: "Submitted", variant: "default" },
-  LATE: { label: "Late", variant: "warning" },
-  GRADED: { label: "Graded", variant: "success" },
+  NOT_STARTED: { key: "classroom.status.notStarted", variant: "outline" },
+  DRAFT: { key: "common.status.draft", variant: "secondary" },
+  SUBMITTED: { key: "common.status.submitted", variant: "default" },
+  LATE: { key: "common.status.late", variant: "warning" },
+  GRADED: { key: "common.status.graded", variant: "success" },
   // Payments
-  PENDING: { label: "Pending", variant: "warning" },
-  SUCCESS: { label: "Success", variant: "success" },
-  FAILED: { label: "Failed", variant: "destructive" },
-  REFUNDED: { label: "Refunded", variant: "secondary" },
+  PENDING: { key: "common.status.pending", variant: "warning" },
+  SUCCESS: { key: "common.status.success", variant: "success" },
+  FAILED: { key: "common.status.failed", variant: "destructive" },
+  REFUNDED: { key: "common.status.refunded", variant: "secondary" },
   // Evaluations
-  COMPLETED: { label: "Completed", variant: "success" },
-  APPEALED: { label: "Appealed", variant: "warning" },
+  COMPLETED: { key: "common.status.completed", variant: "success" },
+  APPEALED: { key: "common.status.appealed", variant: "warning" },
 }
 
 export function StatusBadge({
@@ -31,17 +37,18 @@ export function StatusBadge({
   status?: string | null
   className?: string
 }) {
+  const { t } = useI18n()
   const entry = status ? STATUS_MAP[status] : undefined
   if (!entry) {
     return (
       <Badge variant="secondary" className={className}>
-        {status || "Unknown"}
+        {status || t("common.labels.unknown")}
       </Badge>
     )
   }
   return (
     <Badge variant={entry.variant} className={className}>
-      {entry.label}
+      {t(entry.key)}
     </Badge>
   )
 }

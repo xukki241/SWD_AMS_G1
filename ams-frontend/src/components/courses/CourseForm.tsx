@@ -30,6 +30,7 @@ import {
   getApiErrorMessage,
   getValidationErrors,
 } from "@/components/courses/courseFormat"
+import { useI18n, type TranslationKey } from "@/i18n"
 
 type FormState = {
   title: string
@@ -79,6 +80,7 @@ function toFormState(course?: CourseDetail): FormState {
 export function CourseForm({ course }: { course?: CourseDetail }) {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { t } = useI18n()
   const isEdit = Boolean(course)
 
   const [form, setForm] = useState<FormState>(() => toFormState(course))
@@ -105,27 +107,26 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
 
   const validate = (): Record<string, string> => {
     const next: Record<string, string> = {}
-    if (!form.title.trim()) next.title = "Course title is required."
+    if (!form.title.trim()) next.title = t("errors.validation.courseTitleRequired")
     else if (form.title.trim().length > 255)
-      next.title = "Course title must be 255 characters or fewer."
+      next.title = t("errors.validation.courseTitleTooLong")
 
-    if (!form.code.trim()) next.code = "Course code is required."
+    if (!form.code.trim()) next.code = t("errors.validation.courseCodeRequired")
     else if (!/^[A-Za-z0-9_-]+$/.test(form.code.trim()))
-      next.code =
-        "Course code may contain only letters, numbers, hyphens and underscores."
+      next.code = t("errors.validation.courseCodePattern")
     else if (form.code.trim().length > 50)
-      next.code = "Course code must be 50 characters or fewer."
+      next.code = t("errors.validation.courseCodeTooLong")
 
-    if (!form.categoryId) next.categoryId = "Choose a category."
+    if (!form.categoryId) next.categoryId = t("courses.form.categoryRequired")
 
-    if (!form.description.trim()) next.description = "Description is required."
+    if (!form.description.trim()) next.description = t("errors.validation.descriptionRequired")
 
     if (!form.isFree) {
-      if (form.price.trim() === "") next.price = "Price is required."
+      if (form.price.trim() === "") next.price = t("errors.validation.priceRequired")
       else if (Number.isNaN(Number(form.price)) || Number(form.price) < 0)
-        next.price = "Price must be 0 or greater."
+        next.price = t("courses.form.priceInvalid")
       else if (!/^\d+(\.\d{1,2})?$/.test(form.price.trim()))
-        next.price = "Price supports up to 2 decimal places."
+        next.price = t("errors.validation.priceDecimals")
     }
     return next
   }
@@ -163,7 +164,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
       const status = (error as { response?: { status?: number } })?.response?.status
       const message = getApiErrorMessage(
         error,
-        "Could not save the course. Please try again."
+        t("courses.form.saveError")
       )
       if (serverErrors.thumbnailUrl) {
         setThumbnailError(serverErrors.thumbnailUrl)
@@ -182,7 +183,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
     const next = validate()
     setErrors(next)
     if (Object.keys(next).length > 0) {
-      setFormError("Please fix the highlighted fields before saving.")
+      setFormError(t("courses.form.fixErrors"))
       return
     }
     setFormError(null)
@@ -201,12 +202,12 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           <Section
-            title="Course details"
-            description="The basics students see first in the course catalog."
+            title={t("courses.form.detailsTitle")}
+            description={t("courses.form.detailsDescription")}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
-                label="Course title"
+                label={t("courses.form.titleLabel")}
                 htmlFor="course-title"
                 required
                 error={errors.title}
@@ -217,7 +218,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
                   id="course-title"
                   value={form.title}
                   maxLength={255}
-                  placeholder="e.g. Introduction to Data Structures"
+                  placeholder={t("courses.form.titlePlaceholder")}
                   aria-invalid={Boolean(errors.title)}
                   className={cn(errors.title && "border-destructive focus-visible:ring-destructive")}
                   onChange={(e) => update({ title: e.target.value })}
@@ -225,7 +226,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
               </Field>
 
               <Field
-                label="Course code"
+                label={t("courses.form.codeLabel")}
                 htmlFor="course-code"
                 required
                 error={errors.code}
@@ -235,7 +236,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
                   id="course-code"
                   value={form.code}
                   maxLength={50}
-                  placeholder="e.g. CS201"
+                  placeholder={t("courses.form.codePlaceholder")}
                   aria-invalid={Boolean(errors.code)}
                   className={cn(
                     "font-mono uppercase",
@@ -248,7 +249,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
               </Field>
 
               <Field
-                label="Category"
+                label={t("courses.form.categoryLabel")}
                 htmlFor="course-category"
                 required
                 error={errors.categoryId}
@@ -264,7 +265,11 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
                     className={cn(errors.categoryId && "border-destructive")}
                   >
                     <SelectValue
-                      placeholder={categoriesLoading ? "Loading…" : "Select a category"}
+                      placeholder={
+                        categoriesLoading
+                          ? t("common.labels.loading")
+                          : t("courses.form.categoryPlaceholder")
+                      }
                     />
                   </SelectTrigger>
                   <SelectContent>
@@ -278,18 +283,18 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
               </Field>
 
               <Field
-                label="Short description"
+                label={t("courses.form.descriptionLabel")}
                 htmlFor="course-description"
                 required
                 error={errors.description}
-                hint="Shown on the course card and at the top of the detail page."
+                hint={t("courses.form.descriptionHint")}
                 className="sm:col-span-2"
               >
                 <Textarea
                   id="course-description"
                   value={form.description}
                   rows={3}
-                  placeholder="A one-paragraph summary of what this course covers."
+                  placeholder={t("courses.form.descriptionPlaceholder")}
                   aria-invalid={Boolean(errors.description)}
                   className={cn(
                     errors.description && "border-destructive focus-visible:ring-destructive"
@@ -301,12 +306,12 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
           </Section>
 
           <Section
-            title="Extended description"
-            description="Optional details that help students decide whether the course is right for them."
+            title={t("courses.form.extendedTitle")}
+            description={t("courses.form.extendedDescription")}
           >
             <div className="space-y-4">
               <Field
-                label="About this course"
+                label={t("courses.form.aboutLabel")}
                 htmlFor="course-about"
                 error={errors.about}
               >
@@ -314,35 +319,35 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
                   id="course-about"
                   value={form.about}
                   rows={4}
-                  placeholder="How the course is structured, who it is for, and how it is taught."
+                  placeholder={t("courses.form.aboutPlaceholder")}
                   onChange={(e) => update({ about: e.target.value })}
                 />
               </Field>
 
               <Field
-                label="What students will learn"
+                label={t("courses.form.outcomesLabel")}
                 htmlFor="course-outcomes"
-                hint="One outcome per line — displayed as a checklist."
+                hint={t("courses.form.outcomesHint")}
               >
                 <Textarea
                   id="course-outcomes"
                   value={form.whatStudentsWillLearn}
                   rows={4}
-                  placeholder={"Build a binary search tree\nAnalyse algorithm complexity\nWrite clean recursive solutions"}
+                  placeholder={t("courses.form.outcomesPlaceholder")}
                   onChange={(e) => update({ whatStudentsWillLearn: e.target.value })}
                 />
               </Field>
 
               <Field
-                label="Prerequisites"
+                label={t("courses.form.prerequisitesLabel")}
                 htmlFor="course-prerequisites"
-                hint="One requirement per line. Leave blank if there are none."
+                hint={t("courses.form.prerequisitesHint")}
               >
                 <Textarea
                   id="course-prerequisites"
                   value={form.prerequisites}
                   rows={3}
-                  placeholder={"Basic programming in any language\nComfort with functions and loops"}
+                  placeholder={t("courses.form.prerequisitesPlaceholder")}
                   onChange={(e) => update({ prerequisites: e.target.value })}
                 />
               </Field>
@@ -351,9 +356,9 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
         </div>
 
         <div className="space-y-6">
-          <Section title="Publishing" description="Visibility, level and pricing.">
+          <Section title={t("courses.form.publishingTitle")} description={t("courses.form.publishingDescription")}>
             <div className="space-y-4">
-              <Field label="Status" htmlFor="course-status">
+              <Field label={t("courses.form.statusLabel")} htmlFor="course-status">
                 <Select
                   value={form.status}
                   onValueChange={(value) => update({ status: value as CourseStatus })}
@@ -362,13 +367,13 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="DRAFT">Draft — only you can see it</SelectItem>
-                    <SelectItem value="PUBLISHED">Published — visible to students</SelectItem>
+                    <SelectItem value="DRAFT">{t("courses.form.statusDraftOption")}</SelectItem>
+                    <SelectItem value="PUBLISHED">{t("courses.form.statusPublishedOption")}</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
 
-              <Field label="Difficulty" htmlFor="course-difficulty">
+              <Field label={t("courses.form.difficultyLabel")} htmlFor="course-difficulty">
                 <Select
                   value={form.difficultyLevel}
                   onValueChange={(value) =>
@@ -383,7 +388,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
                       Object.keys(DIFFICULTY_LABEL) as CourseDifficulty[]
                     ).map((level) => (
                       <SelectItem key={level} value={level}>
-                        {DIFFICULTY_LABEL[level]}
+                        {t(`courses.difficulty.${level}` as TranslationKey)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -404,16 +409,16 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
                 />
                 <span>
                   <span className="block text-sm font-medium text-foreground">
-                    Free course
+                    {t("courses.form.freeCourse")}
                   </span>
                   <span className="block text-xs text-muted-foreground">
-                    Students can enroll without paying.
+                    {t("courses.form.freeCourseHint")}
                   </span>
                 </span>
               </label>
 
               <Field
-                label="Price (USD)"
+                label={t("courses.form.priceLabel")}
                 htmlFor="course-price"
                 required={!form.isFree}
                 error={errors.price}
@@ -430,7 +435,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
                     inputMode="decimal"
                     value={form.isFree ? "" : form.price}
                     disabled={form.isFree}
-                    placeholder={form.isFree ? "Free" : "0.00"}
+                    placeholder={form.isFree ? t("courses.form.priceFreePlaceholder") : "0.00"}
                     aria-invalid={Boolean(errors.price)}
                     className={cn(
                       "pl-7",
@@ -444,8 +449,8 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
           </Section>
 
           <Section
-            title="Thumbnail"
-            description="PNG or JPG, up to 5MB. 1280 × 720 recommended."
+            title={t("courses.form.thumbnailTitle")}
+            description={t("courses.form.thumbnailDescription")}
           >
             <ThumbnailUpload
               file={thumbnail}
@@ -471,8 +476,8 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
       <div className="sticky bottom-0 z-10 -mx-1 flex flex-col-reverse gap-3 rounded-lg border bg-card/95 px-4 py-3 shadow-gc backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
           {isEdit
-            ? "Changes are visible to students as soon as they are saved."
-            : "You can keep the course as a draft until it is ready."}
+            ? t("courses.form.editFooterNote")
+            : t("courses.form.createFooterNote")}
         </p>
         <div className="flex justify-end gap-2">
           <Button
@@ -481,7 +486,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
             onClick={() => router.push("/courses")}
             disabled={mutation.isPending}
           >
-            Cancel
+            {t("common.actions.cancel")}
           </Button>
           <Button type="submit" disabled={mutation.isPending}>
             {mutation.isPending ? (
@@ -491,7 +496,7 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
             ) : (
               <Check className="mr-1.5 h-4 w-4" />
             )}
-            {isEdit ? "Save Changes" : "Create Course"}
+            {isEdit ? t("common.actions.saveChanges") : t("courses.form.create")}
           </Button>
         </div>
       </div>

@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Plus } from "lucide-react"
 import { assignmentService } from "@/services/assignment.service"
+import { useI18n, getApiErrorMessage } from "@/i18n"
 
 export function CreateAssignmentDialog({
   courseId,
@@ -36,6 +37,7 @@ export function CreateAssignmentDialog({
   const [maxScore, setMaxScore] = useState("10")
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { t } = useI18n()
 
   const reset = () => {
     setTitle("")
@@ -58,15 +60,15 @@ export function CreateAssignmentDialog({
       queryClient.invalidateQueries({ queryKey: ["course-assignments", courseId] })
       queryClient.invalidateQueries({ queryKey: ["teacher-todo"] })
       queryClient.invalidateQueries({ queryKey: ["teacher-stats"] })
-      toast({ title: "Assignment created", variant: "success" })
+      toast({ title: t("classroom.create.createdToast"), variant: "success" })
       onCreated?.(created.id)
       reset()
       onClose()
     },
     onError: (err: any) => {
       toast({
-        title: "Could not create assignment",
-        description: err.response?.data?.message || "Please check the form.",
+        title: t("classroom.create.failedToast"),
+        description: getApiErrorMessage(err, t("classroom.create.failedFallback")),
         variant: "destructive",
       })
     },
@@ -84,24 +86,24 @@ export function CreateAssignmentDialog({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create assignment</DialogTitle>
+          <DialogTitle>{t("classroom.create.title")}</DialogTitle>
           <DialogDescription>
-            Publish coursework for this course only.
+            {t("classroom.create.description")}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-1">
           <div className="space-y-1">
-            <Label htmlFor="asg-title">Title *</Label>
+            <Label htmlFor="asg-title">{t("classroom.create.titleLabel")}</Label>
             <Input
               id="asg-title"
-              placeholder="e.g. Weekly programming exercise"
+              placeholder={t("classroom.create.titlePlaceholder")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label htmlFor="asg-due">Due date &amp; time *</Label>
+              <Label htmlFor="asg-due">{t("classroom.create.dueLabel")}</Label>
               <Input
                 id="asg-due"
                 type="datetime-local"
@@ -110,7 +112,7 @@ export function CreateAssignmentDialog({
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="asg-max">Max score</Label>
+              <Label htmlFor="asg-max">{t("classroom.create.maxScoreLabel")}</Label>
               <Input
                 id="asg-max"
                 type="number"
@@ -122,19 +124,19 @@ export function CreateAssignmentDialog({
             </div>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="asg-topic">Topic (optional)</Label>
+            <Label htmlFor="asg-topic">{t("classroom.create.topicLabel")}</Label>
             <Input
               id="asg-topic"
-              placeholder="e.g. Đồ án môn học"
+              placeholder={t("classroom.create.topicPlaceholder")}
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="asg-instructions">Instructions</Label>
+            <Label htmlFor="asg-instructions">{t("classroom.create.instructionsLabel")}</Label>
             <Textarea
               id="asg-instructions"
-              placeholder="What should students do? Which file type to submit?"
+              placeholder={t("classroom.create.instructionsPlaceholder")}
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
               rows={3}
@@ -143,7 +145,7 @@ export function CreateAssignmentDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => { reset(); onClose() }} disabled={createMutation.isPending}>
-            Cancel
+            {t("common.actions.cancel")}
           </Button>
           <Button
             onClick={() => createMutation.mutate()}
@@ -154,7 +156,7 @@ export function CreateAssignmentDialog({
             ) : (
               <Plus className="mr-1.5 h-4 w-4" />
             )}
-            Create
+            {t("common.actions.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

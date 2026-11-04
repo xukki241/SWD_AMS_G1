@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Loader2, Info } from "lucide-react"
 import { formatVnd } from "@/components/classroom/format"
+import { useI18n } from "@/i18n"
 
 // Sandbox VietQR confirmation: no real money moves.
 export function VietQrDialog({
@@ -29,6 +30,7 @@ export function VietQrDialog({
   const [confirming, setConfirming] = useState(false)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { t } = useI18n()
 
   const amount = enrollment?.amount
   const qrSrc = `https://img.vietqr.io/image/mbbank-0842561752-compact2.png?amount=${
@@ -45,15 +47,15 @@ export function VietQrDialog({
       queryClient.invalidateQueries({ queryKey: ["sidebar-my-enrollments"] })
       queryClient.invalidateQueries({ queryKey: ["student-dashboard"] })
       toast({
-        title: "Transfer confirmed (sandbox)",
-        description: "Your course enrollment is now active.",
+        title: t("payments.vietqr.confirmedToast"),
+        description: t("payments.vietqr.confirmedDescription"),
         variant: "success",
       })
       onOpenChange(false)
     } catch (err: any) {
       toast({
-        title: "Confirmation failed",
-        description: err.response?.data?.message || "Could not confirm the transfer.",
+        title: t("payments.vietqr.failedToast"),
+        description: err.response?.data?.message || t("payments.vietqr.failedFallback"),
         variant: "destructive",
       })
     } finally {
@@ -66,43 +68,42 @@ export function VietQrDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <DialogTitle>Pay tuition — VietQR (sandbox)</DialogTitle>
+            <DialogTitle>{t("payments.vietqr.title")}</DialogTitle>
           </div>
           <DialogDescription>
-            Scan the code with any banking app, then confirm below. This is a demo
-            environment: no real money moves.
+            {t("payments.vietqr.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="flex items-center gap-2 rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
             <Info className="h-4 w-4 shrink-0" />
-            Sandbox mode — confirmations are simulated and no funds are transferred.
+            {t("payments.vietqr.sandboxNote")}
           </div>
 
           <div className="flex justify-center rounded-xl border bg-white p-2">
-            <img src={qrSrc} alt="VietQR payment code" className="h-52 w-52 rounded-lg" />
+            <img src={qrSrc} alt={t("payments.vietqr.qrAlt")} className="h-52 w-52 rounded-lg" />
           </div>
 
           <div className="space-y-1 rounded-lg bg-muted/50 p-3 text-xs">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Bank</span>
+              <span className="text-muted-foreground">{t("payments.vietqr.bank")}</span>
               <span className="font-medium">MBBank (Military)</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Account</span>
+              <span className="text-muted-foreground">{t("payments.vietqr.account")}</span>
               <span className="font-mono font-medium">0842561752</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Holder</span>
+              <span className="text-muted-foreground">{t("payments.vietqr.holder")}</span>
               <span className="font-medium">NGUYEN XUAN KIEN</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Amount</span>
+              <span className="text-muted-foreground">{t("payments.dialog.amount")}</span>
               <span className="font-semibold text-emerald-600">{formatVnd(amount)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Transfer note</span>
+              <span className="text-muted-foreground">{t("payments.vietqr.transferNote")}</span>
               <span className="font-mono text-primary">
                 AMS {enrollment?.registrationReference}
               </span>
@@ -112,14 +113,14 @@ export function VietQrDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {t("common.actions.close")}
           </Button>
           <Button
             className="bg-emerald-600 hover:bg-emerald-700"
             onClick={confirm}
             disabled={confirming}
           >
-            {confirming ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : "I have transferred"}
+            {confirming ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : t("payments.vietqr.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

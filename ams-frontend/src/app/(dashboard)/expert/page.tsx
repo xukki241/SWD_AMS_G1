@@ -31,6 +31,7 @@ import { EmptyState } from "@/components/classroom/EmptyState"
 import { SubjectItem, TemplateItem } from "@/components/classroom/classroomTypes"
 import { assignmentService } from "@/services/assignment.service"
 import { courseService } from "@/services/course.service"
+import { formatNumber, getApiErrorMessage, useI18n } from "@/i18n"
 import type { ExpertDashboard } from "@/types"
 import {
   FolderKanban,
@@ -44,6 +45,7 @@ import {
 export default function ExpertDashboardPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { t } = useI18n()
 
   const [open, setOpen] = useState(false)
   const [subjectId, setSubjectId] = useState<string>("")
@@ -94,7 +96,7 @@ export default function ExpertDashboardPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expert-templates"] })
       queryClient.invalidateQueries({ queryKey: ["expert-stats"] })
-      toast({ title: "Template created", variant: "success" })
+      toast({ title: t("dashboard.expert.templateCreated"), variant: "success" })
       setOpen(false)
       setTitle("")
       setInstructions("")
@@ -103,8 +105,8 @@ export default function ExpertDashboardPage() {
     },
     onError: (err: any) => {
       toast({
-        title: "Could not create template",
-        description: err.response?.data?.message || "Please check the form.",
+        title: t("dashboard.expert.templateCreateFailed"),
+        description: getApiErrorMessage(err, t("dashboard.expert.dialog.checkForm")),
         variant: "destructive",
       })
     },
@@ -114,14 +116,12 @@ export default function ExpertDashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Expert dashboard</h2>
-          <p className="text-muted-foreground">
-            Review published courses and build reusable assignment blueprints.
-          </p>
+          <h2 className="text-3xl font-bold tracking-tight">{t("dashboard.expert.title")}</h2>
+          <p className="text-muted-foreground">{t("dashboard.expert.subtitle")}</p>
         </div>
         <Button onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4 mr-1.5" />
-          New template
+          {t("dashboard.expert.newTemplate")}
         </Button>
       </div>
 
@@ -131,22 +131,30 @@ export default function ExpertDashboardPage() {
           <>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Published Courses</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {t("dashboard.expert.kpi.courses")}
+                </CardTitle>
                 <FolderKanban className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.publishedCourses}</div>
-                <p className="text-xs text-muted-foreground">courses live in the catalog</p>
+                <div className="text-2xl font-bold">{formatNumber(stats.publishedCourses)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {t("dashboard.expert.kpi.coursesHint")}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Templates</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {t("dashboard.expert.kpi.templates")}
+                </CardTitle>
                 <Layers className="h-4 w-4 text-emerald-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalTemplates}</div>
-                <p className="text-xs text-muted-foreground">reusable assignment blueprints</p>
+                <div className="text-2xl font-bold">{formatNumber(stats.totalTemplates)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {t("dashboard.expert.kpi.templatesHint")}
+                </p>
               </CardContent>
             </Card>
           </>
@@ -163,9 +171,11 @@ export default function ExpertDashboardPage() {
       {/* Published courses */}
       <section id="courses">
         <div className="mb-4">
-          <h3 className="text-xl font-bold tracking-tight">Published courses</h3>
+          <h3 className="text-xl font-bold tracking-tight">
+            {t("dashboard.nav.publishedCourses")}
+          </h3>
           <p className="text-sm text-muted-foreground">
-            Read-only overview of the live course catalog.
+            {t("dashboard.expert.courses.description")}
           </p>
         </div>
         {coursesError ? (
@@ -189,20 +199,25 @@ export default function ExpertDashboardPage() {
                     {c.code}
                   </span>
                   <span className="text-xs font-medium text-foreground">
-                    {c.isFree || c.price === 0 ? "Free" : `${c.price} VND`}
+                    {c.isFree || c.price === 0
+                      ? t("common.units.free")
+                      : `${formatNumber(c.price)} VND`}
                   </span>
                 </div>
                 <p className="mt-2 line-clamp-2 font-medium text-foreground">{c.title}</p>
                 <p className="mt-1 truncate text-xs text-muted-foreground">
-                  {c.categoryName} · by {c.instructorName}
+                  {t("dashboard.expert.courses.by", {
+                    category: c.categoryName,
+                    name: c.instructorName,
+                  })}
                 </p>
               </Link>
             ))}
           </div>
         ) : (
           <EmptyState
-            title="No published courses"
-            description="Courses appear here once teachers publish them."
+            title={t("dashboard.expert.courses.emptyTitle")}
+            description={t("dashboard.expert.courses.emptyDescription")}
           />
         )}
       </section>
@@ -212,10 +227,11 @@ export default function ExpertDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ScrollText className="h-5 w-5 text-primary" /> Assignment templates
+              <ScrollText className="h-5 w-5 text-primary" />{" "}
+              {t("dashboard.expert.templates.title")}
             </CardTitle>
             <CardDescription>
-              Blueprints your teachers can reuse when publishing coursework
+              {t("dashboard.expert.templates.description")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -225,25 +241,28 @@ export default function ExpertDashboardPage() {
               <TableSkeleton rows={3} cols={3} />
             ) : templates && templates.length > 0 ? (
               <ul className="space-y-2">
-                {templates.map((t) => (
-                  <li key={t.id} className="rounded-lg border p-3">
+                {templates.map((tpl) => (
+                  <li key={tpl.id} className="rounded-lg border p-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 font-medium text-foreground">
                           <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="truncate">{t.title}</span>
+                          <span className="truncate">{tpl.title}</span>
                         </div>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {t.subjectName} · by {t.expertName}
+                          {t("dashboard.expert.templates.by", {
+                            subject: tpl.subjectName,
+                            name: tpl.expertName,
+                          })}
                         </p>
                       </div>
                       <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                        {t.defaultDueRule || "Custom due date"}
+                        {tpl.defaultDueRule || t("dashboard.expert.templates.customDue")}
                       </span>
                     </div>
-                    {t.instructions && (
+                    {tpl.instructions && (
                       <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
-                        {t.instructions}
+                        {tpl.instructions}
                       </p>
                     )}
                   </li>
@@ -251,8 +270,8 @@ export default function ExpertDashboardPage() {
               </ul>
             ) : (
               <EmptyState
-                title="No templates yet"
-                description="Create your first assignment blueprint."
+                title={t("dashboard.expert.templates.emptyTitle")}
+                description={t("dashboard.expert.templates.emptyDescription")}
               />
             )}
           </CardContent>
@@ -274,17 +293,17 @@ export default function ExpertDashboardPage() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>New assignment template</DialogTitle>
+            <DialogTitle>{t("dashboard.expert.dialog.title")}</DialogTitle>
             <DialogDescription>
-              A reusable blueprint: subject, instructions, and a default due rule.
+              {t("dashboard.expert.dialog.description")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Subject *</Label>
+              <Label>{t("dashboard.expert.dialog.subject")}</Label>
               <Select value={subjectId} onValueChange={setSubjectId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a subject" />
+                  <SelectValue placeholder={t("dashboard.expert.dialog.subjectPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {(subjects || []).map((s) => (
@@ -296,26 +315,26 @@ export default function ExpertDashboardPage() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Title *</Label>
+              <Label>{t("dashboard.expert.dialog.titleLabel")}</Label>
               <Input
-                placeholder="e.g. Lab report #1"
+                placeholder={t("dashboard.expert.dialog.titlePlaceholder")}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>
             <div className="space-y-1">
-              <Label>Instructions</Label>
+              <Label>{t("dashboard.expert.dialog.instructions")}</Label>
               <Textarea
-                placeholder="Guidance students should follow…"
+                placeholder={t("dashboard.expert.dialog.instructionsPlaceholder")}
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
                 rows={3}
               />
             </div>
             <div className="space-y-1">
-              <Label>Default due rule</Label>
+              <Label>{t("dashboard.expert.dialog.dueRule")}</Label>
               <Input
-                placeholder="e.g. Weekly, 2 weeks, End of term"
+                placeholder={t("dashboard.expert.dialog.dueRulePlaceholder")}
                 value={defaultDueRule}
                 onChange={(e) => setDefaultDueRule(e.target.value)}
               />
@@ -323,7 +342,7 @@ export default function ExpertDashboardPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.actions.cancel")}
             </Button>
             <Button
               onClick={() => createTemplate.mutate()}
@@ -334,7 +353,7 @@ export default function ExpertDashboardPage() {
               ) : (
                 <Plus className="h-4 w-4 mr-1.5" />
               )}
-              Create template
+              {t("dashboard.expert.dialog.create")}
             </Button>
           </DialogFooter>
         </DialogContent>

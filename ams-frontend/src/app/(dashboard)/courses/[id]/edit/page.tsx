@@ -8,13 +8,14 @@ import { useParams } from "next/navigation"
 import { CourseStaffGuard } from "@/components/courses/CourseStaffGuard"
 import { CourseForm } from "@/components/courses/CourseForm"
 import { courseService } from "@/services/course.service"
+import { getApiErrorMessage, useI18n } from "@/i18n"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getApiErrorMessage } from "@/components/courses/courseFormat"
 
 function EditCourseInner() {
   const params = useParams<{ id: string }>()
   const courseId = Number(params?.id)
+  const { t } = useI18n()
 
   const { data: course, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["course", courseId],
@@ -25,7 +26,7 @@ function EditCourseInner() {
   if (!Number.isFinite(courseId) || courseId <= 0) {
     return (
       <div className="rounded-lg border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
-        Invalid course id.
+        {t("courses.edit.invalidId")}
       </div>
     )
   }
@@ -44,10 +45,10 @@ function EditCourseInner() {
     return (
       <div className="flex flex-col items-center gap-3 rounded-lg border bg-card px-6 py-12 text-center">
         <p className="text-sm font-medium">
-          {getApiErrorMessage(error, "Could not load this course.")}
+          {getApiErrorMessage(error, t("courses.edit.loadError"))}
         </p>
         <Button size="sm" variant="outline" onClick={() => refetch()}>
-          Retry
+          {t("common.actions.retry")}
         </Button>
       </div>
     )
@@ -59,12 +60,12 @@ function EditCourseInner() {
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2 text-muted-foreground">
           <Link href={`/courses/${course.id}`}>
             <ChevronLeft className="mr-1 h-4 w-4" />
-            Back to course
+            {t("courses.edit.backToCourse")}
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Edit Course</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("courses.edit.title")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Editing <span className="font-medium text-foreground">{course.title}</span>{" "}
+          {t("courses.edit.editing", { title: course.title })}{" "}
           <span className="ml-1 font-mono text-xs">({course.code})</span>
         </p>
       </div>

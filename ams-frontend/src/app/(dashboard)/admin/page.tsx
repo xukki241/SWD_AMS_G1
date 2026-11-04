@@ -30,6 +30,7 @@ import { EmptyState } from "@/components/classroom/EmptyState"
 import { CourseStatusBadge } from "@/components/courses/CourseStatusBadge"
 import { formatDateTime, formatVnd } from "@/components/classroom/format"
 import { AuditLogEntry, UserInfo } from "@/components/classroom/classroomTypes"
+import { getApiErrorMessage, formatNumber, roleLabel, useI18n } from "@/i18n"
 import { courseService } from "@/services/course.service"
 import type { AdminDashboard, CourseSummary } from "@/types"
 import {
@@ -44,6 +45,7 @@ import {
 const ROLE_OPTIONS = ["ROLE_STUDENT", "ROLE_TEACHER", "ROLE_EXPERT", "ROLE_ADMIN"]
 
 export default function AdminDashboardPage() {
+  const { t } = useI18n()
   const [tab, setTab] = useState("users")
 
   // Keep the sidebar hash links (#users, #courses, …) and the tabs in sync.
@@ -71,10 +73,8 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Admin</h2>
-        <p className="text-muted-foreground">
-          Manage accounts and roles, review courses and the audit trail.
-        </p>
+        <h2 className="text-3xl font-bold tracking-tight">{t("dashboard.admin.title")}</h2>
+        <p className="text-muted-foreground">{t("dashboard.admin.subtitle")}</p>
       </div>
 
       <AdminKpis />
@@ -82,13 +82,13 @@ export default function AdminDashboardPage() {
       <Tabs value={tab} onValueChange={changeTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="users">
-            <Users className="h-4 w-4 mr-1.5" /> Users
+            <Users className="h-4 w-4 mr-1.5" /> {t("dashboard.admin.tabs.users")}
           </TabsTrigger>
           <TabsTrigger value="courses">
-            <FolderKanban className="h-4 w-4 mr-1.5" /> Courses
+            <FolderKanban className="h-4 w-4 mr-1.5" /> {t("dashboard.admin.tabs.courses")}
           </TabsTrigger>
           <TabsTrigger value="audit">
-            <ScrollText className="h-4 w-4 mr-1.5" /> Audit trail
+            <ScrollText className="h-4 w-4 mr-1.5" /> {t("dashboard.admin.tabs.audit")}
           </TabsTrigger>
         </TabsList>
 
@@ -109,6 +109,7 @@ export default function AdminDashboardPage() {
 /* ---------------- KPI cards ---------------- */
 
 function AdminKpis() {
+  const { t } = useI18n()
   const {
     data: stats,
     isError,
@@ -123,13 +124,29 @@ function AdminKpis() {
   const cards = stats
     ? [
         {
-          label: "Users",
-          value: stats.totalUsers,
-          hint: `${stats.totalStudents} students · ${stats.totalTeachers} teachers · ${stats.totalExperts} experts`,
+          label: t("dashboard.admin.kpi.users"),
+          value: formatNumber(stats.totalUsers),
+          hint: t("dashboard.admin.kpi.usersHint", {
+            students: formatNumber(stats.totalStudents),
+            teachers: formatNumber(stats.totalTeachers),
+            experts: formatNumber(stats.totalExperts),
+          }),
         },
-        { label: "Courses", value: stats.totalCourses, hint: "published course catalog" },
-        { label: "Enrollments", value: stats.totalEnrollments, hint: "student registrations" },
-        { label: "Subjects", value: stats.totalSubjects, hint: "academic subjects" },
+        {
+          label: t("dashboard.admin.kpi.courses"),
+          value: formatNumber(stats.totalCourses),
+          hint: t("dashboard.admin.kpi.coursesHint"),
+        },
+        {
+          label: t("dashboard.admin.kpi.enrollments"),
+          value: formatNumber(stats.totalEnrollments),
+          hint: t("dashboard.admin.kpi.enrollmentsHint"),
+        },
+        {
+          label: t("dashboard.admin.kpi.subjects"),
+          value: formatNumber(stats.totalSubjects),
+          hint: t("dashboard.admin.kpi.subjectsHint"),
+        },
       ]
     : null
 
@@ -164,6 +181,7 @@ function AdminKpis() {
 /* ---------------- Users tab ---------------- */
 
 function UsersTab() {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({})
@@ -184,12 +202,12 @@ function UsersTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] })
-      toast({ title: "Role assigned", variant: "success" })
+      toast({ title: t("dashboard.admin.users.roleAssigned"), variant: "success" })
     },
     onError: (err: any) => {
       toast({
-        title: "Could not assign role",
-        description: err.response?.data?.message || "Please try again.",
+        title: t("dashboard.admin.users.roleAssignFailed"),
+        description: getApiErrorMessage(err, t("common.actions.tryAgain")),
         variant: "destructive",
       })
     },
@@ -198,10 +216,8 @@ function UsersTab() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Users &amp; roles</CardTitle>
-        <CardDescription>
-          Assign a role to a user — the role is added alongside any existing roles.
-        </CardDescription>
+        <CardTitle>{t("dashboard.admin.users.title")}</CardTitle>
+        <CardDescription>{t("dashboard.admin.users.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         {isError ? (
@@ -213,12 +229,14 @@ function UsersTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Roles</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Assign role</TableHead>
+                  <TableHead>{t("dashboard.admin.users.id")}</TableHead>
+                  <TableHead>{t("dashboard.admin.users.name")}</TableHead>
+                  <TableHead>{t("dashboard.admin.users.email")}</TableHead>
+                  <TableHead>{t("dashboard.admin.users.roles")}</TableHead>
+                  <TableHead>{t("dashboard.admin.users.status")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("dashboard.admin.users.assignRole")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -233,7 +251,7 @@ function UsersTab() {
                       <div className="flex flex-wrap gap-1">
                         {(u.roles || []).map((r) => (
                           <Badge key={r} variant="secondary" className="text-xs">
-                            {r.replace("ROLE_", "")}
+                            {roleLabel(r)}
                           </Badge>
                         ))}
                       </div>
@@ -245,7 +263,13 @@ function UsersTab() {
                         }
                         className="text-xs"
                       >
-                        {u.accountStatus}
+                        {u.accountStatus === "ACTIVE"
+                          ? t("common.status.active")
+                          : u.accountStatus === "INACTIVE"
+                            ? t("common.status.inactive")
+                            : u.accountStatus === "SUSPENDED"
+                              ? t("common.status.suspended")
+                              : u.accountStatus}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -257,12 +281,12 @@ function UsersTab() {
                           }
                         >
                           <SelectTrigger className="h-8 w-36">
-                            <SelectValue placeholder="Pick a role" />
+                            <SelectValue placeholder={t("dashboard.admin.users.pickRole")} />
                           </SelectTrigger>
                           <SelectContent>
                             {ROLE_OPTIONS.map((r) => (
                               <SelectItem key={r} value={r}>
-                                {r.replace("ROLE_", "")}
+                                {roleLabel(r)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -278,7 +302,7 @@ function UsersTab() {
                           {assignRole.isPending ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
-                            "Apply"
+                            t("dashboard.admin.users.apply")
                           )}
                         </Button>
                       </div>
@@ -297,6 +321,7 @@ function UsersTab() {
 /* ---------------- Courses tab (read-only) ---------------- */
 
 function CoursesTab() {
+  const { t } = useI18n()
   const {
     data: courses,
     isLoading,
@@ -310,7 +335,7 @@ function CoursesTab() {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Read-only overview of the course catalog. Teachers create and own courses.
+        {t("dashboard.admin.courses.description")}
       </p>
       {isError ? (
         <ErrorState onRetry={() => refetch()} />
@@ -328,8 +353,8 @@ function CoursesTab() {
         </div>
       ) : (
         <EmptyState
-          title="No courses yet"
-          description="Courses appear here after teachers create them."
+          title={t("dashboard.admin.courses.emptyTitle")}
+          description={t("dashboard.admin.courses.emptyDescription")}
         />
       )}
     </div>
@@ -337,6 +362,7 @@ function CoursesTab() {
 }
 
 function AdminCourseCard({ course }: { course: CourseSummary }) {
+  const { t } = useI18n()
   return (
     <Link
       href={`/courses/${course.id}`}
@@ -358,7 +384,13 @@ function AdminCourseCard({ course }: { course: CourseSummary }) {
           {course.instructorName} · {course.categoryName}
         </p>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{course.difficultyLevel === "BEGINNER" ? "Beginner" : course.difficultyLevel === "INTERMEDIATE" ? "Intermediate" : "Advanced"}</span>
+          <span>
+            {course.difficultyLevel === "BEGINNER"
+              ? t("dashboard.difficulty.beginner")
+              : course.difficultyLevel === "INTERMEDIATE"
+                ? t("dashboard.difficulty.intermediate")
+                : t("dashboard.difficulty.advanced")}
+          </span>
           <span className="font-medium text-foreground">{formatVnd(course.price)}</span>
         </div>
       </div>
@@ -369,6 +401,7 @@ function AdminCourseCard({ course }: { course: CourseSummary }) {
 /* ---------------- Audit tab ---------------- */
 
 function AuditTab() {
+  const { t } = useI18n()
   const {
     data: logs,
     isLoading,
@@ -384,9 +417,9 @@ function AuditTab() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Audit trail</CardTitle>
+        <CardTitle>{t("dashboard.nav.auditTrail")}</CardTitle>
         <CardDescription>
-          The most recent {shown.length} system events (newest first)
+          {t("dashboard.admin.audit.recent", { count: shown.length })}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -399,10 +432,10 @@ function AuditTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>When</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Resource</TableHead>
-                  <TableHead>Ref</TableHead>
+                  <TableHead>{t("dashboard.admin.audit.when")}</TableHead>
+                  <TableHead>{t("dashboard.admin.audit.action")}</TableHead>
+                  <TableHead>{t("dashboard.admin.audit.resource")}</TableHead>
+                  <TableHead>{t("dashboard.admin.audit.ref")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -422,7 +455,10 @@ function AuditTab() {
             </Table>
           </div>
         ) : (
-          <EmptyState title="No audit events" description="Actions will appear here as they happen." />
+          <EmptyState
+            title={t("dashboard.admin.audit.emptyTitle")}
+            description={t("dashboard.admin.audit.emptyDescription")}
+          />
         )}
       </CardContent>
     </Card>

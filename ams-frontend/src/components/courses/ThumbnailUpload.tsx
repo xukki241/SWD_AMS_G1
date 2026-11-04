@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react"
 import { ImageIcon, Trash2, Upload } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useI18n } from "@/i18n"
 import {
   MAX_THUMBNAIL_BYTES,
   formatBytes,
@@ -24,6 +25,7 @@ export function ThumbnailUpload({
   disabled?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const { t } = useI18n()
   const [dragOver, setDragOver] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
@@ -96,14 +98,14 @@ export function ThumbnailUpload({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={preview}
-              alt="Course thumbnail preview"
+              alt={t("courses.thumbnail.previewAlt")}
               className="h-full w-full object-cover"
             />
             <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/70 to-transparent p-3">
               <p className="truncate text-xs font-medium text-white">
                 {file
                   ? `${file.name} · ${formatBytes(file.size)}`
-                  : "Current thumbnail"}
+                  : t("courses.thumbnail.current")}
                 {dimensions ? ` · ${dimensions.w}×${dimensions.h}` : ""}
               </p>
               <div className="flex shrink-0 gap-2">
@@ -114,7 +116,7 @@ export function ThumbnailUpload({
                   disabled={disabled}
                   onClick={() => inputRef.current?.click()}
                 >
-                  Replace
+                  {t("courses.thumbnail.replace")}
                 </Button>
                 {file && (
                   <Button
@@ -123,7 +125,7 @@ export function ThumbnailUpload({
                     variant="destructive"
                     disabled={disabled}
                     onClick={() => pick(null)}
-                    aria-label="Remove selected thumbnail"
+                    aria-label={t("courses.thumbnail.removeAria")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -142,11 +144,12 @@ export function ThumbnailUpload({
               <ImageIcon className="h-6 w-6 text-muted-foreground" />
             </span>
             <span className="text-sm font-medium text-foreground">
-              Drop a thumbnail here, or browse
+              {t("courses.thumbnail.dropPrompt")}
             </span>
             <span className="text-xs text-muted-foreground">
-              PNG or JPG · up to {formatBytes(MAX_THUMBNAIL_BYTES)} · 1280 × 720
-              recommended (16:9)
+              {t("courses.thumbnail.constraints", {
+                size: formatBytes(MAX_THUMBNAIL_BYTES),
+              })}
             </span>
           </button>
         )}
@@ -166,7 +169,7 @@ export function ThumbnailUpload({
       ) : (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Upload className="h-3 w-3" />
-          A 16:9 image looks best on the course card and detail page.
+          {t("courses.thumbnail.hint")}
         </p>
       )}
     </div>

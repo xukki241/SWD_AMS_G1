@@ -5,9 +5,11 @@ import Link from "next/link"
 import { ChevronLeft } from "lucide-react"
 import { CourseStaffGuard } from "@/components/courses/CourseStaffGuard"
 import { CourseForm } from "@/components/courses/CourseForm"
+import { useI18n } from "@/i18n"
 import { Button } from "@/components/ui/button"
 
 export default function NewCoursePage() {
+  const { t } = useI18n()
   return (
     <CourseStaffGuard>
       <div className="mx-auto max-w-5xl space-y-6">
@@ -15,13 +17,12 @@ export default function NewCoursePage() {
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2 text-muted-foreground">
             <Link href="/courses">
               <ChevronLeft className="mr-1 h-4 w-4" />
-              Back to courses
+              {t("courses.new.backToCourses")}
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight">Add New Course</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("courses.new.title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Fill in the basics now — you can build the curriculum with modules
-            and lessons right after.
+            {t("courses.new.subtitle")}
           </p>
         </div>
         <CourseForm />

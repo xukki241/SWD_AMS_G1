@@ -7,10 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, XCircle, ArrowRight } from "lucide-react"
 import { PaymentResultSkeleton } from "@/components/ui/loading"
+import { useI18n, getApiErrorMessage } from "@/i18n"
 
 function PaymentContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { t } = useI18n()
   const [loading, setLoading] = useState(true)
   const [success, setSuccess] = useState(false)
   const [message, setMessage] = useState("")
@@ -24,7 +26,7 @@ function PaymentContent() {
       })
       .catch((err) => {
         setSuccess(false)
-        setMessage(err.response?.data?.message || "Failed to process payment callback.")
+        setMessage(getApiErrorMessage(err, t("payments.return.vnpayError")))
       })
       .finally(() => {
         setLoading(false)
@@ -42,7 +44,7 @@ function PaymentContent() {
               <CheckCircle2 className="h-10 w-10" />
             </div>
 
-            <CardTitle className="text-2xl font-bold">Payment Successful!</CardTitle>
+            <CardTitle className="text-2xl font-bold">{t("payments.return.successTitle")}</CardTitle>
             <CardDescription>{message}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -50,7 +52,7 @@ function PaymentContent() {
               onClick={() => router.push("/student")}
               className="w-full flex items-center justify-center gap-2 rounded-full shadow-gc hover:shadow-gc-lg"
             >
-              <span>Return to Student Dashboard</span>
+              <span>{t("payments.return.returnDashboard")}</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </CardContent>
@@ -62,7 +64,7 @@ function PaymentContent() {
               <XCircle className="h-10 w-10" />
             </div>
 
-            <CardTitle className="text-2xl font-bold">Payment Failed</CardTitle>
+            <CardTitle className="text-2xl font-bold">{t("payments.return.failedTitle")}</CardTitle>
             <CardDescription>{message}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -70,7 +72,7 @@ function PaymentContent() {
               onClick={() => router.push("/student")}
               className="w-full flex items-center justify-center gap-2 rounded-full shadow-gc hover:shadow-gc-lg"
             >
-              <span>Return to Student Dashboard</span>
+              <span>{t("payments.return.returnDashboard")}</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </CardContent>
@@ -81,9 +83,10 @@ function PaymentContent() {
 }
 
 export default function PaymentReturnPage() {
+  const { t } = useI18n()
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Suspense fallback={<div>Loading transaction details...</div>}>
+      <Suspense fallback={<div>{t("payments.return.loading")}</div>}>
         <PaymentContent />
       </Suspense>
     </div>

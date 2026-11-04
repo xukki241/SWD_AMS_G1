@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuthStore } from "@/stores/authStore"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/i18n"
 import {
   enrollmentService,
 } from "@/services/enrollment.service"
@@ -82,6 +83,7 @@ function NavItem({
 export function Sidebar() {
   const pathname = usePathname()
   const { user } = useAuthStore()
+  const { t } = useI18n()
   const [hash, setHash] = useState("")
 
   useEffect(() => {
@@ -130,33 +132,77 @@ export function Sidebar() {
 
   const primaryLinks: NavLink[] = isAdmin
     ? [
-        { name: "Users & roles", href: "/admin#users", icon: Users, section: "users" },
-        { name: "Courses", href: "/admin#courses", icon: FolderKanban, section: "courses" },
-        { name: "Course catalog", href: "/courses", icon: BookOpen },
-        { name: "Audit trail", href: "/admin#audit", icon: ShieldCheck, section: "audit" },
+        {
+          name: t("dashboard.nav.usersRoles"),
+          href: "/admin#users",
+          icon: Users,
+          section: "users",
+        },
+        {
+          name: t("dashboard.nav.courses"),
+          href: "/admin#courses",
+          icon: FolderKanban,
+          section: "courses",
+        },
+        { name: t("dashboard.nav.courseCatalog"), href: "/courses", icon: BookOpen },
+        {
+          name: t("dashboard.nav.auditTrail"),
+          href: "/admin#audit",
+          icon: ShieldCheck,
+          section: "audit",
+        },
       ]
     : isStudent
       ? [
-          { name: "My Courses", href: "/student#classes", icon: Home, section: "classes" },
-          { name: "To-do", href: "/student#work", icon: CheckSquare, section: "work" },
-          { name: "Payments", href: "/student#payments", icon: CreditCard, section: "payments" },
+          {
+            name: t("dashboard.nav.myCourses"),
+            href: "/student#classes",
+            icon: Home,
+            section: "classes",
+          },
+          {
+            name: t("dashboard.nav.toDo"),
+            href: "/student#work",
+            icon: CheckSquare,
+            section: "work",
+          },
+          {
+            name: t("dashboard.nav.payments"),
+            href: "/student#payments",
+            icon: CreditCard,
+            section: "payments",
+          },
         ]
       : isTeacher
         ? [
-            { name: "My Courses", href: "/teacher#classes", icon: Home, section: "classes" },
             {
-              name: "To-do",
+              name: t("dashboard.nav.myCourses"),
+              href: "/teacher#classes",
+              icon: Home,
+              section: "classes",
+            },
+            {
+              name: t("dashboard.nav.toDo"),
               href: "/teacher#todo",
               icon: CheckSquare,
               section: "todo",
             },
-            { name: "Manage Courses", href: "/courses", icon: BookOpen },
+            {
+              name: t("dashboard.nav.manageCourses"),
+              href: "/courses",
+              icon: BookOpen,
+            },
           ]
         : isExpert
           ? [
-              { name: "Published Courses", href: "/expert#courses", icon: Home, section: "courses" },
               {
-                name: "Templates",
+                name: t("dashboard.nav.publishedCourses"),
+                href: "/expert#courses",
+                icon: Home,
+                section: "courses",
+              },
+              {
+                name: t("dashboard.nav.templates"),
                 href: "/expert#templates",
                 icon: FileText,
                 section: "templates",
@@ -164,7 +210,11 @@ export function Sidebar() {
             ]
           : []
 
-  const courseListLabel = isStudent ? "My Courses" : isTeacher ? "Teaching" : "Published"
+  const courseListLabel = isStudent
+    ? t("dashboard.nav.myCourses")
+    : isTeacher
+      ? t("dashboard.courseList.teaching")
+      : t("dashboard.courseList.published")
   const sidebarCourses: { id: number; title: string }[] = isStudent
     ? (myEnrollments || [])
         .filter((e: CourseEnrollment) => e.status !== "CANCELLED")
@@ -228,8 +278,8 @@ export function Sidebar() {
               {sidebarCourses.length === 0 ? (
                 <p className="px-3 py-2 text-xs text-muted-foreground">
                   {isStudent
-                    ? "Enroll in a course to see it here."
-                    : "Create a course to see it here."}
+                    ? t("dashboard.courseList.emptyStudent")
+                    : t("dashboard.courseList.emptyTeacher")}
                 </p>
               ) : (
                 sidebarCourses.map((c) => {

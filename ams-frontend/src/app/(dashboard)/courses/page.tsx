@@ -49,11 +49,8 @@ import { categoryService } from "@/services/category.service"
 import { CourseStaffGuard } from "@/components/courses/CourseStaffGuard"
 import { CourseStatusBadge, DifficultyBadge } from "@/components/courses/CourseStatusBadge"
 import { ConfirmDialog } from "@/components/courses/ConfirmDialog"
-import {
-  formatDate,
-  formatPrice,
-  getApiErrorMessage,
-} from "@/components/courses/courseFormat"
+import { formatPrice } from "@/components/courses/courseFormat"
+import { formatDate, getApiErrorMessage, useI18n } from "@/i18n"
 import type { CourseStatus, CourseSummary } from "@/types"
 
 const PAGE_SIZE = 10
@@ -78,6 +75,7 @@ function CoursesList() {
   const queryClient = useQueryClient()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { t } = useI18n()
   const [keyword, setKeyword] = useState("")
   const [debouncedKeyword, setDebouncedKeyword] = useState("")
   const [categoryId, setCategoryId] = useState("all")
@@ -91,14 +89,14 @@ function CoursesList() {
     const created = searchParams.get("created")
     const updated = searchParams.get("updated")
     const deleted = searchParams.get("deleted")
-    if (created) setSuccessMessage("Course created successfully.")
-    else if (updated) setSuccessMessage("Course updated successfully.")
-    else if (deleted) setSuccessMessage("Course deleted successfully.")
+    if (created) setSuccessMessage(t("courses.list.created"))
+    else if (updated) setSuccessMessage(t("courses.list.updated"))
+    else if (deleted) setSuccessMessage(t("courses.list.deletedBanner"))
     if (created || updated || deleted) {
       // Remove the flag so refreshing the page does not repeat the banner.
       router.replace("/courses")
     }
-  }, [searchParams, router])
+  }, [searchParams, router, t])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -135,7 +133,7 @@ function CoursesList() {
     mutationFn: (id: number) => courseService.delete(id),
     onSuccess: () => {
       setActionError(null)
-      setSuccessMessage("Course deleted successfully.")
+      setSuccessMessage(t("courses.list.deletedBanner"))
       if ((data?.content.length ?? 0) <= 1 && page > 0) {
         setPage((prev) => prev - 1)
       }
@@ -144,7 +142,7 @@ function CoursesList() {
     },
     onError: (error: unknown) => {
       setActionError(
-        getApiErrorMessage(error, "Could not delete this course. Please try again.")
+        getApiErrorMessage(error, t("courses.list.deleteError"))
       )
       setDeleteTarget(null)
     },
@@ -170,15 +168,15 @@ function CoursesList() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Manage Courses</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("courses.list.title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Create courses, build their curriculum, and publish them to students.
+            {t("courses.list.subtitle")}
           </p>
         </div>
         <Button asChild>
           <Link href="/courses/new">
             <Plus className="mr-1.5 h-4 w-4" />
-            Add New Course
+            {t("courses.list.addNew")}
           </Link>
         </Button>
       </div>
@@ -189,9 +187,9 @@ function CoursesList() {
           <Input
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="Search by title or course code"
+            placeholder={t("courses.list.searchPlaceholder")}
             className="pl-9"
-            aria-label="Search courses"
+            aria-label={t("courses.list.searchAria")}
           />
           {isFetching && !isLoading && (
             <span className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -206,11 +204,11 @@ function CoursesList() {
               setPage(0)
             }}
           >
-            <SelectTrigger className="sm:w-48" aria-label="Filter by category">
-              <SelectValue placeholder="All categories" />
+            <SelectTrigger className="sm:w-48" aria-label={t("courses.list.filterCategoryAria")}>
+              <SelectValue placeholder={t("courses.list.allCategories")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
+              <SelectItem value="all">{t("courses.list.allCategories")}</SelectItem>
               {(categories ?? []).map((category) => (
                 <SelectItem key={category.id} value={String(category.id)}>
                   {category.name}
@@ -226,13 +224,13 @@ function CoursesList() {
               setPage(0)
             }}
           >
-            <SelectTrigger className="sm:w-40" aria-label="Filter by status">
-              <SelectValue placeholder="All statuses" />
+            <SelectTrigger className="sm:w-40" aria-label={t("courses.list.filterStatusAria")}>
+              <SelectValue placeholder={t("courses.list.allStatuses")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="DRAFT">Draft</SelectItem>
-              <SelectItem value="PUBLISHED">Published</SelectItem>
+              <SelectItem value="all">{t("courses.list.allStatuses")}</SelectItem>
+              <SelectItem value="DRAFT">{t("common.status.draft")}</SelectItem>
+              <SelectItem value="PUBLISHED">{t("common.status.published")}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -245,7 +243,7 @@ function CoursesList() {
               className="col-span-2 sm:col-span-1"
             >
               <X className="mr-1.5 h-4 w-4" />
-              Clear
+              {t("courses.list.clear")}
             </Button>
           )}
         </div>
@@ -261,7 +259,7 @@ function CoursesList() {
             type="button"
             onClick={() => setSuccessMessage(null)}
             className="rounded-full p-0.5 hover:bg-[hsl(var(--success))]/10"
-            aria-label="Dismiss"
+            aria-label={t("courses.list.dismiss")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -275,7 +273,7 @@ function CoursesList() {
             type="button"
             onClick={() => setActionError(null)}
             className="rounded-full p-0.5 hover:bg-destructive/10"
-            aria-label="Dismiss"
+            aria-label={t("courses.list.dismiss")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -285,12 +283,12 @@ function CoursesList() {
       <div className="overflow-hidden rounded-lg border bg-card">
         {isError ? (
           <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-            <p className="text-sm font-medium">Could not load courses</p>
+            <p className="text-sm font-medium">{t("courses.list.loadError")}</p>
             <p className="max-w-sm text-xs text-muted-foreground">
-              Check your connection and try again.
+              {t("courses.list.loadErrorHint")}
             </p>
             <Button size="sm" variant="outline" onClick={() => refetch()}>
-              Retry
+              {t("common.actions.retry")}
             </Button>
           </div>
         ) : isLoading ? (
@@ -301,22 +299,22 @@ function CoursesList() {
               <BookOpen className="h-6 w-6 text-muted-foreground" />
             </div>
             <p className="text-sm font-medium">
-              No courses found
+              {t("courses.list.empty")}
             </p>
             <p className="max-w-sm text-xs text-muted-foreground">
               {hasFilters
-                ? "No course matches this keyword and filters. Try changing or clearing them."
-                : "Create your first course to start building a curriculum."}
+                ? t("courses.list.emptyFiltered")
+                : t("courses.list.emptyHint")}
             </p>
             {hasFilters ? (
               <Button size="sm" variant="outline" onClick={clearFilters}>
-                Clear filters
+                {t("courses.list.clearFilters")}
               </Button>
             ) : (
               <Button asChild size="sm">
                 <Link href="/courses/new">
                   <Plus className="mr-1.5 h-4 w-4" />
-                  Add New Course
+                  {t("courses.list.addNew")}
                 </Link>
               </Button>
             )}
@@ -325,15 +323,15 @@ function CoursesList() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="w-[38%]">Course</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Level</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Instructor</TableHead>
-                <TableHead>Updated</TableHead>
+                <TableHead className="w-[38%]">{t("courses.list.colCourse")}</TableHead>
+                <TableHead>{t("courses.list.colCategory")}</TableHead>
+                <TableHead>{t("courses.list.colStatus")}</TableHead>
+                <TableHead>{t("courses.list.colLevel")}</TableHead>
+                <TableHead>{t("courses.list.colPrice")}</TableHead>
+                <TableHead>{t("courses.list.colInstructor")}</TableHead>
+                <TableHead>{t("courses.list.colUpdated")}</TableHead>
                 <TableHead className="w-12 text-right">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t("courses.list.actionsSr")}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -380,7 +378,7 @@ function CoursesList() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label={`Actions for ${course.title}`}
+                          aria-label={t("courses.list.actionsFor", { title: course.title })}
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
@@ -389,19 +387,19 @@ function CoursesList() {
                         <DropdownMenuItem asChild>
                           <Link href={`/courses/${course.id}`}>
                             <Eye className="mr-2 h-4 w-4" />
-                            View details
+                            {t("courses.list.viewDetails")}
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link href={`/courses/${course.id}/edit`}>
                             <Pencil className="mr-2 h-4 w-4" />
-                            Edit course
+                            {t("courses.list.edit")}
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link href={`/courses/${course.id}/content`}>
                             <Layers className="mr-2 h-4 w-4" />
-                            Manage content
+                            {t("courses.list.manageContent")}
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -410,7 +408,7 @@ function CoursesList() {
                           onSelect={() => setDeleteTarget(course)}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
-                          Delete course
+                          {t("courses.list.delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -425,9 +423,7 @@ function CoursesList() {
       {total > 0 && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
-            Showing <span className="font-medium text-foreground">{from}</span>–
-            <span className="font-medium text-foreground">{to}</span> of{" "}
-            <span className="font-medium text-foreground">{total}</span> courses
+            {t("courses.list.showing", { from, to, total })}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -437,10 +433,10 @@ function CoursesList() {
               onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
             >
               <ChevronLeft className="mr-1 h-4 w-4" />
-              Previous
+              {t("courses.list.previous")}
             </Button>
             <span className="px-1 text-xs text-muted-foreground">
-              Page {page + 1} of {Math.max(totalPages, 1)}
+              {t("courses.list.pageInfo", { page: page + 1, total: Math.max(totalPages, 1) })}
             </span>
             <Button
               variant="outline"
@@ -448,7 +444,7 @@ function CoursesList() {
               disabled={page + 1 >= totalPages}
               onClick={() => setPage((prev) => prev + 1)}
             >
-              Next
+              {t("courses.list.next")}
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
@@ -460,17 +456,11 @@ function CoursesList() {
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
-        title="Delete this course?"
-        description={
-          <>
-            <span className="font-medium text-foreground">
-              {deleteTarget?.title}
-            </span>{" "}
-            will be removed from the catalog. Courses with enrollments cannot be
-            deleted. This action cannot be undone.
-          </>
-        }
-        confirmLabel="Delete course"
+        title={t("courses.list.deleteTitle")}
+        description={t("courses.list.deleteDescription", {
+          title: deleteTarget?.title ?? "",
+        })}
+        confirmLabel={t("courses.list.delete")}
         loading={deleteMutation.isPending}
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget.id)

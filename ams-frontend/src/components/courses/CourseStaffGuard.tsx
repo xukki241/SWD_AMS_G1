@@ -4,9 +4,11 @@ import React from "react"
 import Link from "next/link"
 import { ShieldAlert } from "lucide-react"
 import { useAuthStore } from "@/stores/authStore"
+import { useI18n } from "@/i18n"
 import { Button } from "@/components/ui/button"
 
 export function CourseStaffGuard({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n()
   const { user } = useAuthStore()
   const roles = user?.roles ?? []
   const allowed = roles.some((role) => {
@@ -18,13 +20,12 @@ export function CourseStaffGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-6 py-12 text-center">
         <ShieldAlert className="h-10 w-10 text-destructive" />
-        <h2 className="text-xl font-semibold text-foreground">Course management is restricted</h2>
+        <h2 className="text-xl font-semibold text-foreground">{t("courses.guard.title")}</h2>
         <p className="text-sm text-muted-foreground">
-          Only teachers and administrators can create and manage courses. If you
-          believe you should have access, ask an administrator to review your role.
+          {t("courses.guard.description")}
         </p>
         <Button asChild variant="outline" className="mt-2">
-          <Link href="/student">Back to my classes</Link>
+          <Link href="/student">{t("courses.guard.backToClasses")}</Link>
         </Button>
       </div>
     )

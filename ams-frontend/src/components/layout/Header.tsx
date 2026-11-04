@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Search, Menu, LogOut, BookOpen, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { LanguageSwitcher, roleLabel, useI18n } from "@/i18n"
 
 export function Header() {
   const { user, logout } = useAuthStore()
   const router = useRouter()
+  const { t } = useI18n()
 
   const roles = user?.roles || []
   const canCreateCourse =
@@ -36,7 +38,7 @@ export function Header() {
         <button
           type="button"
           className="rounded-full p-2 text-muted-foreground hover:bg-muted"
-          aria-label="Menu"
+          aria-label={t("common.labels.menu")}
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -46,7 +48,7 @@ export function Header() {
             <BookOpen className="h-4 w-4" />
           </div>
           <span className="hidden text-lg font-medium tracking-tight text-foreground sm:block">
-            AMS Classroom
+            {t("common.appName")}
           </span>
         </div>
       </div>
@@ -54,8 +56,12 @@ export function Header() {
       <div className="flex items-center gap-3">
         <div className="hidden items-center gap-2 rounded-full bg-muted px-4 py-1.5 lg:flex">
           <Search className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Search</span>
+          <span className="text-sm text-muted-foreground">
+            {t("common.actions.search")}
+          </span>
         </div>
+
+        <LanguageSwitcher />
 
         {canCreateCourse && (
           <Link
@@ -63,7 +69,7 @@ export function Header() {
             className="flex items-center gap-1.5 rounded-full bg-[hsl(var(--success))] px-4 py-2 text-sm font-medium text-white shadow-gc transition hover:shadow-gc-lg"
           >
             <Plus className="h-4 w-4" />
-            Create course
+            {t("common.actions.createCourse")}
           </Link>
         )}
 
@@ -93,7 +99,7 @@ export function Header() {
                         "rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-primary"
                       )}
                     >
-                      {r.replace("ROLE_", "")}
+                      {roleLabel(r)}
                     </span>
                   ))}
                 </div>
@@ -104,7 +110,7 @@ export function Header() {
                 className="text-destructive focus:bg-destructive/10 focus:text-destructive"
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Log out
+                {t("common.actions.signOut")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

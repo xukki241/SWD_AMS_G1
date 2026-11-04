@@ -27,8 +27,8 @@ import { AIOutlineDialog } from "@/components/courses/AIOutlineDialog"
 import {
   LESSON_TYPE_LABEL,
   formatDuration,
-  getApiErrorMessage,
 } from "@/components/courses/courseFormat"
+import { getApiErrorMessage, useI18n, type TranslationKey } from "@/i18n"
 import type {
   CourseContent,
   CourseModule,
@@ -49,6 +49,7 @@ const LESSON_ICON: Record<LessonType, React.ComponentType<{ className?: string }
 
 export function CurriculumEditor({ courseId }: { courseId: number }) {
   const queryClient = useQueryClient()
+  const { t } = useI18n()
 
   const contentQuery = useQuery({
     queryKey: ["course-content", courseId],
@@ -117,7 +118,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
       queryClient.invalidateQueries({ queryKey: ["course-content", courseId] })
       setSuccessMessage(null)
       setActionError(
-        getApiErrorMessage(error, "Could not save the new order. The previous order was restored.")
+        getApiErrorMessage(error, t("courses.editor.reorderError"))
       )
     },
   })
@@ -136,12 +137,12 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setModuleDialog({ open: false, module: null })
       setActionError(null)
-      setSuccessMessage("Module added.")
+      setSuccessMessage(t("courses.editor.moduleAdded"))
       invalidateAll()
     },
     onError: (error: unknown) => {
       setSuccessMessage(null)
-      setActionError(getApiErrorMessage(error, "Could not add the module. Please try again."))
+      setActionError(getApiErrorMessage(error, t("courses.editor.addModuleError")))
     },
   })
 
@@ -151,12 +152,12 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setModuleDialog({ open: false, module: null })
       setActionError(null)
-      setSuccessMessage("Module updated.")
+      setSuccessMessage(t("courses.editor.moduleUpdated"))
       invalidateAll()
     },
     onError: (error: unknown) => {
       setSuccessMessage(null)
-      setActionError(getApiErrorMessage(error, "Could not rename the module."))
+      setActionError(getApiErrorMessage(error, t("courses.editor.renameModuleError")))
     },
   })
 
@@ -165,13 +166,13 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setDeleteTarget(null)
       setActionError(null)
-      setSuccessMessage("Module deleted.")
+      setSuccessMessage(t("courses.editor.moduleDeleted"))
       invalidateAll()
     },
     onError: (error: unknown) => {
       setDeleteTarget(null)
       setSuccessMessage(null)
-      setActionError(getApiErrorMessage(error, "Could not delete the module."))
+      setActionError(getApiErrorMessage(error, t("courses.editor.deleteModuleError")))
     },
   })
 
@@ -181,12 +182,12 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setLessonDialog({ open: false, moduleId: null, lesson: null })
       setActionError(null)
-      setSuccessMessage("Lesson added.")
+      setSuccessMessage(t("courses.editor.lessonAdded"))
       invalidateAll()
     },
     onError: (error: unknown) => {
       setSuccessMessage(null)
-      setActionError(getApiErrorMessage(error, "Could not add the lesson."))
+      setActionError(getApiErrorMessage(error, t("courses.editor.addLessonError")))
     },
   })
 
@@ -196,12 +197,12 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setLessonDialog({ open: false, moduleId: null, lesson: null })
       setActionError(null)
-      setSuccessMessage("Lesson updated.")
+      setSuccessMessage(t("courses.editor.lessonUpdated"))
       invalidateAll()
     },
     onError: (error: unknown) => {
       setSuccessMessage(null)
-      setActionError(getApiErrorMessage(error, "Could not update the lesson."))
+      setActionError(getApiErrorMessage(error, t("courses.editor.updateLessonError")))
     },
   })
 
@@ -210,13 +211,13 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     onSuccess: () => {
       setDeleteTarget(null)
       setActionError(null)
-      setSuccessMessage("Lesson deleted.")
+      setSuccessMessage(t("courses.editor.lessonDeleted"))
       invalidateAll()
     },
     onError: (error: unknown) => {
       setDeleteTarget(null)
       setSuccessMessage(null)
-      setActionError(getApiErrorMessage(error, "Could not delete the lesson."))
+      setActionError(getApiErrorMessage(error, t("courses.editor.deleteLessonError")))
     },
   })
 
@@ -300,10 +301,10 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-lg border bg-card px-6 py-12 text-center">
         <p className="text-sm font-medium">
-          {getApiErrorMessage(contentQuery.error, "Could not load the curriculum.")}
+          {getApiErrorMessage(contentQuery.error, t("courses.editor.loadError"))}
         </p>
         <Button size="sm" variant="outline" onClick={() => contentQuery.refetch()}>
-          Retry
+          {t("common.actions.retry")}
         </Button>
       </div>
     )
@@ -318,32 +319,32 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <span className="inline-flex items-center gap-1.5">
             <Layers className="h-4 w-4 text-muted-foreground" />
-            <span className="font-semibold text-foreground">{stats.moduleCount}</span>
-            <span className="text-muted-foreground">
-              module{stats.moduleCount === 1 ? "" : "s"}
+            <span className="font-semibold text-foreground">
+              {stats.moduleCount === 1
+                ? t("courses.editor.moduleCountOne")
+                : t("courses.editor.moduleCount", { count: stats.moduleCount })}
             </span>
           </span>
           <span className="text-muted-foreground">
-            <span className="font-semibold text-foreground">{stats.lessonCount}</span> lessons
+            {stats.lessonCount === 1
+              ? t("courses.editor.lessonCountOne")
+              : t("courses.editor.lessonCount", { count: stats.lessonCount })}
           </span>
           <span className="text-muted-foreground">
-            <span className="font-semibold text-foreground">
-              {formatDuration(stats.duration)}
-            </span>{" "}
-            total
+            {t("courses.editor.total", { duration: formatDuration(stats.duration) })}
           </span>
           {reorderMutation.isPending && (
-            <span className="text-xs text-muted-foreground">Saving order…</span>
+            <span className="text-xs text-muted-foreground">{t("courses.editor.savingOrder")}</span>
           )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setAiOpen(true)}>
             <Sparkles className="mr-1.5 h-4 w-4" />
-            Generate Outline with AI
+            {t("courses.editor.generateWithAi")}
           </Button>
           <Button onClick={openAddModule}>
             <Plus className="mr-1.5 h-4 w-4" />
-            Add Module
+            {t("courses.editor.addModule")}
           </Button>
         </div>
       </div>
@@ -358,7 +359,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
             type="button"
             onClick={() => setSuccessMessage(null)}
             className="rounded-full p-0.5 hover:bg-[hsl(var(--success))]/10"
-            aria-label="Dismiss"
+            aria-label={t("courses.editor.dismiss")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -379,19 +380,18 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <Layers className="h-6 w-6 text-muted-foreground" />
           </div>
-          <p className="text-sm font-medium">This course has no curriculum yet</p>
+          <p className="text-sm font-medium">{t("courses.editor.emptyTitle")}</p>
           <p className="max-w-md text-xs text-muted-foreground">
-            Add modules and lessons manually, or let Gemini draft an outline you can
-            review and edit before saving.
+            {t("courses.editor.emptyHint")}
           </p>
           <div className="mt-1 flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setAiOpen(true)}>
               <Sparkles className="mr-1.5 h-4 w-4" />
-              Generate Outline with AI
+              {t("courses.editor.generateWithAi")}
             </Button>
             <Button size="sm" onClick={openAddModule}>
               <Plus className="mr-1.5 h-4 w-4" />
-              Add Module
+              {t("courses.editor.addModule")}
             </Button>
           </div>
         </div>
@@ -434,8 +434,8 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                     setDragging({ type: "module", id: module.id })
                   }}
                   onDragEnd={clearDrag}
-                  aria-label={`Drag module ${module.title} to reorder`}
-                  title="Drag to reorder"
+                  aria-label={t("courses.editor.dragModuleAria", { title: module.title })}
+                  title={t("courses.editor.dragToReorder")}
                   className="mt-0.5 cursor-grab rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
                 >
                   <GripVertical className="h-4 w-4" />
@@ -443,13 +443,16 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
 
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Module {moduleIndex + 1}
+                    {t("courses.editor.moduleLabel", { index: moduleIndex + 1 })}
                   </p>
                   <h3 className="truncate text-sm font-semibold text-foreground">
                     {module.title}
                   </h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {module.lessons.length} lesson{module.lessons.length === 1 ? "" : "s"} ·{" "}
+                    {module.lessons.length === 1
+                      ? t("courses.editor.lessonCountOne")
+                      : t("courses.editor.lessonCount", { count: module.lessons.length })}{" "}
+                    ·{" "}
                     {formatDuration(
                       module.lessons.reduce((sum, lesson) => sum + (lesson.duration || 0), 0)
                     )}
@@ -464,12 +467,12 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                     className="hidden sm:inline-flex"
                   >
                     <Plus className="mr-1 h-3.5 w-3.5" />
-                    Add Lesson
+                    {t("courses.editor.addLesson")}
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={`Edit ${module.title}`}
+                    aria-label={t("courses.editor.editAria", { title: module.title })}
                     onClick={() => openRenameModule(module)}
                   >
                     <Pencil className="h-4 w-4" />
@@ -478,7 +481,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                     variant="ghost"
                     size="icon"
                     className="text-muted-foreground hover:text-destructive"
-                    aria-label={`Delete ${module.title}`}
+                    aria-label={t("courses.editor.deleteAria", { title: module.title })}
                     onClick={() => setDeleteTarget({ kind: "module", module })}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -512,7 +515,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                     className="flex w-full flex-col items-center gap-1 rounded-md border border-dashed px-4 py-6 text-center text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
                   >
                     <Plus className="h-4 w-4" />
-                    No lessons yet — add the first one
+                    {t("courses.editor.noLessonsYet")}
                   </button>
                 ) : (
                   module.lessons.map((lesson, lessonIndex) => {
@@ -552,8 +555,8 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                               })
                             }}
                             onDragEnd={clearDrag}
-                            aria-label={`Drag lesson ${lesson.title} to reorder`}
-                            title="Drag to reorder"
+                            aria-label={t("courses.editor.dragLessonAria", { title: lesson.title })}
+                            title={t("courses.editor.dragToReorder")}
                             className="cursor-grab rounded p-1 text-muted-foreground/60 hover:bg-muted hover:text-foreground active:cursor-grabbing"
                           >
                             <GripVertical className="h-3.5 w-3.5" />
@@ -568,7 +571,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                           </span>
 
                           <Badge variant="outline" className="hidden shrink-0 sm:inline-flex">
-                            {LESSON_TYPE_LABEL[lesson.type] ?? lesson.type}
+                            {t(`courses.lessonTypes.${lesson.type}` as TranslationKey)}
                           </Badge>
                           <span className="hidden w-16 shrink-0 text-right text-xs text-muted-foreground md:inline">
                             {formatDuration(lesson.duration)}
@@ -577,7 +580,9 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                             variant={lesson.status === "PUBLISHED" ? "success" : "secondary"}
                             className="hidden shrink-0 sm:inline-flex"
                           >
-                            {lesson.status === "PUBLISHED" ? "Published" : "Draft"}
+                            {lesson.status === "PUBLISHED"
+                              ? t("common.status.published")
+                              : t("common.status.draft")}
                           </Badge>
 
                           <div className="flex shrink-0 items-center gap-0.5 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
@@ -585,7 +590,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              aria-label={`Edit ${lesson.title}`}
+                              aria-label={t("courses.editor.editAria", { title: lesson.title })}
                               onClick={() => openEditLesson(module.id, lesson)}
                             >
                               <Pencil className="h-3.5 w-3.5" />
@@ -594,7 +599,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              aria-label={`Delete ${lesson.title}`}
+                              aria-label={t("courses.editor.deleteAria", { title: lesson.title })}
                               onClick={() => setDeleteTarget({ kind: "lesson", lesson })}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -617,7 +622,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
                     className="mt-1 flex w-full items-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    Add Lesson
+                    {t("courses.editor.addLesson")}
                   </button>
                 )}
               </div>
@@ -670,25 +675,32 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
-        title={deleteTarget?.kind === "module" ? "Delete this module?" : "Delete this lesson?"}
+        title={
+          deleteTarget?.kind === "module"
+            ? t("courses.editor.deleteModuleTitle")
+            : t("courses.editor.deleteLessonTitle")
+        }
         description={
           deleteTarget?.kind === "module" ? (
-            <>
-              <span className="font-medium text-foreground">{deleteTarget.module.title}</span> and
-              its {deleteTarget.module.lessons.length} lesson
-              {deleteTarget.module.lessons.length === 1 ? "" : "s"} will be removed. This cannot
-              be undone.
-            </>
+            deleteTarget.module.lessons.length === 1
+              ? t("courses.editor.deleteModuleDescriptionOne", {
+                  title: deleteTarget.module.title,
+                })
+              : t("courses.editor.deleteModuleDescription", {
+                  title: deleteTarget.module.title,
+                  count: deleteTarget.module.lessons.length,
+                })
           ) : deleteTarget?.kind === "lesson" ? (
-            <>
-              <span className="font-medium text-foreground">{deleteTarget.lesson.title}</span> will
-              be removed from the curriculum. This cannot be undone.
-            </>
+            t("courses.editor.deleteLessonDescription", { title: deleteTarget.lesson.title })
           ) : (
             ""
           )
         }
-        confirmLabel={deleteTarget?.kind === "module" ? "Delete module" : "Delete lesson"}
+        confirmLabel={
+          deleteTarget?.kind === "module"
+            ? t("courses.editor.deleteModuleConfirm")
+            : t("courses.editor.deleteLessonConfirm")
+        }
         loading={deleteModule.isPending || deleteLesson.isPending}
         onConfirm={() => {
           if (deleteTarget?.kind === "module") deleteModule.mutate(deleteTarget.module.id)
@@ -705,7 +717,7 @@ export function CurriculumEditor({ courseId }: { courseId: number }) {
         onAccepted={() => {
           setAiOpen(false)
           invalidateAll()
-          setSuccessMessage("AI outline added to the end of the curriculum.")
+          setSuccessMessage(t("courses.editor.aiAccepted"))
         }}
       />
     </div>

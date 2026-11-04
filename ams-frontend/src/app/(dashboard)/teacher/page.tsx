@@ -15,6 +15,7 @@ import { courseService } from "@/services/course.service"
 import { assignmentService } from "@/services/assignment.service"
 import { submissionService } from "@/services/submission.service"
 import { useAuthStore } from "@/stores/authStore"
+import { formatNumber, useI18n } from "@/i18n"
 import type { CourseSummary, TeacherDashboard } from "@/types"
 import {
   FolderKanban,
@@ -28,6 +29,7 @@ import {
 
 export default function TeacherDashboardPage() {
   const userId = useAuthStore((s) => s.user?.userId)
+  const { t } = useI18n()
 
   const { data: stats, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["teacher-stats"],
@@ -83,10 +85,8 @@ export default function TeacherDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Teacher dashboard</h2>
-        <p className="text-muted-foreground">
-          Manage your courses and grade submissions.
-        </p>
+        <h2 className="text-3xl font-bold tracking-tight">{t("dashboard.teacher.title")}</h2>
+        <p className="text-muted-foreground">{t("dashboard.teacher.subtitle")}</p>
       </div>
 
       {/* KPI cards */}
@@ -95,42 +95,60 @@ export default function TeacherDashboardPage() {
           <>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">My Courses</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {t("dashboard.teacher.kpi.courses")}
+                </CardTitle>
                 <FolderKanban className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalCourses}</div>
-                <p className="text-xs text-muted-foreground">courses you teach</p>
+                <div className="text-2xl font-bold">{formatNumber(stats.totalCourses)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {t("dashboard.teacher.kpi.coursesHint")}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Assignments</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {t("dashboard.teacher.kpi.assignments")}
+                </CardTitle>
                 <FileText className="h-4 w-4 text-emerald-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalAssignments}</div>
-                <p className="text-xs text-muted-foreground">coursework published</p>
+                <div className="text-2xl font-bold">{formatNumber(stats.totalAssignments)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {t("dashboard.teacher.kpi.assignmentsHint")}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">To Grade</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {t("dashboard.teacher.kpi.toGrade")}
+                </CardTitle>
                 <Hourglass className="h-4 w-4 text-amber-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.pendingEvaluations}</div>
-                <p className="text-xs text-muted-foreground">awaiting a score</p>
+                <div className="text-2xl font-bold">{formatNumber(stats.pendingEvaluations)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {t("dashboard.teacher.kpi.toGradeHint")}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Graded</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {t("dashboard.teacher.kpi.graded")}
+                </CardTitle>
                 <CheckCircle2 className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.completedEvaluations}</div>
-                <p className="text-xs text-muted-foreground">evaluations completed</p>
+                <div className="text-2xl font-bold">
+                  {formatNumber(stats.completedEvaluations)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t("dashboard.teacher.kpi.gradedHint")}
+                </p>
               </CardContent>
             </Card>
           </>
@@ -149,9 +167,11 @@ export default function TeacherDashboardPage() {
       {/* My courses */}
       <section id="classes">
         <div className="mb-4">
-          <h3 className="text-xl font-bold tracking-tight">My Courses</h3>
+          <h3 className="text-xl font-bold tracking-tight">
+            {t("dashboard.nav.myCourses")}
+          </h3>
           <p className="text-sm text-muted-foreground">
-            Open a course to manage its content, assignments, and learners.
+            {t("dashboard.teacher.courses.description")}
           </p>
         </div>
         {coursesError ? (
@@ -170,8 +190,8 @@ export default function TeacherDashboardPage() {
           </div>
         ) : (
           <EmptyState
-            title="No courses yet"
-            description="Courses assigned to you will appear here."
+            title={t("dashboard.teacher.courses.emptyTitle")}
+            description={t("dashboard.teacher.courses.emptyDescription")}
           />
         )}
       </section>
@@ -179,20 +199,23 @@ export default function TeacherDashboardPage() {
       {/* To-do / grading queue */}
       <section id="todo" className="space-y-4">
         <div>
-          <h3 className="text-xl font-bold tracking-tight">To-do</h3>
+          <h3 className="text-xl font-bold tracking-tight">{t("dashboard.nav.toDo")}</h3>
           <p className="text-sm text-muted-foreground">
-            Assignments with submissions waiting to be graded.
+            {t("dashboard.teacher.todo.description")}
           </p>
         </div>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-primary" /> Grading queue
+              <ClipboardList className="h-5 w-5 text-primary" />{" "}
+              {t("dashboard.teacher.todo.queue")}
             </CardTitle>
             <CardDescription>
               {stats
-                ? `${stats.pendingEvaluations} submission${stats.pendingEvaluations === 1 ? "" : "s"} awaiting a score`
-                : "Review ungraded work by assignment"}
+                ? stats.pendingEvaluations === 1
+                  ? t("dashboard.teacher.todo.statsOne", { count: stats.pendingEvaluations })
+                  : t("dashboard.teacher.todo.statsMany", { count: stats.pendingEvaluations })
+                : t("dashboard.teacher.todo.statsFallback")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -211,12 +234,19 @@ export default function TeacherDashboardPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{assignment.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {assignment.courseCode} · {ungradedCount} ungraded
-                          {ungradedCount === 1 ? " submission" : " submissions"}
+                          {ungradedCount === 1
+                            ? t("dashboard.teacher.todo.ungradedOne", {
+                                code: assignment.courseCode,
+                                count: formatNumber(ungradedCount),
+                              })
+                            : t("dashboard.teacher.todo.ungradedMany", {
+                                code: assignment.courseCode,
+                                count: formatNumber(ungradedCount),
+                              })}
                         </p>
                       </div>
                       <Button variant="ghost" size="sm" className="shrink-0 gap-1">
-                        Grade
+                        {t("dashboard.teacher.todo.grade")}
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </Link>
@@ -225,8 +255,8 @@ export default function TeacherDashboardPage() {
               </ul>
             ) : (
               <EmptyState
-                title="Nothing to grade"
-                description="When students submit work, assignments needing grades will show up here."
+                title={t("dashboard.teacher.todo.emptyTitle")}
+                description={t("dashboard.teacher.todo.emptyDescription")}
               />
             )}
           </CardContent>
@@ -237,6 +267,7 @@ export default function TeacherDashboardPage() {
 }
 
 function CourseCard({ course }: { course: CourseSummary }) {
+  const { t } = useI18n()
   return (
     <Link
       href={`/courses/${course.id}`}
@@ -259,10 +290,10 @@ function CourseCard({ course }: { course: CourseSummary }) {
           <span className="flex items-center gap-1">
             <Users className="h-3.5 w-3.5" />
             {course.difficultyLevel === "BEGINNER"
-              ? "Beginner"
+              ? t("dashboard.difficulty.beginner")
               : course.difficultyLevel === "INTERMEDIATE"
-                ? "Intermediate"
-                : "Advanced"}
+                ? t("dashboard.difficulty.intermediate")
+                : t("dashboard.difficulty.advanced")}
           </span>
           <span className="font-medium text-foreground">{formatVnd(course.price)}</span>
         </div>

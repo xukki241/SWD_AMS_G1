@@ -1,4 +1,7 @@
+"use client"
+
 import { Input } from "@/components/ui/input"
+import { useI18n } from "@/i18n"
 
 export function ScoreInput({
   value,
@@ -13,6 +16,7 @@ export function ScoreInput({
   step?: number
   placeholder?: string
 }) {
+  const { t } = useI18n()
   const valid =
     value !== "" &&
     !Number.isNaN(Number(value)) &&
@@ -38,7 +42,7 @@ export function ScoreInput({
       </div>
       {value !== "" && !valid && (
         <p className="text-xs text-destructive">
-          Enter a number between 0 and {max}.
+          {t("classroom.score.invalidRange", { max })}
         </p>
       )}
     </div>

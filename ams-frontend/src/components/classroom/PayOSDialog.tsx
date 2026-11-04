@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Loader2, ExternalLink, CreditCard } from "lucide-react"
 import { formatVnd } from "@/components/classroom/format"
+import { useI18n } from "@/i18n"
 
 export function PayOSDialog({
   open,
@@ -35,6 +36,7 @@ export function PayOSDialog({
   const [error, setError] = useState<string | null>(null)
   const [redirecting, setRedirecting] = useState(false)
   const queryClient = useQueryClient()
+  const { t } = useI18n()
 
   // Reset state when the dialog closes.
   useEffect(() => {
@@ -63,7 +65,7 @@ export function PayOSDialog({
       })
       .catch((err: any) => {
         if (!cancelled) {
-          setError(err.response?.data?.message || "Could not start PayOS payment.")
+          setError(err.response?.data?.message || t("payments.payos.createError"))
         }
       })
       .finally(() => {
@@ -91,12 +93,10 @@ export function PayOSDialog({
         <DialogHeader>
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            <DialogTitle>Pay tuition — PayOS</DialogTitle>
+            <DialogTitle>{t("payments.payos.title")}</DialogTitle>
           </div>
           <DialogDescription>
-            You will be redirected to PayOS to pay{" "}
-            <span className="font-semibold text-emerald-600">{formatVnd(amount)}</span> by
-            QR code or bank transfer.
+            {t("payments.payos.description", { amount: formatVnd(amount) })}
           </DialogDescription>
         </DialogHeader>
 
@@ -107,20 +107,20 @@ export function PayOSDialog({
         ) : loading ? (
           <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Creating PayOS payment link…
+            {t("payments.payos.creating")}
           </div>
         ) : checkout ? (
           <div className="space-y-2 rounded-lg bg-muted/50 p-3 text-xs">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Gateway</span>
-              <span className="font-medium">PayOS · QR / bank transfer</span>
+              <span className="text-muted-foreground">{t("payments.dialog.gateway")}</span>
+              <span className="font-medium">{t("payments.payos.gatewayValue")}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Order</span>
+              <span className="text-muted-foreground">{t("payments.dialog.order")}</span>
               <span className="font-mono text-primary">{checkout.transactionRef}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Amount</span>
+              <span className="text-muted-foreground">{t("payments.dialog.amount")}</span>
               <span className="font-semibold text-emerald-600">
                 {formatVnd(Number(checkout.amount))}
               </span>
@@ -130,7 +130,7 @@ export function PayOSDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {t("common.actions.close")}
           </Button>
           {checkout && (
             <Button onClick={() => openPayOS(checkout)} disabled={redirecting}>
@@ -139,7 +139,7 @@ export function PayOSDialog({
               ) : (
                 <ExternalLink className="h-4 w-4 mr-1.5" />
               )}
-              Open PayOS
+              {t("payments.payos.open")}
             </Button>
           )}
         </DialogFooter>

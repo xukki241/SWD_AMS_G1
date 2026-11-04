@@ -12,14 +12,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { useI18n } from "@/i18n"
 
 export function ConfirmDialog({
   open,
   onOpenChange,
   title,
   description,
-  confirmLabel = "Delete",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   loading = false,
   destructive = true,
   onConfirm,
@@ -34,6 +35,9 @@ export function ConfirmDialog({
   destructive?: boolean
   onConfirm: () => void
 }) {
+  const { t } = useI18n()
+  const confirmText = confirmLabel ?? t("common.actions.delete")
+  const cancelText = cancelLabel ?? t("common.actions.cancel")
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -42,14 +46,14 @@ export function ConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{cancelText}</AlertDialogCancel>
           <Button
             variant={destructive ? "destructive" : "default"}
             disabled={loading}
             onClick={onConfirm}
           >
             {loading && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-            {confirmLabel}
+            {confirmText}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

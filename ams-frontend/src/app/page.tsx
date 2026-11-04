@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/classroom/EmptyState"
 import { formatVnd, avatarColor, classInitial } from "@/components/classroom/format"
 import { courseService } from "@/services/course.service"
 import type { CourseSummary } from "@/types"
+import { useI18n, type TranslationKey } from "@/i18n"
 import {
   BookOpen,
   GraduationCap,
@@ -19,15 +20,16 @@ import {
   BarChart3,
 } from "lucide-react"
 
-const DIFFICULTY_LABEL: Record<string, string> = {
-  BEGINNER: "Beginner",
-  INTERMEDIATE: "Intermediate",
-  ADVANCED: "Advanced",
+const DIFFICULTY_KEY: Record<string, TranslationKey> = {
+  BEGINNER: "landing.difficulty.BEGINNER",
+  INTERMEDIATE: "landing.difficulty.INTERMEDIATE",
+  ADVANCED: "landing.difficulty.ADVANCED",
 }
 
 export default function Home() {
   const router = useRouter()
   const { isAuthenticated, user } = useAuthStore()
+  const { t } = useI18n()
 
   const { data: catalog, isLoading, isError, refetch } = useQuery({
     queryKey: ["public-courses"],
@@ -64,18 +66,22 @@ export default function Home() {
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-base font-semibold leading-tight text-foreground">AMS</h1>
+              <h1 className="text-base font-semibold leading-tight text-foreground">
+                {t("landing.brand.name")}
+              </h1>
               <p className="text-[11px] text-muted-foreground">
-                Assignment Management System
+                {t("landing.brand.tagline")}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/login">
-              <Button variant="ghost">Log in</Button>
+              <Button variant="ghost">{t("landing.nav.logIn")}</Button>
             </Link>
             <Link href="/register">
-              <Button className="rounded-full shadow-gc hover:shadow-gc-lg">Sign up</Button>
+              <Button className="rounded-full shadow-gc hover:shadow-gc-lg">
+                {t("landing.nav.signUp")}
+              </Button>
             </Link>
           </div>
         </div>
@@ -88,11 +94,11 @@ export default function Home() {
             <GraduationCap className="h-7 w-7" />
           </div>
           <h1 className="text-4xl font-light tracking-tight text-foreground sm:text-5xl">
-            <span className="text-primary">AMS</span> · your learning, organized
+            <span className="text-primary">{t("landing.hero.titlePrefix")}</span>
+            {t("landing.hero.titleSuffix")}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Enroll in a course, follow the lessons, submit your work, pay tuition
-            — all in one place.
+            {t("landing.hero.subtitle")}
           </p>
           <div className="mt-8 flex items-center justify-center gap-3">
             <Link href="/login">
@@ -100,18 +106,17 @@ export default function Home() {
                 size="lg"
                 className="rounded-full px-6 shadow-gc hover:shadow-gc-lg"
               >
-                Get started
+                {t("landing.hero.getStarted")}
               </Button>
             </Link>
             <Link href="/register">
               <Button size="lg" variant="ghost" className="rounded-full px-4">
-                Create a student account
+                {t("landing.hero.createStudentAccount")}
               </Button>
             </Link>
           </div>
           <p className="mt-8 text-xs text-muted-foreground">
-            Published courses · VNPay &amp; VietQR sandbox · lessons, assignments &amp;
-            grading
+            {t("landing.hero.footnote")}
           </p>
         </div>
       </section>
@@ -121,14 +126,14 @@ export default function Home() {
         <div className="mb-6 flex items-end justify-between">
           <div>
             <h2 className="text-2xl font-light tracking-tight text-foreground">
-              Featured courses
+              {t("landing.catalog.title")}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Currently published courses. Log in as a student to enroll.
+              {t("landing.catalog.subtitle")}
             </p>
           </div>
           <span className="text-sm text-muted-foreground">
-            {catalog?.totalElements ?? 0} courses
+            {t("landing.catalog.count", { count: catalog?.totalElements ?? 0 })}
           </span>
         </div>
 
@@ -184,7 +189,9 @@ export default function Home() {
                     <div className="flex items-center gap-2">
                       <BarChart3 className="h-4 w-4" />
                       <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-primary">
-                        {DIFFICULTY_LABEL[c.difficultyLevel] || c.difficultyLevel}
+                        {DIFFICULTY_KEY[c.difficultyLevel]
+                          ? t(DIFFICULTY_KEY[c.difficultyLevel])
+                          : c.difficultyLevel}
                       </span>
                     </div>
                     <div className="flex items-center justify-between pt-1">
@@ -193,11 +200,13 @@ export default function Home() {
                           Number(c.price) === 0 ? "text-success" : "text-foreground"
                         }`}
                       >
-                        {c.isFree || Number(c.price) === 0 ? "Free" : formatVnd(c.price)}
+                        {c.isFree || Number(c.price) === 0
+                          ? t("landing.catalog.free")
+                          : formatVnd(c.price)}
                       </span>
                       <Link href={`/courses/${c.id}`}>
                         <Button size="sm" className="rounded-full shadow-gc hover:shadow-gc-lg">
-                          Enroll
+                          {t("landing.catalog.enroll")}
                         </Button>
                       </Link>
                     </div>
@@ -208,14 +217,14 @@ export default function Home() {
           </div>
         ) : (
           <EmptyState
-            title="No published courses yet"
-            description="Teachers and experts publish courses that will appear here."
+            title={t("landing.catalog.emptyTitle")}
+            description={t("landing.catalog.emptyDescription")}
           />
         )}
       </section>
 
       <footer className="border-t py-6 text-center text-xs text-muted-foreground">
-        AMS POC · SWD392 Group 1 · Demo only — payments run on sandbox providers
+        {t("landing.footer")}
       </footer>
     </div>
   )

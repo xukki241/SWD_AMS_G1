@@ -16,11 +16,10 @@ import {
 } from "lucide-react"
 import { CourseStatusBadge, DifficultyBadge } from "@/components/courses/CourseStatusBadge"
 import { useAuthStore } from "@/stores/authStore"
+import { formatDate, getApiErrorMessage, useI18n } from "@/i18n"
 import {
-  formatDate,
   formatDuration,
   formatPrice,
-  getApiErrorMessage,
   splitLines,
 } from "@/components/courses/courseFormat"
 import { courseService } from "@/services/course.service"
@@ -31,6 +30,7 @@ import { cn } from "@/lib/utils"
 function DetailsInner() {
   const params = useParams<{ id: string }>()
   const courseId = Number(params?.id)
+  const { t } = useI18n()
   const { user } = useAuthStore()
   const roles = user?.roles ?? []
   const canManage = roles.some((role) => {
@@ -40,10 +40,10 @@ function DetailsInner() {
   const isExpert = roles.some((role) => role.toUpperCase().includes("EXPERT"))
   const backHref = canManage ? "/courses" : isExpert ? "/expert#courses" : "/student#classes"
   const backLabel = canManage
-    ? "Back to courses"
+    ? t("courses.details.backToCourses")
     : isExpert
-      ? "Back to published courses"
-      : "Back to my courses"
+      ? t("courses.details.backToPublished")
+      : t("courses.details.backToMyCourses")
 
   const { data: course, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["course", courseId, canManage ? "manage" : "public"],
@@ -53,7 +53,7 @@ function DetailsInner() {
   })
 
   if (!Number.isFinite(courseId) || courseId <= 0) {
-    return <Notice>Invalid course id.</Notice>
+    return <Notice>{t("courses.details.invalidId")}</Notice>
   }
 
   if (!user || isLoading) {
@@ -70,10 +70,10 @@ function DetailsInner() {
     return (
       <div className="flex flex-col items-center gap-3 rounded-lg border bg-card px-6 py-12 text-center">
         <p className="text-sm font-medium">
-          {getApiErrorMessage(error, "Could not load this course.")}
+          {getApiErrorMessage(error, t("courses.details.loadError"))}
         </p>
         <Button size="sm" variant="outline" onClick={() => refetch()}>
-          Retry
+          {t("common.actions.retry")}
         </Button>
       </div>
     )
@@ -104,13 +104,13 @@ function DetailsInner() {
             <Button asChild variant="outline">
               <Link href={`/courses/${course.id}/edit`}>
                 <Pencil className="mr-1.5 h-4 w-4" />
-                Edit Course
+                {t("courses.details.edit")}
               </Link>
             </Button>
             <Button asChild>
               <Link href={`/courses/${course.id}/content`}>
                 <Layers className="mr-1.5 h-4 w-4" />
-                Manage Content
+                {t("courses.details.manageContent")}
               </Link>
             </Button>
           </div>
@@ -125,7 +125,7 @@ function DetailsInner() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={course.thumbnailUrl}
-                alt={`${course.title} thumbnail`}
+                alt={t("courses.details.thumbnailAlt", { title: course.title })}
                 className="aspect-video w-full object-cover"
               />
             </div>
@@ -141,7 +141,7 @@ function DetailsInner() {
           )}
 
           <section className="rounded-lg border bg-card p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-foreground">Description</h2>
+            <h2 className="text-base font-semibold text-foreground">{t("courses.details.description")}</h2>
             <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
               {course.description}
             </p>
@@ -149,7 +149,7 @@ function DetailsInner() {
 
           {course.about && (
             <section className="rounded-lg border bg-card p-5 shadow-sm">
-              <h2 className="text-base font-semibold text-foreground">About this course</h2>
+              <h2 className="text-base font-semibold text-foreground">{t("courses.details.about")}</h2>
               <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
                 {course.about}
               </p>
@@ -159,7 +159,7 @@ function DetailsInner() {
           {outcomes.length > 0 && (
             <section className="rounded-lg border bg-card p-5 shadow-sm">
               <h2 className="text-base font-semibold text-foreground">
-                What students will learn
+                {t("courses.details.outcomes")}
               </h2>
               <ul className="mt-3 space-y-2">
                 {outcomes.map((item) => (
@@ -174,7 +174,7 @@ function DetailsInner() {
 
           {prerequisites.length > 0 && (
             <section className="rounded-lg border bg-card p-5 shadow-sm">
-              <h2 className="text-base font-semibold text-foreground">Prerequisites</h2>
+              <h2 className="text-base font-semibold text-foreground">{t("courses.details.prerequisites")}</h2>
               <ul className="mt-3 list-inside list-disc space-y-1.5">
                 {prerequisites.map((item) => (
                   <li key={item} className="text-sm text-muted-foreground">
@@ -190,28 +190,28 @@ function DetailsInner() {
         <aside className="space-y-4">
           <section className="rounded-lg border bg-card p-5 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              At a glance
+              {t("courses.details.atAGlance")}
             </h2>
             <dl className="mt-4 space-y-3 text-sm">
-              <MetaRow label="Status">
+              <MetaRow label={t("courses.details.status")}>
                 <CourseStatusBadge status={course.status} />
               </MetaRow>
-              <MetaRow label="Difficulty">
+              <MetaRow label={t("courses.details.difficulty")}>
                 <DifficultyBadge level={course.difficultyLevel} />
               </MetaRow>
-              <MetaRow label="Price">
+              <MetaRow label={t("courses.details.price")}>
                 <span className="font-medium">{formatPrice(course.price, course.isFree)}</span>
               </MetaRow>
-              <MetaRow label="Category">
+              <MetaRow label={t("courses.details.category")}>
                 <span className="text-muted-foreground">{course.categoryName}</span>
               </MetaRow>
-              <MetaRow label="Instructor">
+              <MetaRow label={t("courses.details.instructor")}>
                 <span className="text-muted-foreground">{course.instructorName}</span>
               </MetaRow>
-              <MetaRow label="Created">
+              <MetaRow label={t("courses.details.created")}>
                 <span className="text-muted-foreground">{formatDate(course.createdAt)}</span>
               </MetaRow>
-              <MetaRow label="Last updated">
+              <MetaRow label={t("courses.details.lastUpdated")}>
                 <span className="text-muted-foreground">{formatDate(course.updatedAt)}</span>
               </MetaRow>
             </dl>
@@ -219,21 +219,21 @@ function DetailsInner() {
 
           <section className="rounded-lg border bg-card p-5 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Content
+              {t("courses.details.content")}
             </h2>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-              <Stat icon={Layers} value={course.metrics.moduleCount} label="Modules" />
-              <Stat icon={PlayCircle} value={course.metrics.lessonCount} label="Lessons" />
+              <Stat icon={Layers} value={course.metrics.moduleCount} label={t("courses.details.modules")} />
+              <Stat icon={PlayCircle} value={course.metrics.lessonCount} label={t("courses.details.lessons")} />
               <Stat
                 icon={Clock}
                 value={formatDuration(course.metrics.totalDurationMinutes)}
-                label="Duration"
+                label={t("courses.details.duration")}
               />
             </div>
 
             <div className="mt-4">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Curriculum summary
+                {t("courses.details.curriculumSummary")}
               </h3>
               {course.curriculum.length > 0 ? (
                 <ol className="mt-2 space-y-1.5">
@@ -249,15 +249,16 @@ function DetailsInner() {
                         </span>
                       </span>
                       <span className="shrink-0 text-muted-foreground">
-                        {module.lessonCount}{" "}
-                        {module.lessonCount === 1 ? "lesson" : "lessons"}
+                        {module.lessonCount === 1
+                          ? t("courses.details.lessonCountOne")
+                          : t("courses.details.lessonCount", { count: module.lessonCount })}
                       </span>
                     </li>
                   ))}
                 </ol>
               ) : (
                 <p className="mt-2 text-xs italic text-muted-foreground">
-                  This course has no modules yet.
+                  {t("courses.details.noModules")}
                 </p>
               )}
             </div>
@@ -266,7 +267,7 @@ function DetailsInner() {
               <Button asChild variant="secondary" className="mt-4 w-full">
                 <Link href={`/courses/${course.id}/content`}>
                   <Layers className="mr-1.5 h-4 w-4" />
-                  Manage Content
+                  {t("courses.details.manageContent")}
                 </Link>
               </Button>
             )}

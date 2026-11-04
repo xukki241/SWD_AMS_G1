@@ -2,11 +2,12 @@ import React, { useRef, useState } from "react"
 import { Upload, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatBytes } from "@/components/classroom/format"
+import { useI18n } from "@/i18n"
 
 export function UploadDropzone({
   file,
   onChange,
-  hint = "Choose a file (PDF, DOCX, ZIP…)",
+  hint,
   invalid = false,
   disabled = false,
 }: {
@@ -16,8 +17,10 @@ export function UploadDropzone({
   invalid?: boolean
   disabled?: boolean
 }) {
+  const { t } = useI18n()
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
+  const resolvedHint = hint ?? t("classroom.upload.hint")
 
   return (
     <div className="space-y-2">
@@ -43,7 +46,7 @@ export function UploadDropzone({
               if (inputRef.current) inputRef.current.value = ""
             }}
             className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-50"
-            aria-label="Remove file"
+            aria-label={t("classroom.upload.removeFile")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -77,8 +80,8 @@ export function UploadDropzone({
             <Upload className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">{hint}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">or drag &amp; drop</p>
+            <p className="text-sm font-medium text-foreground">{resolvedHint}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t("classroom.upload.dragDrop")}</p>
           </div>
         </label>
       )}
