@@ -1,7 +1,9 @@
 package com.ams.service.ai;
 
 import com.ams.exception.AiGenerationException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -9,8 +11,8 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +24,7 @@ import java.util.Map;
 public class GeminiAiClient implements AiClient {
 
     private final RestClient restClient;
+    private final ObjectMapper objectMapper;
     private final String apiKey;
     private final String model;
     private final String baseUrl;
@@ -30,11 +33,13 @@ public class GeminiAiClient implements AiClient {
             @Value("${gemini.api-key:}") String apiKey,
             @Value("${gemini.model:gemini-3.6-flash}") String model,
             @Value("${gemini.base-url:https://generativelanguage.googleapis.com}") String baseUrl,
-            @Value("${gemini.timeout-seconds:30}") int timeoutSeconds) {
+            @Value("${gemini.timeout-seconds:30}") int timeoutSeconds,
+            ObjectMapper objectMapper) {
 
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.model = model;
         this.baseUrl = baseUrl;
+        this.objectMapper = objectMapper;
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Math.max(timeoutSeconds, 1) * 1000);
@@ -61,34 +66,44 @@ public class GeminiAiClient implements AiClient {
         );
 
         try {
-            JsonNode response = restClient.post()
+            // Read the raw bytes instead of relying on a message converter:
+            // Gemini/gateways sometimes answer with application/octet-stream,
+            // which Spring cannot convert to JsonNode or String.
+            RawResponse raw = restClient.post()
                     .uri(baseUrl + "/v1beta/models/{model}:generateContent?key={key}", model, apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payload)
-                    .retrieve()
-                    .body(JsonNode.class);
+                    .exchange((request, response) -> new RawResponse(
+                            response.getStatusCode().value(),
+                            new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8)));
 
+            int status = raw.status();
+            if (status == 429) {
+                throw new AiGenerationException("AI quota exceeded. Please wait a moment and try again.");
+            }
+            if (status == 400 || status == 401 || status == 403) {
+                throw new AiGenerationException(
+                        "The AI request was rejected. Check that GEMINI_API_KEY is valid.");
+            }
+            if (status == 404) {
+                throw new AiGenerationException(
+                        "The configured Gemini model was not found. Set GEMINI_MODEL to an available model, such as gemini-3.6-flash.");
+            }
+            if (status < 200 || status >= 300) {
+                log.warn("Gemini request failed with status {}", status);
+                throw new AiGenerationException(
+                        "The AI service returned an error (" + status + "). Please try again.");
+            }
+
+            String body = raw.body();
+            JsonNode response = body == null || body.isBlank() ? null : objectMapper.readTree(body);
             String text = extractCandidateText(response);
             if (text == null || text.isBlank()) {
                 throw new AiGenerationException("The AI returned an empty outline. Please try again.");
             }
             return text;
-        } catch (RestClientResponseException ex) {
-            int status = ex.getStatusCode().value();
-            log.warn("Gemini request failed with status {}", status);
-            if (status == 429) {
-                throw new AiGenerationException("AI quota exceeded. Please wait a moment and try again.", ex);
-            }
-            if (status == 400 || status == 401 || status == 403) {
-                throw new AiGenerationException(
-                        "The AI request was rejected. Check that GEMINI_API_KEY is valid.", ex);
-            }
-            if (status == 404) {
-                throw new AiGenerationException(
-                        "The configured Gemini model was not found. Set GEMINI_MODEL to an available model, such as gemini-3.6-flash.",
-                        ex);
-            }
-            throw new AiGenerationException("The AI service returned an error (" + status + "). Please try again.", ex);
+        } catch (JsonProcessingException ex) {
+            throw new AiGenerationException("The AI response could not be understood. Please regenerate the outline.", ex);
         } catch (ResourceAccessException ex) {
             throw new AiGenerationException("The AI request timed out. Please try again.", ex);
         } catch (AiGenerationException ex) {
@@ -97,6 +112,9 @@ public class GeminiAiClient implements AiClient {
             log.warn("Gemini request could not be completed: {}", ex.getMessage());
             throw new AiGenerationException("Could not reach the AI service. Please try again.", ex);
         }
+    }
+
+    private record RawResponse(int status, String body) {
     }
 
     static String extractCandidateText(JsonNode response) {
