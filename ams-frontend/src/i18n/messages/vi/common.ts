@@ -75,7 +75,6 @@ const common: CommonMessages = {
   },
   roles: {
     admin: "Quản trị viên",
-    expert: "Chuyên gia",
     teacher: "Giảng viên",
     student: "Học viên",
   },

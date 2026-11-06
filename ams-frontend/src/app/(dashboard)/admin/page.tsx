@@ -42,7 +42,7 @@ import {
   ClipboardList,
 } from "lucide-react"
 
-const ROLE_OPTIONS = ["ROLE_STUDENT", "ROLE_TEACHER", "ROLE_EXPERT", "ROLE_ADMIN"]
+const ROLE_OPTIONS = ["ROLE_STUDENT", "ROLE_TEACHER", "ROLE_ADMIN"]
 
 export default function AdminDashboardPage() {
   const { t } = useI18n()
@@ -129,7 +129,6 @@ function AdminKpis() {
           hint: t("dashboard.admin.kpi.usersHint", {
             students: formatNumber(stats.totalStudents),
             teachers: formatNumber(stats.totalTeachers),
-            experts: formatNumber(stats.totalExperts),
           }),
         },
         {

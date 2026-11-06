@@ -73,7 +73,6 @@ const common = {
   },
   roles: {
     admin: "Admin",
-    expert: "Expert",
     teacher: "Teacher",
     student: "Student",
   },

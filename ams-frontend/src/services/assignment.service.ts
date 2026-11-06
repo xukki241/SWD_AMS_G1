@@ -52,7 +52,7 @@ export const assignmentService = {
     await api.delete(`/assignments/${id}`);
   },
 
-  // Assignment Templates (expert feature, unchanged)
+  // Reusable assignment templates
   getTemplates: async (page = 0, size = 10): Promise<Page<AssignmentTemplate>> => {
     const res = await api.get<Page<AssignmentTemplate>>('/assignment-templates', {
       params: { page, size },

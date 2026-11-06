@@ -34,7 +34,7 @@ public class SubmissionController {
     }
 
     @GetMapping("/assignment/{assignmentId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Get all student submissions for an assignment")
     public ResponseEntity<List<SubmissionDTO.SubmissionResponse>> getSubmissionsByAssignment(@PathVariable Long assignmentId) {
         return ResponseEntity.ok(submissionService.getSubmissionsByAssignment(assignmentId));

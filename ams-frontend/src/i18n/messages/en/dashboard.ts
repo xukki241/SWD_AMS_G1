@@ -35,7 +35,7 @@ const dashboard = {
     },
     kpi: {
       users: "Users",
-      usersHint: "{students} students · {teachers} teachers · {experts} experts",
+      usersHint: "{students} students · {teachers} teachers",
       courses: "Courses",
       coursesHint: "published course catalog",
       enrollments: "Enrollments",
@@ -136,48 +136,6 @@ const dashboard = {
       emptyTitle: "Nothing to grade",
       emptyDescription:
         "When students submit work, assignments needing grades will show up here.",
-    },
-  },
-  expert: {
-    title: "Expert dashboard",
-    subtitle: "Review published courses and build reusable assignment blueprints.",
-    newTemplate: "New template",
-    templateCreated: "Template created",
-    templateCreateFailed: "Could not create template",
-    kpi: {
-      courses: "Published Courses",
-      coursesHint: "courses live in the catalog",
-      templates: "Templates",
-      templatesHint: "reusable assignment blueprints",
-    },
-    courses: {
-      description: "Read-only overview of the live course catalog.",
-      by: "{category} · by {name}",
-      emptyTitle: "No published courses",
-      emptyDescription: "Courses appear here once teachers publish them.",
-    },
-    templates: {
-      title: "Assignment templates",
-      description: "Blueprints your teachers can reuse when publishing coursework",
-      by: "{subject} · by {name}",
-      customDue: "Custom due date",
-      emptyTitle: "No templates yet",
-      emptyDescription: "Create your first assignment blueprint.",
-    },
-    dialog: {
-      title: "New assignment template",
-      description:
-        "A reusable blueprint: subject, instructions, and a default due rule.",
-      subject: "Subject *",
-      subjectPlaceholder: "Choose a subject",
-      titleLabel: "Title *",
-      titlePlaceholder: "e.g. Lab report #1",
-      instructions: "Instructions",
-      instructionsPlaceholder: "Guidance students should follow…",
-      dueRule: "Default due rule",
-      dueRulePlaceholder: "e.g. Weekly, 2 weeks, End of term",
-      create: "Create template",
-      checkForm: "Please check the form.",
     },
   },
 }

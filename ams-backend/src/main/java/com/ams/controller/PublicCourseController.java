@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Read-only catalog endpoints for anonymous visitors, students and experts.
+ * Read-only catalog endpoints for anonymous visitors and students.
  * These only expose PUBLISHED, non-deleted courses.
  */
 @RestController

@@ -19,7 +19,7 @@ public class EvaluationController {
     private final EvaluationService evaluationService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Grade and evaluate a student submission")
     public ResponseEntity<EvaluationDTO.EvaluationResponse> evaluate(@Valid @RequestBody EvaluationDTO.CreateEvaluationRequest request) {
         return ResponseEntity.ok(evaluationService.evaluateSubmission(request));

@@ -36,7 +36,6 @@ export interface AdminDashboard {
   totalUsers: number
   totalStudents: number
   totalTeachers: number
-  totalExperts: number
   totalSubjects: number
   totalCourses: number
   totalEnrollments: number

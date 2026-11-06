@@ -92,7 +92,7 @@ public class EvaluationService {
 
         boolean isStudentOwner = current.getId().equals(submission.getCourseEnrollment().getStudent().getId());
         boolean isStaff = roleChecker.hasRole(current.getId(),
-                Role.RoleName.ADMIN, Role.RoleName.TEACHER, Role.RoleName.EXPERT);
+                Role.RoleName.ADMIN, Role.RoleName.TEACHER);
         if (!isStudentOwner && !isStaff) {
             throw new AccessDeniedException("You can only view evaluations of your own submissions");
         }

@@ -37,8 +37,7 @@ const dashboard: DashboardMessages = {
     },
     kpi: {
       users: "Người dùng",
-      usersHint:
-        "{students} học viên · {teachers} giảng viên · {experts} chuyên gia",
+      usersHint: "{students} học viên · {teachers} giảng viên",
       courses: "Khóa học",
       coursesHint: "danh mục khóa học đã xuất bản",
       enrollments: "Lượt đăng ký",
@@ -141,48 +140,6 @@ const dashboard: DashboardMessages = {
       emptyTitle: "Không có bài cần chấm",
       emptyDescription:
         "Khi học viên nộp bài, các bài tập cần chấm sẽ xuất hiện tại đây.",
-    },
-  },
-  expert: {
-    title: "Bảng điều khiển chuyên gia",
-    subtitle: "Xem xét khóa học đã xuất bản và tạo mẫu bài tập dùng lại được.",
-    newTemplate: "Tạo mẫu mới",
-    templateCreated: "Đã tạo mẫu bài tập",
-    templateCreateFailed: "Không thể tạo mẫu bài tập",
-    kpi: {
-      courses: "Khóa học đã xuất bản",
-      coursesHint: "khóa học đang hiển thị trong danh mục",
-      templates: "Mẫu bài tập",
-      templatesHint: "mẫu bài tập dùng lại được",
-    },
-    courses: {
-      description: "Xem danh mục khóa học đang hoạt động ở chế độ chỉ đọc.",
-      by: "{category} · bởi {name}",
-      emptyTitle: "Chưa có khóa học xuất bản",
-      emptyDescription: "Khóa học sẽ xuất hiện tại đây khi giảng viên xuất bản.",
-    },
-    templates: {
-      title: "Mẫu bài tập",
-      description: "Mẫu để giảng viên dùng lại khi xuất bản bài tập",
-      by: "{subject} · bởi {name}",
-      customDue: "Hạn tự đặt",
-      emptyTitle: "Chưa có mẫu nào",
-      emptyDescription: "Tạo mẫu bài tập đầu tiên của bạn.",
-    },
-    dialog: {
-      title: "Mẫu bài tập mới",
-      description:
-        "Mẫu dùng lại được: môn học, hướng dẫn và quy tắc hạn nộp mặc định.",
-      subject: "Môn học *",
-      subjectPlaceholder: "Chọn môn học",
-      titleLabel: "Tiêu đề *",
-      titlePlaceholder: "VD: Báo cáo thực hành #1",
-      instructions: "Hướng dẫn",
-      instructionsPlaceholder: "Yêu cầu học viên cần thực hiện…",
-      dueRule: "Quy tắc hạn nộp mặc định",
-      dueRulePlaceholder: "VD: Hàng tuần, 2 tuần, Cuối kỳ",
-      create: "Tạo mẫu",
-      checkForm: "Vui lòng kiểm tra lại biểu mẫu.",
     },
   },
 }

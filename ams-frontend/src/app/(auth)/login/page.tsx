@@ -31,7 +31,6 @@ export default function LoginPage() {
       const roles = data.roles || []
       if (roles.includes("ROLE_ADMIN")) router.push("/admin")
       else if (roles.includes("ROLE_TEACHER")) router.push("/teacher")
-      else if (roles.includes("ROLE_EXPERT")) router.push("/expert")
       else router.push("/student")
     } catch (err: any) {
       setError(getApiErrorMessage(err, t("auth.login.errorFallback")))
@@ -49,7 +48,6 @@ export default function LoginPage() {
     { label: t("common.roles.admin"), value: "admin" },
     { label: t("common.roles.teacher"), value: "teacher1" },
     { label: t("common.roles.student"), value: "student1" },
-    { label: t("common.roles.expert"), value: "expert1" },
   ]
 
   return (

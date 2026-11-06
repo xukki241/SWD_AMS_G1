@@ -22,8 +22,8 @@ public class AssignmentTemplate {
     private Subject subject;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "expert_id", nullable = false)
-    private User expert;
+    @JoinColumn(name = "created_by_id", nullable = false)
+    private User createdBy;
 
     @Column(nullable = false, length = 255)
     private String title;

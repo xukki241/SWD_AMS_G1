@@ -22,7 +22,7 @@ const landing = {
     subtitle: "Currently published courses. Log in as a student to enroll.",
     count: "{count} courses",
     emptyTitle: "No published courses yet",
-    emptyDescription: "Teachers and experts publish courses that will appear here.",
+    emptyDescription: "Teachers publish courses that will appear here.",
     enroll: "Enroll",
     free: "Free",
   },

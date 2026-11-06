@@ -26,6 +26,7 @@ import { courseService } from "@/services/course.service"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { TeacherClassworkPanel } from "@/components/classroom/TeacherClassworkPanel"
 
 function DetailsInner() {
   const params = useParams<{ id: string }>()
@@ -37,13 +38,10 @@ function DetailsInner() {
     const name = role.toUpperCase()
     return name.includes("TEACHER") || name.includes("ADMIN")
   })
-  const isExpert = roles.some((role) => role.toUpperCase().includes("EXPERT"))
-  const backHref = canManage ? "/courses" : isExpert ? "/expert#courses" : "/student#classes"
+  const backHref = canManage ? "/courses" : "/student#classes"
   const backLabel = canManage
     ? t("courses.details.backToCourses")
-    : isExpert
-      ? t("courses.details.backToPublished")
-      : t("courses.details.backToMyCourses")
+    : t("courses.details.backToMyCourses")
 
   const { data: course, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["course", courseId, canManage ? "manage" : "public"],
@@ -81,6 +79,8 @@ function DetailsInner() {
 
   const outcomes = splitLines(course.whatStudentsWillLearn)
   const prerequisites = splitLines(course.prerequisites)
+  const canManageClasswork = roles.some((role) => role.toUpperCase().includes("ADMIN")) ||
+    (roles.some((role) => role.toUpperCase().includes("TEACHER")) && user.userId === course.instructorId)
 
   return (
     <div className="space-y-6">
@@ -274,6 +274,7 @@ function DetailsInner() {
           </section>
         </aside>
       </div>
+      {canManageClasswork && <TeacherClassworkPanel courseId={course.id} />}
     </div>
   )
 }

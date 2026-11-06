@@ -22,21 +22,21 @@ public class AssignmentController {
     private final AssignmentService assignmentService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'STUDENT')")
     @Operation(summary = "Get all assignments")
     public ResponseEntity<List<AssignmentDTO.AssignmentResponse>> getAllAssignments() {
         return ResponseEntity.ok(assignmentService.getAllAssignments());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'STUDENT')")
     @Operation(summary = "Get assignment by ID")
     public ResponseEntity<AssignmentDTO.AssignmentResponse> getAssignmentById(@PathVariable Long id) {
         return ResponseEntity.ok(assignmentService.getAssignmentById(id));
     }
 
     @GetMapping("/course/{courseId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'STUDENT')")
     @Operation(summary = "Get assignments of a course")
     public ResponseEntity<List<AssignmentDTO.AssignmentResponse>> getAssignmentsByCourse(@PathVariable Long courseId) {
         return ResponseEntity.ok(assignmentService.getAssignmentsByCourse(courseId));

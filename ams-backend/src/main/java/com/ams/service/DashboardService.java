@@ -27,7 +27,6 @@ public class DashboardService {
     private final CourseRepository courseRepository;
     private final CourseEnrollmentRepository enrollmentRepository;
     private final AssignmentRepository assignmentRepository;
-    private final AssignmentTemplateRepository templateRepository;
     private final SubmissionRepository submissionRepository;
     private final AssignmentEvaluationRepository evaluationRepository;
 
@@ -36,13 +35,12 @@ public class DashboardService {
         long totalUsers = userRepository.count();
         long totalStudents = countByRole(Role.RoleName.STUDENT);
         long totalTeachers = countByRole(Role.RoleName.TEACHER);
-        long totalExperts = countByRole(Role.RoleName.EXPERT);
         long totalSubjects = subjectRepository.count();
         long totalCourses = courseRepository.findByDeletedFalse().size();
         long totalEnrollments = enrollmentRepository.count();
 
         return new DashboardDTO.AdminDashboardResponse(
-                totalUsers, totalStudents, totalTeachers, totalExperts, totalSubjects, totalCourses, totalEnrollments
+                totalUsers, totalStudents, totalTeachers, totalSubjects, totalCourses, totalEnrollments
         );
     }
 
@@ -101,20 +99,6 @@ public class DashboardService {
         return new DashboardDTO.StudentDashboardResponse(
                 totalEnrollments, activeCourses, submitted, graded, averageScore
         );
-    }
-
-    @Transactional(readOnly = true)
-    public DashboardDTO.ExpertDashboardResponse getExpertDashboard() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User expert = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Expert not found: " + username));
-
-        long totalTemplates = templateRepository.findByExpertId(expert.getId()).size();
-        long publishedCourses = courseRepository.findByDeletedFalse().stream()
-                .filter(c -> c.getStatus() == com.ams.entity.Course.Status.PUBLISHED)
-                .count();
-
-        return new DashboardDTO.ExpertDashboardResponse(totalTemplates, publishedCourses);
     }
 
     private long countByRole(Role.RoleName roleName) {

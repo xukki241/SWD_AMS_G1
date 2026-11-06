@@ -76,8 +76,8 @@ export interface AssignmentTemplate {
   id: number;
   subjectId: number;
   subjectName: string;
-  expertId: number;
-  expertName: string;
+  createdById: number;
+  createdByName: string;
   title: string;
   instructions: string;
   defaultDueRule: string;
@@ -222,15 +222,9 @@ export interface AdminDashboard {
   totalUsers: number;
   totalStudents: number;
   totalTeachers: number;
-  totalExperts: number;
   totalSubjects: number;
   totalCourses: number;
   totalEnrollments: number;
-}
-
-export interface ExpertDashboard {
-  totalTemplates: number;
-  publishedCourses: number;
 }
 
 // Categories

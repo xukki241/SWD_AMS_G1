@@ -23,7 +23,6 @@ import {
   Users,
   ShieldCheck,
   FolderKanban,
-  FileText,
   BookOpen,
 } from "lucide-react"
 
@@ -31,7 +30,7 @@ type NavLink = {
   name: string
   href: string
   icon: React.ComponentType<{ className?: string }>
-  /** Hash section on the role home page (student/teacher/expert/admin) */
+  /** Hash section on the role home page (student/teacher/admin) */
   section?: string
 }
 
@@ -95,20 +94,15 @@ export function Sidebar() {
 
   const roles = user?.roles || []
   const isAdmin = roles.some((r) => r.includes("ADMIN"))
-  const isExpert = roles.some((r) => r.includes("EXPERT"))
   const isTeacher = roles.some((r) => r.includes("TEACHER"))
   const isStudent = roles.some((r) => r.includes("STUDENT"))
-  const isCourseUser = isStudent || isTeacher || isExpert
+  const isCourseUser = isStudent || isTeacher
 
   const homePath = isAdmin
     ? "/admin"
-    : isTeacher
-      ? "/teacher"
-      : isExpert
-        ? "/expert"
-        : "/student"
+    : isTeacher ? "/teacher" : "/student"
 
-  // Students: their enrollments; teachers/experts: courses they instruct.
+  // Students: their enrollments; teachers: courses they instruct.
   const { data: myEnrollments } = useQuery({
     queryKey: ["sidebar-my-enrollments", user?.userId],
     queryFn: () => enrollmentService.getMyEnrollments(),
@@ -118,16 +112,11 @@ export function Sidebar() {
   const { data: myCoursesPage } = useQuery({
     queryKey: ["sidebar-my-courses", user?.userId],
     queryFn: async () => {
-      const page = isTeacher
-        ? await courseService.list({ page: 0, size: 50 })
-        : await courseService.listPublic({ page: 0, size: 50 })
+      const page = await courseService.list({ page: 0, size: 50 })
       const content = page.content || []
-      // Teachers see their own courses; experts browse the published catalog.
-      return isTeacher
-        ? content.filter((c) => user && c.instructorId === user.userId)
-        : content
+      return content.filter((c) => user && c.instructorId === user.userId)
     },
-    enabled: (isTeacher || isExpert) && !isAdmin && !!user,
+    enabled: isTeacher && !isAdmin && !!user,
   })
 
   const primaryLinks: NavLink[] = isAdmin
@@ -193,22 +182,7 @@ export function Sidebar() {
               icon: BookOpen,
             },
           ]
-        : isExpert
-          ? [
-              {
-                name: t("dashboard.nav.publishedCourses"),
-                href: "/expert#courses",
-                icon: Home,
-                section: "courses",
-              },
-              {
-                name: t("dashboard.nav.templates"),
-                href: "/expert#templates",
-                icon: FileText,
-                section: "templates",
-              },
-            ]
-          : []
+        : []
 
   const courseListLabel = isStudent
     ? t("dashboard.nav.myCourses")
@@ -226,10 +200,8 @@ export function Sidebar() {
     // On a course page, keep the course-list entry highlighted instead of a hash section.
     if (/^\/courses\/\d+/.test(pathname)) {
       if (!link.section) return link.href === "/courses"
-      // Students reach a course from "My Courses"; experts from "Published Courses";
-      // teachers/admins use "Manage Courses"/"Course catalog".
+      // Students reach a course from "My Courses"; teachers/admins use course management.
       if (isStudent && !isAdmin) return link.section === "classes"
-      if (isExpert && !isTeacher && !isAdmin) return link.section === "courses"
       return false
     }
     // Plain routes (no hash section) also match their nested paths, e.g. /courses/[id].

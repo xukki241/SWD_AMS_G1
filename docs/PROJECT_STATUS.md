@@ -34,7 +34,7 @@
 | Role | Tài khoản |
 |---|---|
 | Admin | `admin` |
-| Experts | `expert1`, `expert2` |
+| Legacy expert accounts (now teachers) | `expert1`, `expert2` |
 | Teachers | `teacher1` (CRS-SWD01, CRS-SCRUM2), `teacher2` (CRS-SPRMVC, CRS-SRVLT1), `teacher3` (CRS-DBSQL1, CRS-LINALG) |
 | Students | `student1` … `student17` (`student11` SUSPENDED cho demo) |
 
@@ -47,14 +47,13 @@
 | Login student17 | Enroll CRS-SCRUM2 (50.000₫) → PENDING_PAYMENT, có 1 payment FAILED + 1 PENDING → retry VNPay/SePay/VietQR → ACTIVE |
 | Login teacher2 | Chấm bài Servlet/Spring MVC qua GradeDialog |
 | Login admin | Users, Courses, Enrollments, Audit |
-| Login expert1 | Templates + Published courses (read-only) |
 
 ## 4. API chính (course-centric)
 
 | Nhóm | Endpoint |
 |---|---|
 | Courses | `GET/POST /api/courses`, `GET/PUT/DELETE /api/courses/{id}`, content/ai |
-| Public catalog | `GET /api/public/courses`, `GET /api/public/courses/{id}` — chỉ course PUBLISHED, không cần JWT (landing page, student, expert) |
+| Public catalog | `GET /api/public/courses`, `GET /api/public/courses/{id}` — chỉ course PUBLISHED, không cần JWT (landing page, student) |
 | Enrollments | `POST /api/courses/{id}/enroll`, `GET /api/enrollments/my`, `GET /api/courses/{id}/enrollments[/me]`, `DELETE /api/enrollments/{id}` |
 | Assignments | `GET /api/assignments/course/{courseId}`, `POST /api/assignments/course/{courseId}`, `PATCH /api/assignments/{id}`, `GET /api/assignments/overview` |
 | Submissions | `POST /api/submissions` (multipart: courseEnrollmentId + assignmentId + file), `DELETE /api/submissions/{id}` |

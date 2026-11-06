@@ -8,7 +8,6 @@ public class DashboardDTO {
             long totalUsers,
             long totalStudents,
             long totalTeachers,
-            long totalExperts,
             long totalSubjects,
             long totalCourses,
             long totalEnrollments
@@ -27,10 +26,5 @@ public class DashboardDTO {
             long submittedAssignments,
             long gradedAssignments,
             BigDecimal averageScore
-    ) {}
-
-    public record ExpertDashboardResponse(
-            long totalTemplates,
-            long publishedCourses
     ) {}
 }

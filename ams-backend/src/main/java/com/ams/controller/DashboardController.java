@@ -39,11 +39,4 @@ public class DashboardController {
     public ResponseEntity<DashboardDTO.StudentDashboardResponse> getStudentDashboard() {
         return ResponseEntity.ok(dashboardService.getStudentDashboard());
     }
-
-    @GetMapping("/expert")
-    @PreAuthorize("hasRole('EXPERT')")
-    @Operation(summary = "Get expert dashboard statistics")
-    public ResponseEntity<DashboardDTO.ExpertDashboardResponse> getExpertDashboard() {
-        return ResponseEntity.ok(dashboardService.getExpertDashboard());
-    }
 }

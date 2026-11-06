@@ -1,4 +1,4 @@
-export const ROLES = ['ADMIN', 'EXPERT', 'TEACHER', 'STUDENT'] as const;
+export const ROLES = ['ADMIN', 'TEACHER', 'STUDENT'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ACCOUNT_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as const;
@@ -28,11 +28,6 @@ export const NAV_ITEMS = {
     { label: 'Users & Roles', href: '/admin#users', icon: 'Users' },
     { label: 'Classes', href: '/admin#classes', icon: 'School' },
     { label: 'Audit Trail', href: '/admin#audit', icon: 'ShieldCheck' },
-  ],
-  EXPERT: [
-    { label: 'Dashboard', href: '/expert', icon: 'LayoutDashboard' },
-    { label: 'My Classes', href: '/expert#classes', icon: 'School' },
-    { label: 'Templates', href: '/expert#templates', icon: 'FileText' },
   ],
   TEACHER: [
     { label: 'Dashboard', href: '/teacher', icon: 'LayoutDashboard' },

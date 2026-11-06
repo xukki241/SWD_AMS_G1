@@ -33,7 +33,7 @@ public class SubjectController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXPERT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Create new subject")
     public ResponseEntity<SubjectDTO.SubjectResponse> createSubject(@Valid @RequestBody SubjectDTO.CreateSubjectRequest request) {
         return ResponseEntity.ok(subjectService.createSubject(request));

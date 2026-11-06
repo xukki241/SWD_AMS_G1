@@ -2,7 +2,6 @@ import { translate, type TranslationKey } from "./runtime"
 
 const ROLE_KEYS: Record<string, TranslationKey> = {
   ADMIN: "common.roles.admin",
-  EXPERT: "common.roles.expert",
   TEACHER: "common.roles.teacher",
   STUDENT: "common.roles.student",
 }

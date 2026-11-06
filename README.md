@@ -27,7 +27,7 @@ Assignment Management System (AMS) is a course-based learning platform POC for S
 - Enroll Course with Payment (rubric #4): free courses enroll as `ACTIVE`; paid courses stay `PENDING_PAYMENT` until payment succeeds
 - Assignments per course: submit → grade flow with student work-state overview
 - Payments: SePay and PayOS (hosted checkout + webhook/IPN), VNPay Sandbox, VietQR sandbox confirm
-- Roles: `ADMIN`, `EXPERT`, `TEACHER`, `STUDENT` with JWT auth
+- Roles: `ADMIN`, `TEACHER`, `STUDENT` with JWT auth
 - Flyway-managed PostgreSQL schema (V1–V3) and seed data for demos
 
 ## Tech stack
@@ -171,8 +171,7 @@ Seeded in Flyway `V2` (password is public demo data). **Password for all account
 | Role | Usernames |
 | ---- | --------- |
 | Admin | `admin` |
-| Experts | `expert1`, `expert2` |
-| Teachers | `teacher1`, `teacher2`, `teacher3` |
+| Teachers | `teacher1`, `teacher2`, `teacher3`, `expert1`, `expert2` (legacy accounts migrated to teacher) |
 | Students | `student1` … `student17` (`student11` is `SUSPENDED` for demo) |
 
 Demo course catalog (see [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for the full matrix):
@@ -191,7 +190,6 @@ Suggested golden-path logins:
 - Teacher: `teacher1` / `Password@123` → `/teacher`
 - Student: `student1` / `Password@123` → `/student` (enroll / pay / submit)
 - Admin: `admin` / `Password@123` → `/admin`
-- Expert: `expert1` / `Password@123` → `/expert`
 
 ## Course management
 
@@ -321,7 +319,7 @@ SWD_AMS_G1/
 1. Browser hits Next.js (`ams-frontend`). Protected dashboards read JWT from the auth store and attach `Authorization: Bearer …` via Axios (`src/lib/axios.ts`).
 2. API request reaches Spring Security (`SecurityConfig`): public auth, payment IPN/return, Swagger, and `/api/files/**`; everything else requires a valid JWT (`JwtAuthenticationFilter`).
 3. Controllers delegate to services; JPA repositories talk to PostgreSQL. Schema is validated (`ddl-auto: validate`) against Flyway history.
-4. JSON responses update TanStack Query caches; role home routes (`/admin`, `/teacher`, `/student`, `/expert`) and `/courses/[id]` render the course UX.
+4. JSON responses update TanStack Query caches; role home routes (`/admin`, `/teacher`, `/student`) and `/courses/[id]` render the course UX.
 
 ### Auth model
 
@@ -359,7 +357,7 @@ Student submits assignment → instructor evaluates
 | `/api/courses/{id}/ai` | Gemini outline draft + `…/outline/accept` |
 | `/api/courses/{id}/enroll`, `/api/enrollments` | Enroll, my enrollments, roster, cancel |
 | `/api/assignments` | Course assignment CRUD, `GET /course/{courseId}`, student overview |
-| `/api/assignment-templates` | Expert templates |
+| `/api/assignment-templates` | Reusable templates (teacher/admin) |
 | `/api/submissions` | Multipart submit, list, unsubmit |
 | `/api/evaluations` | Grade + feedback |
 | `/api/payment` | VNPay / SePay course create, IPN, return, VietQR confirm, my txns |
@@ -374,7 +372,7 @@ Student submits assignment → instructor evaluates
 | `/login`, `/register` | Auth |
 | `/` | Public landing with published courses |
 | `/admin` | Users, courses overview, audit |
-| `/teacher`, `/expert`, `/student` | Role dashboards |
+| `/teacher`, `/student` | Role dashboards |
 | `/courses` | Course catalog / management list |
 | `/courses/new` | Create course |
 | `/courses/[id]` | Course details + enroll |
@@ -556,7 +554,7 @@ Production should not rely on Compose demo defaults for merchant secrets.
 ### Flyway / schema errors
 
 - `ddl-auto: validate` means the DB must match migrations. Do not hand-edit schema out of band.
-- Fresh demo DB (full Flyway reseed V1–V3): `docker compose down -v && docker compose up --build`.
+- Fresh demo DB (full Flyway reseed V1–V4): `docker compose down -v && docker compose up --build`.
 
 ### Frontend calls wrong API / CORS errors
 

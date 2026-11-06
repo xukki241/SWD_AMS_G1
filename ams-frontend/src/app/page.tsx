@@ -40,7 +40,6 @@ export default function Home() {
     if (isAuthenticated && user) {
       const roles = user.roles || []
       if (roles.includes("ROLE_ADMIN")) router.replace("/admin")
-      else if (roles.includes("ROLE_EXPERT")) router.replace("/expert")
       else if (roles.includes("ROLE_TEACHER")) router.replace("/teacher")
       else router.replace("/student")
     }

@@ -12,8 +12,8 @@ public class AssignmentDTO {
             Long id,
             Long subjectId,
             String subjectName,
-            Long expertId,
-            String expertName,
+            Long createdById,
+            String createdByName,
             String title,
             String instructions,
             String defaultDueRule
