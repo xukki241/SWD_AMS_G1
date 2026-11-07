@@ -40,9 +40,11 @@ export const assignmentService = {
     data: {
       title?: string;
       instructions?: string;
+      rubric?: string;
       topic?: string;
       dueAt?: string;
       maxScore?: number;
+      status?: 'DRAFT' | 'PUBLISHED';
     }
   ): Promise<Assignment> => {
     const res = await api.patch<Assignment>(`/assignments/${id}`, data);

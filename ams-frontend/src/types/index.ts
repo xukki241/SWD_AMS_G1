@@ -1,8 +1,11 @@
 // Auth
 export interface LoginRequest {
-  username: string;
+  identifier: string;
   password: string;
 }
+
+export interface RegistrationPendingVerification { message: string; email: string }
+export interface UserProfile { id: number; username: string; email: string; fullName: string; avatarUrl?: string | null }
 
 export interface AuthResponse {
   token: string;
@@ -11,6 +14,7 @@ export interface AuthResponse {
   username: string;
   email: string;
   fullName: string;
+  avatarUrl?: string | null;
   roles: string[];
 }
 
@@ -30,6 +34,7 @@ export interface CreateUserRequest {
   email: string;
   password: string;
   fullName: string;
+  avatarUrl?: string | null;
   roles: string[];
 }
 
@@ -101,18 +106,22 @@ export interface Assignment {
   templateId?: number;
   title: string;
   instructions?: string;
+  rubric?: string | null;
   topic?: string;
   dueAt: string;
   maxScore: number;
+  status: 'DRAFT' | 'PUBLISHED';
 }
 
 export interface CreateAssignmentRequest {
   templateId?: number;
   title: string;
   instructions?: string;
+  rubric?: string;
   topic?: string;
   dueAt: string;
   maxScore?: number;
+  status?: 'DRAFT' | 'PUBLISHED';
 }
 
 /** Student's view of one course assignment with their own work state. */
@@ -127,7 +136,7 @@ export interface AssignmentOverviewItem {
   topic?: string;
   dueAt: string;
   maxScore: number;
-  workState: 'NOT_STARTED' | 'DRAFT' | 'SUBMITTED' | 'LATE' | 'GRADED';
+  workState: 'NOT_STARTED' | 'DRAFT' | 'SUBMITTED' | 'LATE' | 'GRADED' | 'UNDER_EVALUATION';
   submissionId?: number;
   score?: number;
 }
@@ -188,6 +197,10 @@ export interface AssignmentEvaluation {
   score?: number;
   feedback?: string;
   evaluationStatus: 'PENDING' | 'COMPLETED' | 'APPEALED';
+  aiDraftScore?: number | null;
+  aiDraftFeedback?: string | null;
+  published?: boolean;
+  viewedAt?: string | null;
 }
 
 export interface CreateEvaluationRequest {

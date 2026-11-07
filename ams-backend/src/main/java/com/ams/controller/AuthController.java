@@ -25,7 +25,30 @@ public class AuthController {
 
     @PostMapping("/register")
     @Operation(summary = "Register new student account")
-    public ResponseEntity<AuthDTO.AuthResponse> register(@Valid @RequestBody AuthDTO.RegisterRequest request) {
+    public ResponseEntity<AuthDTO.RegisterResponse> register(@Valid @RequestBody AuthDTO.RegisterRequest request) {
         return ResponseEntity.ok(authService.register(request));
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<AuthDTO.RegisterResponse> verifyEmail(@RequestParam String token) {
+        authService.verifyEmail(token);
+        return ResponseEntity.ok(new AuthDTO.RegisterResponse("Email verified. You can now sign in.", null));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<AuthDTO.RegisterResponse> forgotPassword(@Valid @RequestBody AuthDTO.ForgotPasswordRequest request) {
+        authService.requestPasswordReset(request.email());
+        return ResponseEntity.ok(new AuthDTO.RegisterResponse("If that email is registered, a reset link will be sent.", request.email()));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody AuthDTO.ResetPasswordRequest request) {
+        authService.resetPassword(request.token(), request.password());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthDTO.AuthResponse> google(@Valid @RequestBody AuthDTO.GoogleLoginRequest request) {
+        return ResponseEntity.ok(authService.loginWithGoogle(request.idToken()));
     }
 }

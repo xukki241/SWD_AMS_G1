@@ -54,6 +54,7 @@ const common: CommonMessages = {
     change: "Thay đổi",
     copy: "Sao chép",
     createCourse: "Tạo khóa học",
+    profile: "Hồ sơ của tôi",
   },
   status: {
     active: "Hoạt động",
@@ -66,6 +67,7 @@ const common: CommonMessages = {
     draft: "Nháp",
     published: "Đã xuất bản",
     submitted: "Đã nộp",
+    underEvaluation: "Đang chấm",
     late: "Nộp muộn",
     graded: "Đã chấm",
     appealed: "Đang phúc khảo",
@@ -77,6 +79,13 @@ const common: CommonMessages = {
     admin: "Quản trị viên",
     teacher: "Giảng viên",
     student: "Học viên",
+  },
+  profile: {
+    title: "Hồ sơ của tôi", fullName: "Họ và tên", email: "Email", username: "Tên đăng nhập", avatar: "Ảnh đại diện",
+    save: "Lưu hồ sơ", changePassword: "Đổi mật khẩu", currentPassword: "Mật khẩu hiện tại",
+    newPassword: "Mật khẩu mới", confirmPassword: "Nhập lại mật khẩu mới", saved: "Đã lưu hồ sơ",
+    passwordChanged: "Đã đổi mật khẩu", passwordRules: "Ít nhất 10 ký tự, có chữ hoa/thường, số và ký hiệu.",
+    mismatch: "Mật khẩu mới nhập lại không khớp.",
   },
   units: {
     free: "Miễn phí",
@@ -122,6 +131,7 @@ const common: CommonMessages = {
     notAvailable: "—",
     selected: "Đã chọn",
     menu: "Menu",
+    closeMenu: "Đóng menu",
   },
   messages: {
     saved: "Đã lưu thay đổi.",

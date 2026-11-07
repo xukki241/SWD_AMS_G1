@@ -75,7 +75,7 @@ export function SubmitDialog({
 
   const doUpload = useCallback(
     async (attempt: number) => {
-      if (!file || !assignment) return
+      if ((!file && !note.trim()) || !assignment) return
       setSubmitting(true)
       setPhase(attempt === 0 ? "uploading" : "retrying")
       setErrorMsg(null)
@@ -95,7 +95,8 @@ export function SubmitDialog({
             onUploadProgress: (e) => {
               if (e.total) setProgress(Math.round((e.loaded / e.total) * 100))
             },
-          }
+          },
+          note
         )
 
         setPhase("done")
@@ -199,6 +200,7 @@ export function SubmitDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {assignment?.rubric && <div className="rounded-md bg-muted/60 p-3"><p className="text-xs font-semibold">Rubric / tiêu chí chấm</p><p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{assignment.rubric}</p></div>}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
               {t("classroom.submit.fileLabel")}
@@ -264,12 +266,12 @@ export function SubmitDialog({
             <label htmlFor="submission-note" className="text-xs font-medium text-muted-foreground">
               {t("classroom.submit.noteLabel")}
             </label>
-            <Input
+            <textarea
               id="submission-note"
               placeholder={t("classroom.submit.notePlaceholder")}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="rounded-full"
+              className="min-h-24 w-full rounded-md border bg-background p-3 text-sm"
               disabled={inFlight}
             />
           </div>
@@ -295,7 +297,7 @@ export function SubmitDialog({
           ) : (
             <Button
               onClick={submit}
-              disabled={inFlight || !file || !assignment}
+              disabled={inFlight || (!file && !note.trim()) || !assignment}
               className="rounded-full shadow-gc hover:shadow-gc-lg"
             >
               {inFlight ? (

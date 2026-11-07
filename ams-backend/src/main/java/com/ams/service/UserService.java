@@ -14,6 +14,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.util.Map;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +30,7 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FileUploadService fileUploadService;
     private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
@@ -93,11 +98,80 @@ public class UserService {
         }
         if (request.accountStatus() != null) {
             user.setAccountStatus(request.accountStatus());
+            if (request.accountStatus() == User.AccountStatus.ACTIVE) user.setFailedLoginAttempts(0);
         }
 
         user = userRepository.save(user);
         auditLogService.log("UPDATE_USER", "User", user.getUsername());
         return mapToResponse(user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserDTO.ProfileResponse getMyProfile() {
+        return mapProfile(currentUser());
+    }
+
+    @Transactional
+    public UserDTO.ProfileResponse updateMyProfile(UserDTO.UpdateProfileRequest request) {
+        User user = currentUser();
+        user.setFullName(request.fullName().trim());
+        return mapProfile(userRepository.save(user));
+    }
+
+    @Transactional
+    public UserDTO.ProfileResponse uploadMyAvatar(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty() || file.getSize() > 5L * 1024 * 1024
+                || file.getContentType() == null || !file.getContentType().startsWith("image/")) {
+            throw new BadRequestException("Avatar must be an image no larger than 5 MB");
+        }
+        Map<?, ?> result = fileUploadService.uploadFile(file, "avatars");
+        User user = currentUser();
+        user.setAvatarUrl((String) result.get("secure_url"));
+        return mapProfile(userRepository.save(user));
+    }
+
+    @Transactional
+    public void changeMyPassword(UserDTO.ChangePasswordRequest request) {
+        User user = currentUser();
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+        validateStrongPassword(request.newPassword());
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new BadRequestException("New password must be different from current password");
+        }
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        auditLogService.log("CHANGE_PASSWORD", "User", user.getUsername());
+    }
+
+    @Transactional
+    public UserDTO.UserResponse unlockUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        user.setFailedLoginAttempts(0);
+        user.setAccountStatus(User.AccountStatus.ACTIVE);
+        user = userRepository.save(user);
+        auditLogService.log("UNLOCK_USER", "User", user.getUsername());
+        return mapToResponse(user);
+    }
+
+    private UserDTO.ProfileResponse mapProfile(User user) {
+        return new UserDTO.ProfileResponse(user.getId(), user.getUsername(), user.getEmail(), user.getFullName(), user.getAvatarUrl());
+    }
+
+    private User currentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+    }
+
+    private void validateStrongPassword(String password) {
+        if (password == null || password.length() < 10 || !password.matches(".*[A-Z].*")
+                || !password.matches(".*[a-z].*") || !password.matches(".*\\d.*")
+                || !password.matches(".*[^A-Za-z0-9].*")) {
+            throw new BadRequestException("Password must be at least 10 characters and include upper/lowercase letters, a number, and a symbol");
+        }
     }
 
     @Transactional

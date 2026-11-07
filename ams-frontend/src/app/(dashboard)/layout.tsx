@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { Header } from "@/components/layout/Header"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { useAuthStore } from "@/stores/authStore"
@@ -11,25 +11,27 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, hasHydrated } = useAuthStore()
   const router = useRouter()
   const pathname = usePathname()
   const firstRender = useRef(true)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login")
+    if (hasHydrated && !isAuthenticated) {
+      router.replace("/login")
     }
-  }, [isAuthenticated, router])
+  }, [hasHydrated, isAuthenticated, router])
 
   useEffect(() => {
     // Scroll the main pane back to top on route change.
     const main = document.querySelector("main")
     if (main) main.scrollTo({ top: 0, behavior: "instant" })
     if (firstRender.current) firstRender.current = false
+    setMobileSidebarOpen(false)
   }, [pathname])
 
-  if (!isAuthenticated) {
+  if (!hasHydrated || !isAuthenticated) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -41,10 +43,16 @@ export default function DashboardLayout({
   // entry animation re-runs (fade-up + slight scale, GC-style page transition).
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header
+        mobileMenuOpen={mobileSidebarOpen}
+        onMenuToggle={() => setMobileSidebarOpen((open) => !open)}
+      />
       <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-8 overflow-y-auto max-h-[calc(100vh-4rem)]">
+        <Sidebar
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
+        />
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-8 max-h-[calc(100dvh-4rem)]">
           <div
             key={pathname}
             className="animate-fade-up"

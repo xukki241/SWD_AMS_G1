@@ -1,5 +1,6 @@
 package com.ams.dto;
 
+import com.ams.entity.Assignment;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -36,26 +37,32 @@ public class AssignmentDTO {
             Long templateId,
             String title,
             String instructions,
+            String rubric,
             String topic,
             LocalDateTime dueAt,
-            BigDecimal maxScore
+            BigDecimal maxScore,
+            Assignment.Status status
     ) {}
 
     public record CreateAssignmentRequest(
             Long templateId,
             @NotBlank String title,
             String instructions,
+            String rubric,
             String topic,
             @NotNull LocalDateTime dueAt,
-            BigDecimal maxScore
+            BigDecimal maxScore,
+            Assignment.Status status
     ) {}
 
     public record UpdateAssignmentRequest(
             String title,
             String instructions,
+            String rubric,
             String topic,
             LocalDateTime dueAt,
-            BigDecimal maxScore
+            BigDecimal maxScore,
+            Assignment.Status status
     ) {}
 
     /** Student's view of one course assignment with their own work state. */

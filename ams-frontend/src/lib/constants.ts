@@ -31,14 +31,14 @@ export const NAV_ITEMS = {
   ],
   TEACHER: [
     { label: 'Dashboard', href: '/teacher', icon: 'LayoutDashboard' },
-    { label: 'My Classes', href: '/teacher#classes', icon: 'School' },
-    { label: 'To-do', href: '/teacher#todo', icon: 'CheckSquare' },
+    { label: 'My Classes', href: '/teacher/courses', icon: 'School' },
+    { label: 'To-do', href: '/teacher/work', icon: 'CheckSquare' },
   ],
   STUDENT: [
     { label: 'Home', href: '/student', icon: 'LayoutDashboard' },
-    { label: 'My Classes', href: '/student#classes', icon: 'School' },
+    { label: 'My Classes', href: '/student/courses', icon: 'School' },
     { label: 'Find a Class', href: '/student#find', icon: 'KeyRound' },
     { label: 'Payments', href: '/student#payments', icon: 'CreditCard' },
-    { label: 'My Work', href: '/student#work', icon: 'Upload' },
+    { label: 'My Work', href: '/student/work', icon: 'Upload' },
   ],
 } as const;

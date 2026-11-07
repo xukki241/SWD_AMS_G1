@@ -25,7 +25,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCase(username, username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
 
         List<UserRole> activeRoles = userRoleRepository.findActiveRolesByUserId(user.getId());
@@ -38,6 +38,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .username(user.getUsername())
                 .password(user.getPassword())
                 .disabled(user.getAccountStatus() != User.AccountStatus.ACTIVE)
+                .accountLocked(user.getFailedLoginAttempts() >= 3)
                 .authorities(authorities)
                 .build();
     }

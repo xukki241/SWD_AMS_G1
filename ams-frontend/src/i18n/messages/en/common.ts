@@ -52,6 +52,7 @@ const common = {
     change: "Change",
     copy: "Copy",
     createCourse: "Create course",
+    profile: "My profile",
   },
   status: {
     active: "Active",
@@ -64,6 +65,7 @@ const common = {
     draft: "Draft",
     published: "Published",
     submitted: "Submitted",
+    underEvaluation: "Under evaluation",
     late: "Late",
     graded: "Graded",
     appealed: "Appealed",
@@ -75,6 +77,13 @@ const common = {
     admin: "Admin",
     teacher: "Teacher",
     student: "Student",
+  },
+  profile: {
+    title: "My profile", fullName: "Full name", email: "Email", username: "Username", avatar: "Profile photo",
+    save: "Save profile", changePassword: "Change password", currentPassword: "Current password",
+    newPassword: "New password", confirmPassword: "Confirm new password", saved: "Profile saved",
+    passwordChanged: "Password changed", passwordRules: "At least 10 characters, upper/lowercase, number, and symbol.",
+    mismatch: "New passwords do not match.",
   },
   units: {
     free: "Free",
@@ -120,6 +129,7 @@ const common = {
     notAvailable: "—",
     selected: "Selected",
     menu: "Menu",
+    closeMenu: "Close menu",
   },
   messages: {
     saved: "Changes saved.",

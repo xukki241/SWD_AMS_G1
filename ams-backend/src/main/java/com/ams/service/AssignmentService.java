@@ -30,7 +30,14 @@ public class AssignmentService {
 
     @Transactional(readOnly = true)
     public List<AssignmentDTO.AssignmentResponse> getAllAssignments() {
+        User student = isStudent() ? currentUser() : null;
+        List<Long> activeCourseIds = student == null ? List.of() : enrollmentRepository.findByStudentId(student.getId()).stream()
+                .filter(e -> e.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE
+                        || e.getStatus() == CourseEnrollment.EnrollmentStatus.COMPLETED)
+                .map(e -> e.getCourse().getId()).toList();
         return assignmentRepository.findAll().stream()
+                .filter(a -> student == null || (activeCourseIds.contains(a.getCourse().getId())
+                        && a.getStatus() == Assignment.Status.PUBLISHED))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -39,12 +46,16 @@ public class AssignmentService {
     public AssignmentDTO.AssignmentResponse getAssignmentById(Long id) {
         Assignment a = assignmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found with id: " + id));
+        requireStudentEnrollment(a.getCourse().getId());
+        requirePublishedForStudent(a);
         return mapToResponse(a);
     }
 
     @Transactional(readOnly = true)
     public List<AssignmentDTO.AssignmentResponse> getAssignmentsByCourse(Long courseId) {
+        requireStudentEnrollment(courseId);
         return assignmentRepository.findByCourseIdOrderByDueAtAsc(courseId).stream()
+                .filter(a -> !isStudent() || a.getStatus() == Assignment.Status.PUBLISHED)
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -74,9 +85,11 @@ public class AssignmentService {
                 .template(template)
                 .title(request.title())
                 .instructions(request.instructions())
+                .rubric(request.rubric())
                 .topic(blankToNull(request.topic()))
                 .dueAt(request.dueAt())
                 .maxScore(request.maxScore() != null ? request.maxScore() : BigDecimal.TEN)
+                .status(request.status() == null ? Assignment.Status.PUBLISHED : request.status())
                 .build();
 
         assignment = assignmentRepository.save(assignment);
@@ -95,12 +108,14 @@ public class AssignmentService {
         List<AssignmentDTO.AssignmentOverviewItem> items = new ArrayList<>();
 
         for (CourseEnrollment enrollment : enrollmentRepository.findByStudentId(student.getId())) {
-            if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.CANCELLED) {
+            if (enrollment.getStatus() != CourseEnrollment.EnrollmentStatus.ACTIVE
+                    && enrollment.getStatus() != CourseEnrollment.EnrollmentStatus.COMPLETED) {
                 continue;
             }
             Course course = enrollment.getCourse();
 
             for (Assignment a : assignmentRepository.findByCourseIdOrderByDueAtAsc(course.getId())) {
+                if (a.getStatus() != Assignment.Status.PUBLISHED) continue;
                 Submission submission = submissionRepository
                         .findByCourseEnrollmentIdAndAssignmentId(enrollment.getId(), a.getId())
                         .orElse(null);
@@ -114,8 +129,10 @@ public class AssignmentService {
                     submissionId = submission.getId();
                     AssignmentEvaluation eval =
                             evaluationRepository.findBySubmissionId(submission.getId()).orElse(null);
-                    if (eval != null && eval.getScore() != null) {
+                    if (eval != null && eval.isPublished() && eval.getScore() != null) {
                         score = eval.getScore();
+                    } else if (eval != null && !eval.isPublished()) {
+                        workState = "UNDER_EVALUATION";
                     }
                 }
 
@@ -151,6 +168,7 @@ public class AssignmentService {
         if (request.instructions() != null) {
             assignment.setInstructions(request.instructions());
         }
+        if (request.rubric() != null) assignment.setRubric(request.rubric());
         if (request.topic() != null) {
             assignment.setTopic(blankToNull(request.topic()));
         }
@@ -160,6 +178,7 @@ public class AssignmentService {
         if (request.maxScore() != null) {
             assignment.setMaxScore(request.maxScore());
         }
+        if (request.status() != null) assignment.setStatus(request.status());
 
         assignment = assignmentRepository.save(assignment);
         auditLogService.log("UPDATE_ASSIGNMENT", "Assignment", assignment.getTitle());
@@ -184,6 +203,28 @@ public class AssignmentService {
         }
     }
 
+    private void requireStudentEnrollment(Long courseId) {
+        if (!isStudent()) return;
+        User student = currentUser();
+        CourseEnrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(courseId, student.getId())
+                .orElseThrow(() -> new AccessDeniedException("You are not enrolled in this course"));
+        if (enrollment.getStatus() != CourseEnrollment.EnrollmentStatus.ACTIVE
+                && enrollment.getStatus() != CourseEnrollment.EnrollmentStatus.COMPLETED) {
+            throw new AccessDeniedException("Complete payment before accessing course assignments");
+        }
+    }
+
+    private boolean isStudent() {
+        return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
+    }
+
+    private void requirePublishedForStudent(Assignment assignment) {
+        if (isStudent() && assignment.getStatus() != Assignment.Status.PUBLISHED) {
+            throw new ResourceNotFoundException("Assignment not found: " + assignment.getId());
+        }
+    }
+
     private AssignmentDTO.AssignmentResponse mapToResponse(Assignment a) {
         Course course = a.getCourse();
         return new AssignmentDTO.AssignmentResponse(
@@ -196,9 +237,11 @@ public class AssignmentService {
                 a.getTemplate() != null ? a.getTemplate().getId() : null,
                 a.getTitle(),
                 a.getInstructions(),
+                a.getRubric(),
                 a.getTopic(),
                 a.getDueAt(),
-                a.getMaxScore()
+                a.getMaxScore(),
+                a.getStatus()
         );
     }
 

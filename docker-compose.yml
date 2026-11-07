@@ -31,6 +31,15 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/ams_db
       DB_USERNAME: ams_user
       DB_PASSWORD: ams_password
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@ams.local}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-true}
+      APP_WEB_URL: ${APP_WEB_URL:-http://localhost:3000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       JWT_SECRET: ${JWT_SECRET:-ams-super-secret-jwt-key-for-development-only-minimum-256-bits-long}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
@@ -75,12 +84,14 @@ services:
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8080/api
         NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: swd_g1_asm
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     container_name: ams-frontend
     ports:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8080/api
       NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: swd_g1_asm
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     depends_on:
       - backend
     networks:

@@ -8,4 +8,8 @@ package com.ams.service.ai;
 public interface AiClient {
 
     String generate(String prompt);
+
+    default String generateWithFile(String prompt, String mimeType, byte[] bytes) {
+        throw new UnsupportedOperationException("This AI provider does not support file grading");
+    }
 }

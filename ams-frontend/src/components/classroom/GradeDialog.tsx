@@ -41,8 +41,8 @@ export function GradeDialog({
   // Reset fields whenever the dialog opens for a new submission.
   useEffect(() => {
     if (open) {
-      setScore("")
-      setFeedback("")
+      setScore(submission?.evaluation?.aiDraftScore == null ? "" : String(submission.evaluation.aiDraftScore))
+      setFeedback(submission?.evaluation?.aiDraftFeedback || "")
     }
   }, [open, submission?.id])
 
@@ -120,6 +120,7 @@ export function GradeDialog({
 
         {isGraded ? (
           <div className="space-y-4">
+            {existing?.aiDraftScore != null && <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm"><p className="font-medium">Gemini chấm nháp — cần giáo viên xem lại</p><p className="mt-1">Gợi ý: {existing.aiDraftScore}/{maxScore}</p>{existing.aiDraftFeedback&&<p className="mt-1 text-muted-foreground">{existing.aiDraftFeedback}</p>}</div>}
             <div className="flex items-center gap-3 rounded-lg bg-success/10 p-4">
               <CheckCircle2 className="h-8 w-8 shrink-0 text-success" />
               <div>

@@ -12,13 +12,15 @@ export const submissionService = {
   submit: async (
     enrollmentId: number,
     assignmentId: number,
-    file: File,
-    options?: SubmitOptions
+    file: File | null,
+    options?: SubmitOptions,
+    answerText?: string
   ): Promise<Submission> => {
     const form = new FormData();
     form.append('courseEnrollmentId', String(enrollmentId));
     form.append('assignmentId', String(assignmentId));
-    form.append('file', file);
+    if (file) form.append('file', file);
+    if (answerText?.trim()) form.append('answerText', answerText.trim());
     const res = await api.post<Submission>('/submissions', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
       signal: options?.signal,

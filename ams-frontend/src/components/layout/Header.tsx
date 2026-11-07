@@ -17,7 +17,13 @@ import { Search, Menu, LogOut, BookOpen, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LanguageSwitcher, roleLabel, useI18n } from "@/i18n"
 
-export function Header() {
+export function Header({
+  onMenuToggle,
+  mobileMenuOpen = false,
+}: {
+  onMenuToggle?: () => void
+  mobileMenuOpen?: boolean
+}) {
   const { user, logout } = useAuthStore()
   const router = useRouter()
   const { t } = useI18n()
@@ -37,8 +43,11 @@ export function Header() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="rounded-full p-2 text-muted-foreground hover:bg-muted"
+          onClick={onMenuToggle}
+          className="rounded-full p-2 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={t("common.labels.menu")}
+          aria-controls="app-sidebar"
+          aria-expanded={mobileMenuOpen}
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -80,7 +89,7 @@ export function Header() {
                 type="button"
                 className="rounded-full ring-2 ring-transparent transition hover:ring-border"
               >
-                <Avatar name={user.fullName} size="sm" />
+                <Avatar name={user.fullName} src={user.avatarUrl} size="sm" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 rounded-lg shadow-gc">
@@ -104,6 +113,10 @@ export function Header() {
                   ))}
                 </div>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push("/profile")}>
+                {t("common.actions.profile")}
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleLogout}

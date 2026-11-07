@@ -6,6 +6,14 @@ spring:
     username: ${DB_USERNAME:ams_user}
     password: ${DB_PASSWORD:ams_password}
     driver-class-name: org.postgresql.Driver
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:true}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -20,8 +28,8 @@ spring:
     baseline-on-migrate: true
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      max-file-size: 10MB
+      max-request-size: 12MB
 
 server:
   port: ${PORT:8080}
@@ -29,6 +37,13 @@ server:
 jwt:
   secret: ${JWT_SECRET:your-256-bit-secret-key-for-development-only-change-in-production}
   expiration: 86400000  # 24h in ms
+
+app:
+  web-url: ${APP_WEB_URL:http://localhost:3000}
+  mail:
+    from: ${MAIL_FROM:no-reply@ams.local}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:}

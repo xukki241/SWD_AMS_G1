@@ -65,6 +65,9 @@ public class CourseEnrollmentService {
         Course course = courseRepository.findById(courseId)
                 .filter(c -> !c.isDeleted())
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
+        if (course.getStatus() != Course.Status.PUBLISHED) {
+            throw new BadRequestException("Only published courses can be enrolled");
+        }
 
         enrollmentRepository.findByCourseIdAndStudentId(courseId, student.getId())
                 .ifPresent(existing -> {
@@ -121,7 +124,7 @@ public class CourseEnrollmentService {
     @Transactional
     public void activateEnrollment(Long enrollmentId) {
         enrollmentRepository.findById(enrollmentId).ifPresent(enrollment -> {
-            if (enrollment.getStatus() != CourseEnrollment.EnrollmentStatus.ACTIVE) {
+            if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.PENDING_PAYMENT) {
                 enrollment.setStatus(CourseEnrollment.EnrollmentStatus.ACTIVE);
                 enrollment.setActivatedAt(LocalDateTime.now());
                 enrollmentRepository.save(enrollment);

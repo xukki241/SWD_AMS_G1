@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { TeacherClassworkPanel } from "@/components/classroom/TeacherClassworkPanel"
+import { StudentCourseContent } from "@/components/classroom/StudentCourseContent"
+import { StudentClassworkPanel } from "@/components/classroom/StudentClassworkPanel"
 
 function DetailsInner() {
   const params = useParams<{ id: string }>()
@@ -38,7 +40,7 @@ function DetailsInner() {
     const name = role.toUpperCase()
     return name.includes("TEACHER") || name.includes("ADMIN")
   })
-  const backHref = canManage ? "/courses" : "/student#classes"
+  const backHref = canManage ? "/courses" : "/student/courses"
   const backLabel = canManage
     ? t("courses.details.backToCourses")
     : t("courses.details.backToMyCourses")
@@ -101,6 +103,7 @@ function DetailsInner() {
         </div>
         {canManage && (
           <div className="flex shrink-0 gap-2">
+            {canManageClasswork && <Button asChild variant="secondary"><Link href="#classwork"><ListChecks className="mr-1.5 h-4 w-4"/>Quản lý bài tập</Link></Button>}
             <Button asChild variant="outline">
               <Link href={`/courses/${course.id}/edit`}>
                 <Pencil className="mr-1.5 h-4 w-4" />
@@ -275,6 +278,7 @@ function DetailsInner() {
         </aside>
       </div>
       {canManageClasswork && <TeacherClassworkPanel courseId={course.id} />}
+      {!canManage && roles.some((role) => role.toUpperCase().includes("STUDENT")) && <><StudentCourseContent courseId={course.id} /><StudentClassworkPanel courseId={course.id} /></>}
     </div>
   )
 }

@@ -57,6 +57,7 @@ const dashboard = {
       apply: "Apply",
       roleAssigned: "Role assigned",
       roleAssignFailed: "Could not assign role",
+      unlock: "Unlock",
     },
     courses: {
       description:

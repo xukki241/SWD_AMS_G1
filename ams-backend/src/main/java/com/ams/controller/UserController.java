@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -19,6 +20,35 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserDTO.ProfileResponse> me() { return ResponseEntity.ok(userService.getMyProfile()); }
+
+    @PatchMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserDTO.ProfileResponse> updateMe(@Valid @RequestBody UserDTO.UpdateProfileRequest request) {
+        return ResponseEntity.ok(userService.updateMyProfile(request));
+    }
+
+    @PostMapping(value = "/me/avatar", consumes = "multipart/form-data")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserDTO.ProfileResponse> avatar(@RequestParam("file") MultipartFile file) throws java.io.IOException {
+        return ResponseEntity.ok(userService.uploadMyAvatar(file));
+    }
+
+    @PostMapping("/me/password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody UserDTO.ChangePasswordRequest request) {
+        userService.changeMyPassword(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/unlock")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserDTO.UserResponse> unlock(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.unlockUser(id));
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")

@@ -212,6 +212,11 @@ function UsersTab() {
     },
   })
 
+  const unlockUser = useMutation({
+    mutationFn: async (userId: number) => (await api.post(`/users/${userId}/unlock`)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+  })
+
   return (
     <Card>
       <CardHeader>
@@ -270,6 +275,11 @@ function UsersTab() {
                               ? t("common.status.suspended")
                               : u.accountStatus}
                       </Badge>
+                      {u.accountStatus === "SUSPENDED" && (
+                        <Button size="sm" variant="outline" className="ml-2" onClick={() => unlockUser.mutate(u.id)} disabled={unlockUser.isPending}>
+                          {t("dashboard.admin.users.unlock")}
+                        </Button>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">

@@ -18,6 +18,7 @@ const STATUS_MAP: Record<
   NOT_STARTED: { key: "classroom.status.notStarted", variant: "outline" },
   DRAFT: { key: "common.status.draft", variant: "secondary" },
   SUBMITTED: { key: "common.status.submitted", variant: "default" },
+  UNDER_EVALUATION: { key: "common.status.underEvaluation", variant: "warning" },
   LATE: { key: "common.status.late", variant: "warning" },
   GRADED: { key: "common.status.graded", variant: "success" },
   // Payments

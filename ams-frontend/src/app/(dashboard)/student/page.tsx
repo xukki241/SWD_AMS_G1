@@ -8,7 +8,6 @@ import { useToast } from "@/lib/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
-import { VietQrDialog } from "@/components/classroom/VietQrDialog"
 import { SePayDialog } from "@/components/classroom/SePayDialog"
 import { PayOSDialog } from "@/components/classroom/PayOSDialog"
 import { SubmitDialog } from "@/components/classroom/SubmitDialog"
@@ -50,7 +49,6 @@ export default function StudentDashboardPage() {
   const { t, formatDate } = useI18n()
 
   const [vnPayBusyId, setVnPayBusyId] = useState<number | null>(null)
-  const [qrEnrollment, setQrEnrollment] = useState<CourseEnrollment | null>(null)
   const [sepayEnrollment, setSepayEnrollment] = useState<CourseEnrollment | null>(null)
   const [payosEnrollment, setPayosEnrollment] = useState<CourseEnrollment | null>(null)
   const [submitItem, setSubmitItem] = useState<AssignmentOverviewItem | null>(null)
@@ -236,10 +234,10 @@ export default function StudentDashboardPage() {
             })}
           </div>
         ) : (
-          <EmptyState
+          <div className="space-y-3"><EmptyState
             title={t("dashboard.student.courses.emptyTitle")}
             description={t("dashboard.student.courses.emptyDescription")}
-          />
+          /><div className="text-center"><Button asChild><Link href="/catalog">Browse Courses</Link></Button></div></div>
         )}
       </section>
 
@@ -388,15 +386,6 @@ export default function StudentDashboardPage() {
                               )}
                               VNPay
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-full"
-                              onClick={() => setQrEnrollment(e)}
-                            >
-                              <QrCode className="h-3.5 w-3.5 mr-1" />
-                              VietQR
-                            </Button>
                           </div>
                         </div>
                       ))}
@@ -444,13 +433,6 @@ export default function StudentDashboardPage() {
         </section>
       </div>
 
-      {qrEnrollment && (
-        <VietQrDialog
-          open={!!qrEnrollment}
-          onOpenChange={(o) => !o && setQrEnrollment(null)}
-          enrollment={qrEnrollment}
-        />
-      )}
 
       {sepayEnrollment && (
         <SePayDialog

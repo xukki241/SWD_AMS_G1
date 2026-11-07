@@ -32,9 +32,11 @@ export function CreateAssignmentDialog({
 }) {
   const [title, setTitle] = useState("")
   const [instructions, setInstructions] = useState("")
+  const [rubric, setRubric] = useState("")
   const [topic, setTopic] = useState("")
   const [dueAt, setDueAt] = useState("")
   const [maxScore, setMaxScore] = useState("10")
+  const [status, setStatus] = useState<"DRAFT" | "PUBLISHED">("PUBLISHED")
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useI18n()
@@ -42,9 +44,11 @@ export function CreateAssignmentDialog({
   const reset = () => {
     setTitle("")
     setInstructions("")
+    setRubric("")
     setTopic("")
     setDueAt("")
     setMaxScore("10")
+    setStatus("PUBLISHED")
   }
 
   const createMutation = useMutation({
@@ -52,9 +56,11 @@ export function CreateAssignmentDialog({
       assignmentService.createForCourse(courseId, {
         title: title.trim(),
         instructions: instructions.trim() || undefined,
+        rubric: rubric.trim() || undefined,
         topic: topic.trim() || undefined,
         dueAt,
         maxScore: Number(maxScore) || 10,
+        status,
       }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["course-assignments", courseId] })
@@ -142,6 +148,8 @@ export function CreateAssignmentDialog({
               rows={3}
             />
           </div>
+          <div className="space-y-1"><Label htmlFor="asg-rubric">Rubric / tiêu chí chấm</Label><Textarea id="asg-rubric" value={rubric} onChange={e=>setRubric(e.target.value)} placeholder="Mỗi dòng một tiêu chí và mô tả cách chấm" rows={3}/></div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={status === "PUBLISHED"} onChange={e => setStatus(e.target.checked ? "PUBLISHED" : "DRAFT")}/>Phân bổ bài tập cho sinh viên ngay sau khi tạo</label>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => { reset(); onClose() }} disabled={createMutation.isPending}>

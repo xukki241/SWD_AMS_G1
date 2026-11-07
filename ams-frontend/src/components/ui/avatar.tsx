@@ -12,11 +12,13 @@ export function Avatar({
   seed,
   size = "md",
   className,
+  src,
 }: {
   name?: string | null
   seed?: string
   size?: keyof typeof SIZES
   className?: string
+  src?: string | null
 }) {
   const label = name?.trim().charAt(0).toUpperCase() || "?"
   const colorSeed = seed || name || "?"
@@ -29,7 +31,7 @@ export function Avatar({
         className
       )}
     >
-      {label}
+      {src ? <img src={src} alt={name || "Profile"} className={cn(SIZES[size], "rounded-full object-cover")} /> : label}
     </div>
   )
 }

@@ -79,7 +79,13 @@ function NavItem({
   )
 }
 
-export function Sidebar() {
+export function Sidebar({
+  mobileOpen = false,
+  onMobileClose,
+}: {
+  mobileOpen?: boolean
+  onMobileClose?: () => void
+}) {
   const pathname = usePathname()
   const { user } = useAuthStore()
   const { t } = useI18n()
@@ -143,21 +149,21 @@ export function Sidebar() {
       ]
     : isStudent
       ? [
+          { name: t("dashboard.nav.courseCatalog"), href: "/catalog", icon: BookOpen },
+          { name: "Bài đã nộp & phản hồi", href: "/student/submissions", icon: CheckSquare },
           {
             name: t("dashboard.nav.myCourses"),
-            href: "/student#classes",
+            href: "/student/courses",
             icon: Home,
-            section: "classes",
           },
           {
             name: t("dashboard.nav.toDo"),
-            href: "/student#work",
+            href: "/student/work",
             icon: CheckSquare,
-            section: "work",
           },
           {
             name: t("dashboard.nav.payments"),
-            href: "/student#payments",
+            href: "/student/enrollments",
             icon: CreditCard,
             section: "payments",
           },
@@ -166,15 +172,13 @@ export function Sidebar() {
         ? [
             {
               name: t("dashboard.nav.myCourses"),
-              href: "/teacher#classes",
+              href: "/teacher/courses",
               icon: Home,
-              section: "classes",
             },
             {
               name: t("dashboard.nav.toDo"),
-              href: "/teacher#todo",
+              href: "/teacher/work",
               icon: CheckSquare,
-              section: "todo",
             },
             {
               name: t("dashboard.nav.manageCourses"),
@@ -221,7 +225,22 @@ export function Sidebar() {
   })()
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r bg-card min-h-[calc(100vh-4rem)]">
+    <>
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label={t("common.labels.closeMenu")}
+          className="fixed inset-x-0 bottom-0 top-16 z-30 bg-black/30 md:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+      <aside
+        id="app-sidebar"
+        className={cn(
+          "fixed inset-y-16 left-0 z-40 flex w-64 shrink-0 flex-col border-r bg-card transition-transform duration-200 md:sticky md:top-16 md:z-20 md:min-h-[calc(100dvh-4rem)] md:translate-x-0",
+          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        )}
+      >
       <nav className="flex flex-1 flex-col gap-1 p-3">
         <div className="space-y-0.5">
           {primaryLinks.map((item) => (
@@ -234,6 +253,7 @@ export function Sidebar() {
               onNavigate={(h) => {
                 const next = h.includes("#") ? h.split("#")[1] || "" : ""
                 setHash(next)
+                onMobileClose?.()
               }}
             />
           ))}
@@ -266,6 +286,7 @@ export function Sidebar() {
                           ? "bg-accent text-accent-foreground"
                           : "text-foreground hover:bg-muted"
                       )}
+                      onClick={onMobileClose}
                       title={c.title}
                     >
                       <CourseDot name={c.title} />
@@ -280,7 +301,8 @@ export function Sidebar() {
           </div>
         )}
       </nav>
-    </aside>
+      </aside>
+    </>
   )
 }
 

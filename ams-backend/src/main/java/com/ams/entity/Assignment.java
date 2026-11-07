@@ -37,6 +37,9 @@ public class Assignment {
     @Column(columnDefinition = "TEXT")
     private String instructions;
 
+    @Column(columnDefinition = "TEXT")
+    private String rubric;
+
     /** Optional classwork topic for GC-style grouping (e.g. "Đồ án môn học"). */
     @Column(length = 120)
     private String topic;
@@ -47,4 +50,11 @@ public class Assignment {
     @Column(name = "max_score", nullable = false, precision = 5, scale = 2)
     @Builder.Default
     private BigDecimal maxScore = BigDecimal.TEN;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private Status status = Status.PUBLISHED;
+
+    public enum Status { DRAFT, PUBLISHED }
 }

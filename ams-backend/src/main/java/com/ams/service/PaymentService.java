@@ -77,38 +77,15 @@ public class PaymentService {
 
     @Transactional
     public void confirmVietQrPayment(Long enrollmentId) {
-        CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found: " + enrollmentId));
-
-        if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE) {
-            return;
-        }
-
-        String txnRef = "VQR" + System.currentTimeMillis() + "-" + enrollment.getId();
-        BigDecimal amount = enrollment.getAmount();
-
-        PaymentTransaction txn = PaymentTransaction.builder()
-                .courseEnrollment(enrollment)
-                .provider("VIETQR")
-                .providerReference(txnRef)
-                .amount(amount)
-                .transactionStatus(PaymentTransaction.TransactionStatus.SUCCESS)
-                .createdAt(LocalDateTime.now())
-                .build();
-        paymentRepository.save(txn);
-
-        enrollmentService.activateEnrollment(enrollment.getId());
-        auditLogService.log("PAYMENT_SUCCESS_VIETQR", "PaymentTransaction", txnRef);
+        requireOwnedEnrollment(enrollmentId);
+        throw new BadRequestException("Manual VietQR confirmation is disabled. Use verified SePay or PayOS checkout.");
     }
 
     @Transactional
     public PaymentDTO.PaymentUrlResponse createPaymentUrl(Long enrollmentId, HttpServletRequest req) {
-        CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found: " + enrollmentId));
+        CourseEnrollment enrollment = requireOwnedEnrollment(enrollmentId);
 
-        if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE) {
-            throw new BadRequestException("Enrollment is already paid and active");
-        }
+        ensurePendingPayment(enrollment);
 
         BigDecimal amount = enrollment.getAmount();
         String txnRef = "TXN" + System.currentTimeMillis() + "-" + enrollment.getId();
@@ -268,12 +245,9 @@ public class PaymentService {
      */
     @Transactional
     public PaymentDTO.SePayCheckoutResponse createSePayCheckout(Long enrollmentId) {
-        CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found: " + enrollmentId));
+        CourseEnrollment enrollment = requireOwnedEnrollment(enrollmentId);
 
-        if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE) {
-            throw new BadRequestException("Enrollment is already paid and active");
-        }
+        ensurePendingPayment(enrollment);
         if (sePayConfig.getMerchantId() == null || sePayConfig.getMerchantId().isBlank()
                 || sePayConfig.getSecretKey() == null || sePayConfig.getSecretKey().isBlank()) {
             throw new BadRequestException("SePay is not configured (merchant or secret key).");
@@ -540,12 +514,9 @@ public class PaymentService {
      */
     @Transactional
     public PaymentDTO.PayOSCheckoutResponse createPayOSCheckout(Long enrollmentId) {
-        CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found: " + enrollmentId));
+        CourseEnrollment enrollment = requireOwnedEnrollment(enrollmentId);
 
-        if (enrollment.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE) {
-            throw new BadRequestException("Enrollment is already paid and active");
-        }
+        ensurePendingPayment(enrollment);
         if (isBlank(payOSConfig.getClientId()) || isBlank(payOSConfig.getApiKey())
                 || isBlank(payOSConfig.getChecksumKey())) {
             throw new BadRequestException("PayOS is not configured (missing client id / api key / checksum key)");
@@ -809,6 +780,20 @@ public class PaymentService {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private CourseEnrollment requireOwnedEnrollment(Long enrollmentId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User student = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+        return enrollmentRepository.findByIdAndStudentId(enrollmentId, student.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found: " + enrollmentId));
+    }
+
+    private void ensurePendingPayment(CourseEnrollment enrollment) {
+        if (enrollment.getStatus() != CourseEnrollment.EnrollmentStatus.PENDING_PAYMENT) {
+            throw new BadRequestException("This enrollment is not awaiting payment");
+        }
     }
 
     private String getClientIp(HttpServletRequest request) {

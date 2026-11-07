@@ -37,6 +37,9 @@ public class Submission {
     @Column(name = "file_metadata", columnDefinition = "TEXT")
     private String fileMetadata;
 
+    @Column(name = "answer_text", columnDefinition = "TEXT")
+    private String answerText;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "submission_status", nullable = false, length = 20)
     @Builder.Default

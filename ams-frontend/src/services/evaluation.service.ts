@@ -29,6 +29,10 @@ export const evaluationService = {
     const res = await api.get<AssignmentEvaluation>(`/evaluations/submission/${submissionId}`);
     return res.data;
   },
+  publish: async (submissionId: number): Promise<AssignmentEvaluation> => {
+    const res = await api.post<AssignmentEvaluation>(`/evaluations/submission/${submissionId}/publish`);
+    return res.data;
+  },
   getPendingEvaluations: async (page = 0, size = 10): Promise<Page<AssignmentEvaluation>> => {
     const res = await api.get<Page<AssignmentEvaluation>>('/evaluations/pending', {
       params: { page, size },

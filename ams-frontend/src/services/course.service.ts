@@ -102,6 +102,10 @@ export const courseContentService = {
     const res = await api.get<CourseContent>(`/courses/${courseId}/content`);
     return res.data;
   },
+  getForStudent: async (courseId: number): Promise<CourseContent> => {
+    const res = await api.get<CourseContent>(`/student/courses/${courseId}/content`);
+    return res.data;
+  },
 
   addModule: async (courseId: number, title: string) => {
     const res = await api.post(`/courses/${courseId}/modules`, { title });

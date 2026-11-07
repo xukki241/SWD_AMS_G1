@@ -22,8 +22,21 @@ public class AssignmentEvaluation {
     private Submission submission;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "evaluator_id", nullable = false)
+    @JoinColumn(name = "evaluator_id")
     private User evaluator;
+
+    @Column(name = "ai_draft_score", precision = 5, scale = 2)
+    private BigDecimal aiDraftScore;
+
+    @Column(name = "ai_draft_feedback", columnDefinition = "TEXT")
+    private String aiDraftFeedback;
+
+    @Column(name = "is_published", nullable = false)
+    @Builder.Default
+    private boolean published = false;
+
+    @Column(name = "viewed_at")
+    private java.time.LocalDateTime viewedAt;
 
     @Column(precision = 5, scale = 2)
     private BigDecimal score;

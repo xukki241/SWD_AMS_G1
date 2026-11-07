@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { getApiErrorMessage, useI18n } from "@/i18n"
 import { BookOpen } from "lucide-react"
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 
 export default function LoginPage() {
   const [username, setUsername] = useState("")
@@ -25,7 +26,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const data = await authService.login({ username, password })
+      const data = await authService.login({ identifier: username, password })
       setAuth(data)
 
       const roles = data.roles || []
@@ -42,6 +43,16 @@ export default function LoginPage() {
   const quickFill = (u: string) => {
     setUsername(u)
     setPassword("Password@123")
+  }
+
+  const handleGoogleCredential = async (credential: string) => {
+    setLoading(true)
+    try {
+      const data = await authService.google(credential)
+      setAuth(data)
+      router.push(data.roles.includes("ROLE_ADMIN") ? "/admin" : data.roles.includes("ROLE_TEACHER") ? "/teacher" : "/student")
+    } catch (err: any) { setError(getApiErrorMessage(err, t("auth.login.errorFallback"))) }
+    finally { setLoading(false) }
   }
 
   const demoAccounts = [
@@ -75,12 +86,12 @@ export default function LoginPage() {
               htmlFor="username"
               className="text-xs font-medium text-muted-foreground"
             >
-              {t("auth.login.username")}
+              {t("auth.login.identifier")}
             </label>
             <Input
               id="username"
               type="text"
-              placeholder={t("auth.login.usernamePlaceholder")}
+              placeholder={t("auth.login.identifierPlaceholder")}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="h-10 rounded-full"
@@ -114,6 +125,12 @@ export default function LoginPage() {
             {loading ? t("auth.login.submitting") : t("auth.login.submit")}
           </Button>
         </form>
+
+        <div className="mt-4 border-t pt-4"><GoogleSignInButton onCredential={handleGoogleCredential} /></div>
+
+        <div className="mt-3 text-right text-sm">
+          <Link href="/forgot-password" className="text-primary hover:underline">{t("auth.login.forgotPassword")}</Link>
+        </div>
 
         <div className="mt-6 border-t pt-5">
           <p className="mb-2 text-center text-xs font-medium text-muted-foreground">

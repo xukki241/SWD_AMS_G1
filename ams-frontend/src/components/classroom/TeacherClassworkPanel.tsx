@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AlertCircle, CalendarClock, FileText, Loader2, Plus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,6 +13,7 @@ import { parseFileMeta } from "@/components/classroom/format"
 import { useI18n, formatDateTime } from "@/i18n"
 import { assignmentService } from "@/services/assignment.service"
 import { submissionService } from "@/services/submission.service"
+import { evaluationService } from "@/services/evaluation.service"
 import type { Submission } from "@/types"
 
 export function TeacherClassworkPanel({ courseId }: { courseId: number }) {
@@ -87,9 +88,18 @@ function AssignmentCard({ assignment, onGrade }: {
   onGrade: (submission: Submission) => void
 }) {
   const { t } = useI18n()
+  const queryClient = useQueryClient()
+  const publishAssignment = useMutation({
+    mutationFn: () => assignmentService.patch(assignment.id, { status: "PUBLISHED" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["course-assignments", assignment.courseId] }),
+  })
   const { data: submissions, isLoading, isError, refetch } = useQuery({
     queryKey: ["submissions", assignment.id],
     queryFn: () => submissionService.getByAssignment(assignment.id),
+  })
+  const publishGrade = useMutation({
+    mutationFn: (submissionId: number) => evaluationService.publish(submissionId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["submissions", assignment.id] }),
   })
 
   const pendingCount = submissions?.filter((submission) =>
@@ -102,6 +112,7 @@ function AssignmentCard({ assignment, onGrade }: {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="font-semibold">{assignment.title}</h3>
+            {assignment.status === "DRAFT" && <span className="mt-1 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">Bản nháp — chưa phân bổ cho sinh viên</span>}
             {assignment.instructions && <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{assignment.instructions}</p>}
             <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
               <CalendarClock className="h-3.5 w-3.5" />
@@ -113,7 +124,7 @@ function AssignmentCard({ assignment, onGrade }: {
             {t("classroom.manage.pending", { count: pendingCount })}
           </span>
         </div>
-        <div className="border-t pt-3">
+        {assignment.status === "DRAFT" ? <div className="border-t pt-3"><Button size="sm" onClick={() => publishAssignment.mutate()} disabled={publishAssignment.isPending}>Xuất bản & phân bổ bài tập</Button></div> : <div className="border-t pt-3">
           <h4 className="mb-2 flex items-center gap-2 text-sm font-medium">
             <Users className="h-4 w-4" />{t("classroom.manage.submissions")}
             {submissions && <span className="text-muted-foreground">({submissions.length})</span>}
@@ -139,15 +150,19 @@ function AssignmentCard({ assignment, onGrade }: {
                       )}
                     </div>
                     {meta && <FileChip name={meta.name} sizeLabel={meta.sizeLabel} href={submission.secureFileReference} download />}
+                    {submission.evaluation?.aiDraftScore != null && <p className="text-xs text-muted-foreground">Gợi ý chấm Gemini (nháp): {submission.evaluation.aiDraftScore}/{assignment.maxScore} · {submission.evaluation.aiDraftFeedback}</p>}
                   </div>
-                  {canGrade && <Button size="sm" variant={submission.evaluation?.score != null ? "outline" : "default"} onClick={() => onGrade(submission)}>
-                    {submission.evaluation?.score != null ? t("classroom.manage.viewGrade") : t("classroom.manage.grade")}
-                  </Button>}
+                  <div className="flex gap-2">
+                    {canGrade && <Button size="sm" variant={submission.evaluation?.score != null ? "outline" : "default"} onClick={() => onGrade(submission)}>
+                      {submission.evaluation?.score != null ? t("classroom.manage.viewGrade") : t("classroom.manage.grade")}
+                    </Button>}
+                    {submission.evaluation?.score != null && !submission.evaluation.published && <Button size="sm" onClick={() => publishGrade.mutate(submission.id)} disabled={publishGrade.isPending}>Công bố điểm</Button>}
+                  </div>
                 </li>
               )
             })}
           </ul>
-        </div>
+        </div>}
       </CardContent>
     </Card>
   )

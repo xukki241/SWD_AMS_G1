@@ -25,6 +25,13 @@ public class EvaluationController {
         return ResponseEntity.ok(evaluationService.evaluateSubmission(request));
     }
 
+    @PostMapping("/submission/{submissionId}/publish")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @Operation(summary = "Publish a teacher-reviewed grade to the student")
+    public ResponseEntity<EvaluationDTO.EvaluationResponse> publish(@PathVariable Long submissionId) {
+        return ResponseEntity.ok(evaluationService.publishEvaluation(submissionId));
+    }
+
     @GetMapping("/submission/{submissionId}")
     @Operation(summary = "Get evaluation by submission ID")
     public ResponseEntity<EvaluationDTO.EvaluationResponse> getBySubmission(@PathVariable Long submissionId) {

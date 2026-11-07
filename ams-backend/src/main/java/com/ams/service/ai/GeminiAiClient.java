@@ -13,6 +13,8 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -49,6 +51,19 @@ public class GeminiAiClient implements AiClient {
 
     @Override
     public String generate(String prompt) {
+        return generateParts(List.of(Map.of("text", prompt)));
+    }
+
+    @Override
+    public String generateWithFile(String prompt, String mimeType, byte[] bytes) {
+        List<Map<String, Object>> parts = new ArrayList<>();
+        parts.add(Map.of("text", prompt));
+        parts.add(Map.of("inline_data", Map.of("mime_type", mimeType,
+                "data", Base64.getEncoder().encodeToString(bytes))));
+        return generateParts(parts);
+    }
+
+    private String generateParts(List<Map<String, Object>> parts) {
         if (apiKey.isBlank()) {
             throw new AiGenerationException(
                     "AI is not configured. Ask an administrator to set the GEMINI_API_KEY environment variable.");
@@ -57,7 +72,7 @@ public class GeminiAiClient implements AiClient {
         Map<String, Object> payload = Map.of(
                 "contents", List.of(Map.of(
                         "role", "user",
-                        "parts", List.of(Map.of("text", prompt))
+                        "parts", parts
                 )),
                 "generationConfig", Map.of(
                         "temperature", 0.4,

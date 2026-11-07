@@ -28,9 +28,10 @@ public class SubmissionController {
     public ResponseEntity<SubmissionDTO.SubmissionResponse> submitAssignment(
             @RequestParam("courseEnrollmentId") Long courseEnrollmentId,
             @RequestParam("assignmentId") Long assignmentId,
-            @RequestParam("file") MultipartFile file
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "answerText", required = false) String answerText
     ) throws IOException {
-        return ResponseEntity.ok(submissionService.submitAssignment(courseEnrollmentId, assignmentId, file));
+        return ResponseEntity.ok(submissionService.submitAssignment(courseEnrollmentId, assignmentId, file, answerText));
     }
 
     @GetMapping("/assignment/{assignmentId}")

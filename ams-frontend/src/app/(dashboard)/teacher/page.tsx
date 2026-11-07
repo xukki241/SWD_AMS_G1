@@ -65,7 +65,7 @@ export default function TeacherDashboardPage() {
           const submissions = await submissionService.getByAssignment(a.id)
           const ungradedCount = submissions.filter(
             (s) =>
-              ["SUBMITTED", "LATE"].includes(s.submissionStatus) && !s.evaluation
+              ["SUBMITTED", "LATE"].includes(s.submissionStatus) && s.evaluation?.score == null
           ).length
           return { assignment: a, ungradedCount }
         })

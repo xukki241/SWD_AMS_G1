@@ -59,6 +59,7 @@ const dashboard: DashboardMessages = {
       apply: "Áp dụng",
       roleAssigned: "Đã gán vai trò",
       roleAssignFailed: "Không thể gán vai trò",
+      unlock: "Mở khóa",
     },
     courses: {
       description:

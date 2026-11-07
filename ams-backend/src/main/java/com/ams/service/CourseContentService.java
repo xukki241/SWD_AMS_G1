@@ -5,10 +5,16 @@ import com.ams.dto.CourseContentDTO;
 import com.ams.entity.Course;
 import com.ams.entity.Lesson;
 import com.ams.entity.Module;
+import com.ams.entity.CourseEnrollment;
+import com.ams.entity.User;
 import com.ams.exception.BadRequestException;
 import com.ams.exception.ResourceNotFoundException;
 import com.ams.repository.LessonRepository;
 import com.ams.repository.ModuleRepository;
+import com.ams.repository.CourseEnrollmentRepository;
+import com.ams.repository.UserRepository;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,10 +33,30 @@ public class CourseContentService {
     private final ModuleRepository moduleRepository;
     private final LessonRepository lessonRepository;
     private final AuditLogService auditLogService;
+    private final CourseEnrollmentRepository enrollmentRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public CourseContentDTO.ContentResponse getContent(Long courseId) {
         Course course = courseService.getAccessibleCourse(courseId);
+        return buildContent(course);
+    }
+
+    @Transactional(readOnly = true)
+    public CourseContentDTO.ContentResponse getStudentContent(Long courseId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User student = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + username));
+        CourseEnrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(courseId, student.getId())
+                .orElseThrow(() -> new AccessDeniedException("You are not enrolled in this course"));
+        if (enrollment.getStatus() != CourseEnrollment.EnrollmentStatus.ACTIVE
+                && enrollment.getStatus() != CourseEnrollment.EnrollmentStatus.COMPLETED) {
+            throw new AccessDeniedException("Complete payment before accessing course content");
+        }
+        Course course = enrollment.getCourse();
+        if (course.isDeleted() || course.getStatus() != Course.Status.PUBLISHED) {
+            throw new ResourceNotFoundException("Course not found: " + courseId);
+        }
         return buildContent(course);
     }
 
