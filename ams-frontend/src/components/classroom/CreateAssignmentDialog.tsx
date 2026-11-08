@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Plus } from "lucide-react"
+import { UploadDropzone } from "@/components/classroom/UploadDropzone"
+import { sanitizeScoreInput } from "@/components/classroom/ScoreInput"
 import { assignmentService } from "@/services/assignment.service"
 import { useI18n, getApiErrorMessage } from "@/i18n"
 
@@ -37,6 +39,7 @@ export function CreateAssignmentDialog({
   const [dueAt, setDueAt] = useState("")
   const [maxScore, setMaxScore] = useState("10")
   const [status, setStatus] = useState<"DRAFT" | "PUBLISHED">("PUBLISHED")
+  const [file, setFile] = useState<File | null>(null)
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useI18n()
@@ -49,19 +52,24 @@ export function CreateAssignmentDialog({
     setDueAt("")
     setMaxScore("10")
     setStatus("PUBLISHED")
+    setFile(null)
   }
 
   const createMutation = useMutation({
     mutationFn: () =>
-      assignmentService.createForCourse(courseId, {
-        title: title.trim(),
-        instructions: instructions.trim() || undefined,
-        rubric: rubric.trim() || undefined,
-        topic: topic.trim() || undefined,
-        dueAt,
-        maxScore: Number(maxScore) || 10,
-        status,
-      }),
+      assignmentService.createForCourse(
+        courseId,
+        {
+          title: title.trim(),
+          instructions: instructions.trim() || undefined,
+          rubric: rubric.trim() || undefined,
+          topic: topic.trim() || undefined,
+          dueAt,
+          maxScore: Number(maxScore) || 10,
+          status,
+        },
+        file
+      ),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["course-assignments", courseId] })
       queryClient.invalidateQueries({ queryKey: ["teacher-todo"] })
@@ -71,7 +79,7 @@ export function CreateAssignmentDialog({
       reset()
       onClose()
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       toast({
         title: t("classroom.create.failedToast"),
         description: getApiErrorMessage(err, t("classroom.create.failedFallback")),
@@ -97,7 +105,7 @@ export function CreateAssignmentDialog({
             {t("classroom.create.description")}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-3 py-1">
+        <div className="grid max-h-[70vh] gap-3 overflow-y-auto py-1 pr-1">
           <div className="space-y-1">
             <Label htmlFor="asg-title">{t("classroom.create.titleLabel")}</Label>
             <Input
@@ -121,11 +129,10 @@ export function CreateAssignmentDialog({
               <Label htmlFor="asg-max">{t("classroom.create.maxScoreLabel")}</Label>
               <Input
                 id="asg-max"
-                type="number"
-                min={0}
-                step={0.5}
+                type="text"
+                inputMode="decimal"
                 value={maxScore}
-                onChange={(e) => setMaxScore(e.target.value)}
+                onChange={(e) => setMaxScore(sanitizeScoreInput(e.target.value, 1000) || "0")}
               />
             </div>
           </div>
@@ -148,11 +155,43 @@ export function CreateAssignmentDialog({
               rows={3}
             />
           </div>
-          <div className="space-y-1"><Label htmlFor="asg-rubric">Rubric / tiêu chí chấm</Label><Textarea id="asg-rubric" value={rubric} onChange={e=>setRubric(e.target.value)} placeholder="Mỗi dòng một tiêu chí và mô tả cách chấm" rows={3}/></div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={status === "PUBLISHED"} onChange={e => setStatus(e.target.checked ? "PUBLISHED" : "DRAFT")}/>Phân bổ bài tập cho sinh viên ngay sau khi tạo</label>
+          <div className="space-y-1">
+            <Label>{t("classroom.create.attachmentLabel")}</Label>
+            <UploadDropzone
+              file={file}
+              onChange={setFile}
+              hint={t("classroom.create.attachmentHint")}
+              disabled={createMutation.isPending}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="asg-rubric">{t("classroom.create.rubricLabel")}</Label>
+            <Textarea
+              id="asg-rubric"
+              value={rubric}
+              onChange={(e) => setRubric(e.target.value)}
+              placeholder={t("classroom.create.rubricPlaceholder")}
+              rows={3}
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={status === "PUBLISHED"}
+              onChange={(e) => setStatus(e.target.checked ? "PUBLISHED" : "DRAFT")}
+            />
+            {t("classroom.create.publishNow")}
+          </label>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => { reset(); onClose() }} disabled={createMutation.isPending}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              reset()
+              onClose()
+            }}
+            disabled={createMutation.isPending}
+          >
             {t("common.actions.cancel")}
           </Button>
           <Button

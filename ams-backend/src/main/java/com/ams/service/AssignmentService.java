@@ -2,17 +2,22 @@ package com.ams.service;
 
 import com.ams.dto.AssignmentDTO;
 import com.ams.entity.*;
+import com.ams.exception.BadRequestException;
 import com.ams.exception.ResourceNotFoundException;
 import com.ams.repository.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,6 +32,8 @@ public class AssignmentService {
     private final AssignmentEvaluationRepository evaluationRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final FileUploadService fileUploadService;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<AssignmentDTO.AssignmentResponse> getAllAssignments() {
@@ -62,6 +69,15 @@ public class AssignmentService {
 
     @Transactional
     public AssignmentDTO.AssignmentResponse createAssignment(Long courseId, AssignmentDTO.CreateAssignmentRequest request) {
+        return createAssignment(courseId, request, null);
+    }
+
+    @Transactional
+    public AssignmentDTO.AssignmentResponse createAssignment(
+            Long courseId,
+            AssignmentDTO.CreateAssignmentRequest request,
+            MultipartFile attachment
+    ) {
         User teacher = currentUser();
 
         Course course = courseRepository.findById(courseId)
@@ -91,6 +107,10 @@ public class AssignmentService {
                 .maxScore(request.maxScore() != null ? request.maxScore() : BigDecimal.TEN)
                 .status(request.status() == null ? Assignment.Status.PUBLISHED : request.status())
                 .build();
+
+        if (attachment != null && !attachment.isEmpty()) {
+            applyAttachment(assignment, attachment);
+        }
 
         assignment = assignmentRepository.save(assignment);
         auditLogService.log("CREATE_ASSIGNMENT", "Assignment", assignment.getTitle());
@@ -241,8 +261,34 @@ public class AssignmentService {
                 a.getTopic(),
                 a.getDueAt(),
                 a.getMaxScore(),
-                a.getStatus()
+                a.getStatus(),
+                a.getAttachmentUrl(),
+                a.getAttachmentMetadata()
         );
+    }
+
+    private void applyAttachment(Assignment assignment, MultipartFile attachment) {
+        try {
+            Map upload = fileUploadService.uploadFile(attachment, "assignment-materials");
+            String url = String.valueOf(upload.getOrDefault("secure_url",
+                    upload.getOrDefault("url", "")));
+            if (url.isBlank() || "null".equals(url)) {
+                throw new BadRequestException("Could not upload assignment file");
+            }
+            Map<String, Object> meta = new HashMap<>();
+            meta.put("originalName", attachment.getOriginalFilename());
+            meta.put("name", attachment.getOriginalFilename());
+            meta.put("bytes", attachment.getSize());
+            meta.put("contentType", attachment.getContentType());
+            Object cloudBytes = upload.get("bytes");
+            if (cloudBytes != null) meta.put("bytes", cloudBytes);
+            assignment.setAttachmentUrl(url);
+            assignment.setAttachmentMetadata(objectMapper.writeValueAsString(meta));
+        } catch (BadRequestException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BadRequestException("Could not upload assignment file");
+        }
     }
 
     private static String blankToNull(String value) {

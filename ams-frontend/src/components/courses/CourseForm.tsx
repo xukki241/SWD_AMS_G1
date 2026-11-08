@@ -18,6 +18,8 @@ import {
 import { cn } from "@/lib/utils"
 import { courseService } from "@/services/course.service"
 import { categoryService } from "@/services/category.service"
+import { authService } from "@/services/auth.service"
+import { useAuthStore } from "@/stores/authStore"
 import type {
   CourseDetail,
   CourseDifficulty,
@@ -80,6 +82,7 @@ function toFormState(course?: CourseDetail): FormState {
 export function CourseForm({ course }: { course?: CourseDetail }) {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const setAuth = useAuthStore((s) => s.setAuth)
   const { t } = useI18n()
   const isEdit = Boolean(course)
 
@@ -151,10 +154,20 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
         ? courseService.update(course.id, payload, thumbnail)
         : courseService.create(payload, thumbnail)
     },
-    onSuccess: (saved) => {
+    onSuccess: async (saved) => {
       queryClient.invalidateQueries({ queryKey: ["courses"] })
       queryClient.invalidateQueries({ queryKey: ["course", saved.id] })
-      router.push(isEdit ? "/courses?updated=1" : "/courses?created=1")
+      queryClient.invalidateQueries({ queryKey: ["sidebar-my-courses"] })
+      if (!isEdit) {
+        try {
+          // Pick up TEACHER role granted on first course create.
+          const session = await authService.refresh()
+          setAuth(session)
+        } catch {
+          // Course was created; role refresh can wait until next login.
+        }
+      }
+      router.push(isEdit ? "/courses?updated=1" : `/courses/${saved.id}?created=1`)
     },
     onError: (error: unknown) => {
       const serverErrors = getValidationErrors(error)
@@ -424,25 +437,32 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
                 error={errors.price}
               >
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    $
-                  </span>
                   <Input
                     id="course-price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    inputMode="decimal"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
                     value={form.isFree ? "" : form.price}
                     disabled={form.isFree}
-                    placeholder={form.isFree ? t("courses.form.priceFreePlaceholder") : "0.00"}
+                    placeholder={form.isFree ? t("courses.form.priceFreePlaceholder") : "50000"}
                     aria-invalid={Boolean(errors.price)}
                     className={cn(
-                      "pl-7",
+                      "pr-14",
                       errors.price && "border-destructive focus-visible:ring-destructive"
                     )}
-                    onChange={(e) => update({ price: e.target.value })}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^\d.]/g, "")
+                      const firstDot = raw.indexOf(".")
+                      const next =
+                        firstDot === -1
+                          ? raw
+                          : raw.slice(0, firstDot + 1) + raw.slice(firstDot + 1).replace(/\./g, "")
+                      update({ price: next })
+                    }}
                   />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
+                    VND
+                  </span>
                 </div>
               </Field>
             </div>

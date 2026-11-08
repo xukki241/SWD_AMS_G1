@@ -25,8 +25,24 @@ export const assignmentService = {
     const res = await api.get<AssignmentOverviewItem[]>('/assignments/overview');
     return res.data;
   },
-  /** Create an assignment for a course (instructor or admin). */
-  createForCourse: async (courseId: number, data: CreateAssignmentRequest): Promise<Assignment> => {
+  /** Create an assignment for a course (instructor or admin), optional handout file. */
+  createForCourse: async (
+    courseId: number,
+    data: CreateAssignmentRequest,
+    file?: File | null
+  ): Promise<Assignment> => {
+    if (file) {
+      const form = new FormData();
+      form.append(
+        'data',
+        new Blob([JSON.stringify(data)], { type: 'application/json' })
+      );
+      form.append('file', file);
+      const res = await api.post<Assignment>(`/assignments/course/${courseId}`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data;
+    }
     const res = await api.post<Assignment>(`/assignments/course/${courseId}`, data);
     return res.data;
   },

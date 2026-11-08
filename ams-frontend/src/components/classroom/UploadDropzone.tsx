@@ -52,7 +52,10 @@ export function UploadDropzone({
           </button>
         </div>
       ) : (
-        <label
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => inputRef.current?.click()}
           onDragOver={(e) => {
             e.preventDefault()
             if (!disabled) setDragOver(true)
@@ -66,7 +69,7 @@ export function UploadDropzone({
             if (f) onChange(f)
           }}
           className={cn(
-            "flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 text-center transition-colors",
+            "flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 text-center transition-colors",
             disabled
               ? "cursor-not-allowed opacity-50 border-border text-muted-foreground"
               : dragOver
@@ -83,7 +86,7 @@ export function UploadDropzone({
             <p className="text-sm font-medium text-foreground">{resolvedHint}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{t("classroom.upload.dragDrop")}</p>
           </div>
-        </label>
+        </button>
       )}
       <input
         ref={inputRef}

@@ -51,6 +51,13 @@ public class Assignment {
     @Builder.Default
     private BigDecimal maxScore = BigDecimal.TEN;
 
+    /** Optional instructor handout / brief uploaded to Cloudinary (or local fallback). */
+    @Column(name = "attachment_url", length = 1000)
+    private String attachmentUrl;
+
+    @Column(name = "attachment_metadata", columnDefinition = "TEXT")
+    private String attachmentMetadata;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

@@ -22,11 +22,8 @@ export const LESSON_TYPE_LABEL: Record<LessonType, string> = {
 
 export function formatPrice(price: number, isFree: boolean): string {
   if (isFree || !price) return translate('common.units.free');
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-  }).format(price);
+  // Course fees are stored and charged in VND (SePay / VNPay).
+  return `${new Intl.NumberFormat('vi-VN').format(Number(price))} VND`;
 }
 
 export function formatDuration(minutes?: number | null): string {

@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -50,5 +51,12 @@ public class AuthController {
     @PostMapping("/google")
     public ResponseEntity<AuthDTO.AuthResponse> google(@Valid @RequestBody AuthDTO.GoogleLoginRequest request) {
         return ResponseEntity.ok(authService.loginWithGoogle(request.idToken()));
+    }
+
+    @PostMapping("/refresh")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Re-issue JWT with current roles from the database")
+    public ResponseEntity<AuthDTO.AuthResponse> refresh() {
+        return ResponseEntity.ok(authService.refreshSession());
     }
 }

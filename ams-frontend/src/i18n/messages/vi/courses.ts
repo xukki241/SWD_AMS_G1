@@ -120,7 +120,7 @@ const courses: CoursesMessages = {
     difficultyLabel: "Cấp độ",
     freeCourse: "Khóa học miễn phí",
     freeCourseHint: "Học viên có thể đăng ký không cần trả phí.",
-    priceLabel: "Học phí (USD)",
+    priceLabel: "Học phí (VND)",
     priceFreePlaceholder: "Miễn phí",
     thumbnailTitle: "Ảnh minh họa",
     thumbnailDescription: "PNG hoặc JPG, tối đa 5MB. Khuyến nghị 1280 × 720.",

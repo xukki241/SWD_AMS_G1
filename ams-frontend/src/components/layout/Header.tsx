@@ -39,8 +39,9 @@ export function Header({
   const isAdmin = roles.some((r) => r.includes("ADMIN"))
   const isTeacher = roles.some((r) => r.includes("TEACHER"))
   const isStudent = roles.some((r) => r.includes("STUDENT"))
-  const showCourseAction = isAdmin || isTeacher || isStudent
-  const courseActionHref = isAdmin || isTeacher ? "/courses/new" : "/catalog"
+  // Dual-role: anyone signed in can create a course; students still join via catalog.
+  const showCourseAction = Boolean(user) && (isAdmin || isTeacher || isStudent)
+  const courseActionHref = "/courses/new"
   const homeHref = homeHrefForRoles(roles)
 
   const handleLogout = () => {

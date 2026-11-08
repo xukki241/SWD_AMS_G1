@@ -7,9 +7,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -58,7 +60,7 @@ public class AssignmentController {
                 .body(assignmentService.createAssignment(request.courseId(), request.toCreateRequest()));
     }
 
-    @PostMapping("/course/{courseId}")
+    @PostMapping(value = "/course/{courseId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Create an assignment for a course")
     public ResponseEntity<AssignmentDTO.AssignmentResponse> createForCourse(
@@ -66,6 +68,17 @@ public class AssignmentController {
             @Valid @RequestBody AssignmentDTO.CreateAssignmentRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(assignmentService.createAssignment(courseId, request));
+    }
+
+    @PostMapping(value = "/course/{courseId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @Operation(summary = "Create an assignment with optional handout file (Cloudinary)")
+    public ResponseEntity<AssignmentDTO.AssignmentResponse> createForCourseMultipart(
+            @PathVariable Long courseId,
+            @RequestPart("data") @Valid AssignmentDTO.CreateAssignmentRequest request,
+            @RequestPart(value = "file", required = false) MultipartFile file) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(assignmentService.createAssignment(courseId, request, file));
     }
 
     @PutMapping("/{id}")

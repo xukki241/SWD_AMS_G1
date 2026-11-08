@@ -16,14 +16,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
 @Tag(name = "Categories", description = "Course categories")
 public class CategoryController {
 
     private final CategoryService categoryService;
 
     @GetMapping
-    @Operation(summary = "List categories for the course dropdown")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "List categories for the course dropdown / catalog filters")
     public ResponseEntity<List<CategoryDTO.CategoryResponse>> listCategories() {
         return ResponseEntity.ok(categoryService.listCategories());
     }

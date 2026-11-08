@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertCircle, CalendarClock, FileText, Loader2, Plus, Users } from "lucide-react"
+import { AlertCircle, CalendarClock, FileText, Loader2, Plus, Search, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { CreateAssignmentDialog } from "@/components/classroom/CreateAssignmentDialog"
 import { FileChip } from "@/components/classroom/FileChip"
 import { GradeDialog } from "@/components/classroom/GradeDialog"
@@ -14,7 +15,10 @@ import { useI18n, formatDateTime } from "@/i18n"
 import { assignmentService } from "@/services/assignment.service"
 import { submissionService } from "@/services/submission.service"
 import { evaluationService } from "@/services/evaluation.service"
+import { cn } from "@/lib/utils"
 import type { Submission } from "@/types"
+
+type GradeFilter = "all" | "submitted" | "graded" | "ungraded"
 
 export function TeacherClassworkPanel({ courseId }: { courseId: number }) {
   const { t } = useI18n()
@@ -44,35 +48,51 @@ export function TeacherClassworkPanel({ courseId }: { courseId: number }) {
           <p className="text-sm text-muted-foreground">{t("classroom.manage.description")}</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />{t("classroom.manage.create")}
+          <Plus className="mr-1.5 h-4 w-4" />
+          {t("classroom.manage.create")}
         </Button>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center rounded-lg border py-10 text-sm text-muted-foreground">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("classroom.manage.loading")}
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          {t("classroom.manage.loading")}
         </div>
       ) : isError ? (
         <div className="flex flex-col items-center gap-3 rounded-lg border px-4 py-8 text-center">
           <AlertCircle className="h-5 w-5 text-destructive" />
           <p className="text-sm text-muted-foreground">{t("classroom.manage.loadError")}</p>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>{t("common.actions.retry")}</Button>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            {t("common.actions.retry")}
+          </Button>
         </div>
       ) : assignments?.length ? (
         <div className="space-y-4">
           {assignments.map((assignment) => (
-            <AssignmentCard key={assignment.id} assignment={assignment} onGrade={setSelectedSubmission} />
+            <AssignmentCard
+              key={assignment.id}
+              assignment={assignment}
+              onGrade={setSelectedSubmission}
+            />
           ))}
         </div>
       ) : (
-        <Card><CardContent className="flex flex-col items-center gap-2 py-10 text-center">
-          <FileText className="h-8 w-8 text-muted-foreground" />
-          <p className="font-medium">{t("classroom.manage.emptyTitle")}</p>
-          <p className="text-sm text-muted-foreground">{t("classroom.manage.emptyDescription")}</p>
-        </CardContent></Card>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
+            <FileText className="h-8 w-8 text-muted-foreground" />
+            <p className="font-medium">{t("classroom.manage.emptyTitle")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("classroom.manage.emptyDescription")}
+            </p>
+          </CardContent>
+        </Card>
       )}
 
-      <CreateAssignmentDialog courseId={courseId} open={createOpen} onClose={() => setCreateOpen(false)} />
+      <CreateAssignmentDialog
+        courseId={courseId}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
       <GradeDialog
         submission={selectedSubmission}
         open={selectedSubmission !== null}
@@ -83,15 +103,22 @@ export function TeacherClassworkPanel({ courseId }: { courseId: number }) {
   )
 }
 
-function AssignmentCard({ assignment, onGrade }: {
+function AssignmentCard({
+  assignment,
+  onGrade,
+}: {
   assignment: import("@/types").Assignment
   onGrade: (submission: Submission) => void
 }) {
   const { t } = useI18n()
   const queryClient = useQueryClient()
+  const [filter, setFilter] = useState<GradeFilter>("all")
+  const [search, setSearch] = useState("")
+
   const publishAssignment = useMutation({
     mutationFn: () => assignmentService.patch(assignment.id, { status: "PUBLISHED" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["course-assignments", assignment.courseId] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["course-assignments", assignment.courseId] }),
   })
   const { data: submissions, isLoading, isError, refetch } = useQuery({
     queryKey: ["submissions", assignment.id],
@@ -102,9 +129,34 @@ function AssignmentCard({ assignment, onGrade }: {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["submissions", assignment.id] }),
   })
 
-  const pendingCount = submissions?.filter((submission) =>
-    ["SUBMITTED", "LATE"].includes(submission.submissionStatus) && submission.evaluation?.score == null
-  ).length ?? 0
+  const pendingCount =
+    submissions?.filter(
+      (submission) =>
+        ["SUBMITTED", "LATE"].includes(submission.submissionStatus) &&
+        submission.evaluation?.score == null
+    ).length ?? 0
+
+  const attachmentMeta = parseFileMeta(assignment.attachmentMetadata)
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return (submissions || []).filter((submission) => {
+      const graded = submission.evaluation?.score != null
+      const submitted = ["SUBMITTED", "LATE", "GRADED"].includes(submission.submissionStatus)
+      if (filter === "graded" && !graded) return false
+      if (filter === "ungraded" && graded) return false
+      if (filter === "submitted" && !submitted) return false
+      if (q && !(submission.studentName || "").toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [submissions, filter, search])
+
+  const filters: { id: GradeFilter; label: string }[] = [
+    { id: "all", label: t("classroom.manage.filterAll") },
+    { id: "submitted", label: t("classroom.manage.filterSubmitted") },
+    { id: "ungraded", label: t("classroom.manage.filterUngraded") },
+    { id: "graded", label: t("classroom.manage.filterGraded") },
+  ]
 
   return (
     <Card>
@@ -112,8 +164,26 @@ function AssignmentCard({ assignment, onGrade }: {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="font-semibold">{assignment.title}</h3>
-            {assignment.status === "DRAFT" && <span className="mt-1 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">Bản nháp — chưa phân bổ cho sinh viên</span>}
-            {assignment.instructions && <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{assignment.instructions}</p>}
+            {assignment.status === "DRAFT" && (
+              <span className="mt-1 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">
+                {t("classroom.manage.draftBadge")}
+              </span>
+            )}
+            {assignment.instructions && (
+              <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+                {assignment.instructions}
+              </p>
+            )}
+            {assignment.attachmentUrl && (
+              <div className="mt-2">
+                <FileChip
+                  name={attachmentMeta?.name || t("classroom.create.attachmentFallback")}
+                  sizeLabel={attachmentMeta?.sizeLabel}
+                  href={assignment.attachmentUrl}
+                  download
+                />
+              </div>
+            )}
             <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
               <CalendarClock className="h-3.5 w-3.5" />
               {t("classroom.manage.due", { date: formatDateTime(assignment.dueAt) })}
@@ -124,45 +194,150 @@ function AssignmentCard({ assignment, onGrade }: {
             {t("classroom.manage.pending", { count: pendingCount })}
           </span>
         </div>
-        {assignment.status === "DRAFT" ? <div className="border-t pt-3"><Button size="sm" onClick={() => publishAssignment.mutate()} disabled={publishAssignment.isPending}>Xuất bản & phân bổ bài tập</Button></div> : <div className="border-t pt-3">
-          <h4 className="mb-2 flex items-center gap-2 text-sm font-medium">
-            <Users className="h-4 w-4" />{t("classroom.manage.submissions")}
-            {submissions && <span className="text-muted-foreground">({submissions.length})</span>}
-          </h4>
-          {isLoading ? <p className="text-sm text-muted-foreground">{t("classroom.manage.loading")}</p> : null}
-          {isError ? <Button variant="outline" size="sm" onClick={() => refetch()}>{t("common.actions.retry")}</Button> : null}
-          {!isLoading && !isError && submissions?.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("classroom.manage.noSubmissions")}</p>
-          ) : null}
-          <ul className="divide-y">
-            {submissions?.map((submission) => {
-              const meta = parseFileMeta(submission.fileMetadata)
-              const canGrade = ["SUBMITTED", "LATE", "GRADED"].includes(submission.submissionStatus)
-              return (
-                <li key={submission.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-1">
-                  <div className="min-w-0 space-y-1">
-                    <p className="truncate text-sm font-medium">{submission.studentName}</p>
-                    <p className="text-xs text-muted-foreground">{t("classroom.manage.submittedAt", { date: formatDateTime(submission.submittedAt) })}</p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusBadge status={submission.submissionStatus} />
-                      {submission.evaluation?.score != null && (
-                        <span className="text-xs font-medium">{t("classroom.manage.score", { score: submission.evaluation.score, max: assignment.maxScore })}</span>
+        {assignment.status === "DRAFT" ? (
+          <div className="border-t pt-3">
+            <Button
+              size="sm"
+              onClick={() => publishAssignment.mutate()}
+              disabled={publishAssignment.isPending}
+            >
+              {t("classroom.manage.publish")}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3 border-t pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="flex items-center gap-2 text-sm font-medium">
+                <Users className="h-4 w-4" />
+                {t("classroom.manage.submissions")}
+                {submissions && (
+                  <span className="text-muted-foreground">({submissions.length})</span>
+                )}
+              </h4>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t("classroom.manage.searchPlaceholder")}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {filters.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setFilter(item.id)}
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                      filter === item.id
+                        ? "bg-[hsl(var(--success))] text-white"
+                        : "bg-muted text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">{t("classroom.manage.loading")}</p>
+            ) : null}
+            {isError ? (
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                {t("common.actions.retry")}
+              </Button>
+            ) : null}
+            {!isLoading && !isError && submissions?.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("classroom.manage.noSubmissions")}</p>
+            ) : null}
+            {!isLoading && !isError && submissions && submissions.length > 0 && filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("classroom.manage.noFilterMatch")}</p>
+            ) : null}
+
+            <ul className="divide-y">
+              {filtered.map((submission) => {
+                const meta = parseFileMeta(submission.fileMetadata)
+                const canGrade = ["SUBMITTED", "LATE", "GRADED"].includes(
+                  submission.submissionStatus
+                )
+                return (
+                  <li
+                    key={submission.id}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-1"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <p className="truncate text-sm font-medium">{submission.studentName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("classroom.manage.submittedAt", {
+                          date: formatDateTime(submission.submittedAt),
+                        })}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge status={submission.submissionStatus} />
+                        {submission.evaluation?.score != null && (
+                          <span className="text-xs font-medium">
+                            {t("classroom.manage.score", {
+                              score: submission.evaluation.score,
+                              max: assignment.maxScore,
+                            })}
+                          </span>
+                        )}
+                      </div>
+                      {meta && (
+                        <FileChip
+                          name={meta.name}
+                          sizeLabel={meta.sizeLabel}
+                          href={submission.secureFileReference}
+                          download
+                        />
+                      )}
+                      {submission.evaluation?.aiDraftScore != null && (
+                        <p className="text-xs text-muted-foreground">
+                          {t("classroom.manage.aiDraft", {
+                            score: submission.evaluation.aiDraftScore,
+                            max: assignment.maxScore,
+                          })}
+                          {submission.evaluation.aiDraftFeedback
+                            ? ` · ${submission.evaluation.aiDraftFeedback}`
+                            : ""}
+                        </p>
                       )}
                     </div>
-                    {meta && <FileChip name={meta.name} sizeLabel={meta.sizeLabel} href={submission.secureFileReference} download />}
-                    {submission.evaluation?.aiDraftScore != null && <p className="text-xs text-muted-foreground">Gợi ý chấm Gemini (nháp): {submission.evaluation.aiDraftScore}/{assignment.maxScore} · {submission.evaluation.aiDraftFeedback}</p>}
-                  </div>
-                  <div className="flex gap-2">
-                    {canGrade && <Button size="sm" variant={submission.evaluation?.score != null ? "outline" : "default"} onClick={() => onGrade(submission)}>
-                      {submission.evaluation?.score != null ? t("classroom.manage.viewGrade") : t("classroom.manage.grade")}
-                    </Button>}
-                    {submission.evaluation?.score != null && !submission.evaluation.published && <Button size="sm" onClick={() => publishGrade.mutate(submission.id)} disabled={publishGrade.isPending}>Công bố điểm</Button>}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </div>}
+                    <div className="flex gap-2">
+                      {canGrade && (
+                        <Button
+                          size="sm"
+                          variant={submission.evaluation?.score != null ? "outline" : "default"}
+                          onClick={() => onGrade(submission)}
+                        >
+                          {submission.evaluation?.score != null
+                            ? t("classroom.manage.viewGrade")
+                            : t("classroom.manage.grade")}
+                        </Button>
+                      )}
+                      {submission.evaluation?.score != null &&
+                        !submission.evaluation.published && (
+                          <Button
+                            size="sm"
+                            onClick={() => publishGrade.mutate(submission.id)}
+                            disabled={publishGrade.isPending}
+                          >
+                            {t("classroom.manage.publishGrade")}
+                          </Button>
+                        )}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

@@ -119,7 +119,7 @@ const courses = {
     difficultyLabel: "Difficulty",
     freeCourse: "Free course",
     freeCourseHint: "Students can enroll without paying.",
-    priceLabel: "Price (USD)",
+    priceLabel: "Price (VND)",
     priceFreePlaceholder: "Free",
     thumbnailTitle: "Thumbnail",
     thumbnailDescription: "PNG or JPG, up to 5MB. 1280 × 720 recommended.",

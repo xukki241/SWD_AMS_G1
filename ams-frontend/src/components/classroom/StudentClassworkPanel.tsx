@@ -6,6 +6,8 @@ import { CalendarClock, FileText } from "lucide-react"
 import { assignmentService } from "@/services/assignment.service"
 import { SubmitDialog } from "@/components/classroom/SubmitDialog"
 import { StatusBadge } from "@/components/classroom/StatusBadge"
+import { FileChip } from "@/components/classroom/FileChip"
+import { parseFileMeta } from "@/components/classroom/format"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Assignment, AssignmentOverviewItem } from "@/types"
@@ -41,6 +43,22 @@ export function StudentClassworkPanel({ courseId }: { courseId: number }) {
                 {work && <StatusBadge status={work.workState}/>}
               </div>
               <div><h4 className="text-sm font-medium">Yêu cầu đề bài</h4><p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{assignment.instructions?.trim() || "Giảng viên chưa bổ sung yêu cầu."}</p></div>
+              {assignment.attachmentUrl && (() => {
+                const meta = parseFileMeta(assignment.attachmentMetadata)
+                return (
+                  <div>
+                    <h4 className="text-sm font-medium">Tệp đề bài</h4>
+                    <div className="mt-1">
+                      <FileChip
+                        name={meta?.name || "Assignment file"}
+                        sizeLabel={meta?.sizeLabel}
+                        href={assignment.attachmentUrl}
+                        download
+                      />
+                    </div>
+                  </div>
+                )
+              })()}
               {assignment.rubric?.trim() && <div><h4 className="text-sm font-medium">Rubric / tiêu chí chấm</h4><p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{assignment.rubric}</p></div>}
               {work?.score != null && <p className="text-sm font-medium">Điểm đã công bố: {work.score}/{assignment.maxScore}</p>}
               <div>{work?.workState === "NOT_STARTED" && <Button size="sm" onClick={() => setSelected(work)}>Nộp bài</Button>}{work?.workState === "UNDER_EVALUATION" && <p className="text-sm text-muted-foreground">Bài đã nộp, đang chờ giáo viên công bố điểm.</p>}{work?.workState === "SUBMITTED" || work?.workState === "LATE" ? <p className="text-sm text-muted-foreground">Bài đã nộp; không thể thay thế bài nộp cuối.</p> : null}</div>

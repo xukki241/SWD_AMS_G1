@@ -216,6 +216,23 @@ public class AuthService {
         }
     }
 
+    /** Re-issue JWT with current active roles (e.g. after being granted TEACHER on first course create). */
+    @Transactional(readOnly = true)
+    public AuthDTO.AuthResponse refreshSession() {
+        String username = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+        if (user.getAccountStatus() != User.AccountStatus.ACTIVE) {
+            throw new BadRequestException("Account is locked or inactive; contact an administrator");
+        }
+        List<SimpleGrantedAuthority> authorities = userRoleRepository.findActiveRolesByUserId(user.getId()).stream()
+                .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getRoleName().name())).toList();
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getUsername(), null, authorities);
+        List<String> roles = authorities.stream().map(SimpleGrantedAuthority::getAuthority).toList();
+        return response(user, tokenProvider.generateToken(authentication), roles);
+    }
+
     private AuthDTO.AuthResponse response(User user, String token, List<String> roles) {
         return new AuthDTO.AuthResponse(token, "Bearer", user.getId(), user.getUsername(), user.getEmail(), user.getFullName(), user.getAvatarUrl(), roles);
     }

@@ -19,13 +19,13 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/courses")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-@Tag(name = "Courses", description = "Course management (teacher owns, admin sees all)")
+@Tag(name = "Courses", description = "Course management (any user can create; owner/admin manage)")
 public class CourseController {
 
     private final CourseService courseService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     @Operation(summary = "List courses with keyword, category, status and pagination")
     public ResponseEntity<Page<CourseDTO.CourseSummaryResponse>> listCourses(
             @RequestParam(required = false) String keyword,
@@ -38,20 +38,23 @@ public class CourseController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get course details")
     public ResponseEntity<CourseDTO.CourseDetailResponse> getCourse(@PathVariable Long id) {
         return ResponseEntity.ok(courseService.getCourse(id));
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Create a course (JSON, thumbnailUrl optional)")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Create a course (JSON, thumbnailUrl optional). Grants TEACHER if needed.")
     public ResponseEntity<CourseDTO.CourseDetailResponse> createCourse(
             @Valid @RequestBody CourseDTO.CourseRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(courseService.createCourse(request, null));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Create a course with an optional thumbnail upload")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Create a course with an optional thumbnail upload. Grants TEACHER if needed.")
     public ResponseEntity<CourseDTO.CourseDetailResponse> createCourseMultipart(
             @RequestPart("data") @Valid CourseDTO.CourseRequest request,
             @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail) {
@@ -59,6 +62,7 @@ public class CourseController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     @Operation(summary = "Update a course (JSON)")
     public ResponseEntity<CourseDTO.CourseDetailResponse> updateCourse(
             @PathVariable Long id,
@@ -67,6 +71,7 @@ public class CourseController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     @Operation(summary = "Update a course with an optional thumbnail upload")
     public ResponseEntity<CourseDTO.CourseDetailResponse> updateCourseMultipart(
             @PathVariable Long id,
@@ -76,6 +81,7 @@ public class CourseController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     @Operation(summary = "Soft-delete a course (blocked when it has enrollments)")
     public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
         courseService.deleteCourse(id);
@@ -83,13 +89,11 @@ public class CourseController {
     }
 
     private Course.Status parseStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return null;
-        }
+        if (status == null || status.isBlank()) return null;
         try {
             return Course.Status.valueOf(status.trim().toUpperCase());
         } catch (IllegalArgumentException ex) {
-            throw new BadRequestException("Status must be DRAFT or PUBLISHED");
+            throw new BadRequestException("Invalid course status: " + status);
         }
     }
 }

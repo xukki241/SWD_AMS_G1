@@ -50,6 +50,56 @@ function CourseDot({ name }: { name: string }) {
   )
 }
 
+function CourseSection({
+  label,
+  empty,
+  courses,
+  activeCourseId,
+  onNavigate,
+}: {
+  label: string
+  empty: string
+  courses: { id: number; title: string }[]
+  activeCourseId: number | null
+  onNavigate: () => void
+}) {
+  return (
+    <div className="flex min-h-0 flex-col">
+      <div className="mb-1 px-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+      </div>
+      <div className="space-y-0.5">
+        {courses.length === 0 ? (
+          <p className="px-3 py-2 text-xs text-muted-foreground">{empty}</p>
+        ) : (
+          courses.map((c) => {
+            const active = activeCourseId === c.id
+            return (
+              <Link
+                key={`${label}-${c.id}`}
+                href={`/courses/${c.id}`}
+                className={cn(
+                  "flex items-center gap-3 rounded-full px-2.5 py-2 text-sm transition-colors",
+                  active
+                    ? "bg-accent text-accent-foreground"
+                    : "text-foreground hover:bg-muted"
+                )}
+                onClick={onNavigate}
+                title={c.title}
+              >
+                <CourseDot name={c.title} />
+                <span className="min-w-0 truncate font-medium">{c.title}</span>
+              </Link>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 function NavItem({
   href,
   icon: Icon,
@@ -115,16 +165,22 @@ export function Sidebar({
 
   const homePath = isAdmin
     ? "/admin"
-    : isTeacher ? "/teacher" : "/student"
+    : isTeacher && !isStudent
+      ? "/teacher"
+      : isStudent
+        ? "/student"
+        : isTeacher
+          ? "/teacher"
+          : "/student"
 
-  // Students: their enrollments; teachers: courses they instruct.
+  // Dual-role: load both enrolled courses and courses the user teaches.
   const { data: myEnrollments } = useQuery({
     queryKey: ["sidebar-my-enrollments", user?.userId],
     queryFn: () => enrollmentService.getMyEnrollments(),
     enabled: isStudent && !isAdmin,
   })
 
-  const { data: myCoursesPage } = useQuery({
+  const { data: teachingCourses } = useQuery({
     queryKey: ["sidebar-my-courses", user?.userId],
     queryFn: async () => {
       const page = await courseService.list({ page: 0, size: 50 })
@@ -133,6 +189,49 @@ export function Sidebar({
     },
     enabled: isTeacher && !isAdmin && !!user,
   })
+
+  const studentLinks: NavLink[] = [
+    { name: t("dashboard.nav.courseCatalog"), href: "/catalog", icon: BookOpen },
+    {
+      name: t("dashboard.nav.submissionsFeedback"),
+      href: "/student/submissions",
+      icon: CheckSquare,
+    },
+    {
+      name: t("dashboard.nav.myCourses"),
+      href: "/student/courses",
+      icon: Home,
+    },
+    {
+      name: t("dashboard.nav.toDo"),
+      href: "/student/work",
+      icon: CheckSquare,
+    },
+    {
+      name: t("dashboard.nav.payments"),
+      href: "/student/enrollments",
+      icon: CreditCard,
+      section: "payments",
+    },
+  ]
+
+  const teacherLinks: NavLink[] = [
+    {
+      name: t("dashboard.nav.manageAssignments"),
+      href: "/teacher/work",
+      icon: ClipboardList,
+    },
+    {
+      name: t("dashboard.nav.myPayments"),
+      href: "/teacher/payments",
+      icon: CreditCard,
+    },
+    {
+      name: t("dashboard.nav.manageCourses"),
+      href: "/courses",
+      icon: BookOpen,
+    },
+  ]
 
   const primaryLinks: NavLink[] = isAdmin
     ? [
@@ -156,66 +255,29 @@ export function Sidebar({
           section: "audit",
         },
       ]
-    : isStudent
-      ? [
-          { name: t("dashboard.nav.courseCatalog"), href: "/catalog", icon: BookOpen },
-          {
-            name: t("dashboard.nav.submissionsFeedback"),
-            href: "/student/submissions",
-            icon: CheckSquare,
-          },
-          {
-            name: t("dashboard.nav.myCourses"),
-            href: "/student/courses",
-            icon: Home,
-          },
-          {
-            name: t("dashboard.nav.toDo"),
-            href: "/student/work",
-            icon: CheckSquare,
-          },
-          {
-            name: t("dashboard.nav.payments"),
-            href: "/student/enrollments",
-            icon: CreditCard,
-            section: "payments",
-          },
-        ]
-      : isTeacher
-        ? [
-            {
-              name: t("dashboard.nav.myCourses"),
-              href: "/teacher/courses",
-              icon: Home,
-            },
-            {
-              name: t("dashboard.nav.manageAssignments"),
-              href: "/teacher/work",
-              icon: ClipboardList,
-            },
-            {
-              name: t("dashboard.nav.myPayments"),
-              href: "/teacher/payments",
-              icon: CreditCard,
-            },
-            {
-              name: t("dashboard.nav.manageCourses"),
-              href: "/courses",
-              icon: BookOpen,
-            },
-          ]
-        : []
+    : [
+        ...(isStudent ? studentLinks : []),
+        ...(isTeacher && !isStudent
+          ? [
+              {
+                name: t("dashboard.nav.myCourses"),
+                href: "/teacher/courses",
+                icon: Home,
+              } as NavLink,
+              ...teacherLinks,
+            ]
+          : isTeacher
+            ? teacherLinks
+            : []),
+      ]
 
-  const courseListLabel = isStudent
-    ? t("dashboard.nav.myCourses")
-    : isTeacher
-      ? t("dashboard.courseList.teaching")
-      : t("dashboard.courseList.published")
-  const sidebarCourses: { id: number; title: string }[] = isStudent
-    ? (myEnrollments || [])
-        .filter((e: CourseEnrollment) => e.status !== "CANCELLED")
-        .map((e: CourseEnrollment) => ({ id: e.courseId, title: e.courseTitle }))
-    : (myCoursesPage || []).map((c: CourseSummary) => ({ id: c.id, title: c.title }))
+  const enrolledCourses: { id: number; title: string }[] = (myEnrollments || [])
+    .filter((e: CourseEnrollment) => e.status !== "CANCELLED")
+    .map((e: CourseEnrollment) => ({ id: e.courseId, title: e.courseTitle }))
+
+  const teachingList: { id: number; title: string }[] = (teachingCourses || []).map(
+    (c: CourseSummary) => ({ id: c.id, title: c.title })
+  )
 
   const isPrimaryActive = (link: NavLink) => {
     const base = link.href.split("#")[0]
@@ -286,48 +348,33 @@ export function Sidebar({
         </div>
 
         {isCourseUser && !isAdmin && (
-          <div className="mt-4 flex min-h-0 flex-1 flex-col">
-            <div className="mb-1 px-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {courseListLabel}
-              </p>
-            </div>
-            <div className="flex-1 space-y-0.5 overflow-y-auto pb-3">
-              {sidebarCourses.length === 0 ? (
-                <p className="px-3 py-2 text-xs text-muted-foreground">
-                  {isStudent
-                    ? t("dashboard.courseList.emptyStudent")
-                    : t("dashboard.courseList.emptyTeacher")}
-                </p>
-              ) : (
-                sidebarCourses.map((c) => {
-                  const active = activeCourseId === c.id
-                  return (
-                    <Link
-                      key={c.id}
-                      href={`/courses/${c.id}`}
-                      className={cn(
-                        "flex items-center gap-3 rounded-full px-2.5 py-2 text-sm transition-colors",
-                        active
-                          ? "bg-accent text-accent-foreground"
-                          : "text-foreground hover:bg-muted"
-                      )}
-                      onClick={() => {
-                        if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
-                          closeSidebar?.()
-                        }
-                      }}
-                      title={c.title}
-                    >
-                      <CourseDot name={c.title} />
-                      <span className="min-w-0 truncate font-medium">
-                        {c.title}
-                      </span>
-                    </Link>
-                  )
-                })
-              )}
-            </div>
+          <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-3">
+            {isTeacher && (
+              <CourseSection
+                label={t("dashboard.courseList.teaching")}
+                empty={t("dashboard.courseList.emptyTeacher")}
+                courses={teachingList}
+                activeCourseId={activeCourseId}
+                onNavigate={() => {
+                  if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+                    closeSidebar?.()
+                  }
+                }}
+              />
+            )}
+            {isStudent && (
+              <CourseSection
+                label={t("dashboard.nav.myCourses")}
+                empty={t("dashboard.courseList.emptyStudent")}
+                courses={enrolledCourses}
+                activeCourseId={activeCourseId}
+                onNavigate={() => {
+                  if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+                    closeSidebar?.()
+                  }
+                }}
+              />
+            )}
           </div>
         )}
       </nav>

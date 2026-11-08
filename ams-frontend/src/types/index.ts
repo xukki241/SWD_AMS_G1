@@ -111,6 +111,8 @@ export interface Assignment {
   dueAt: string;
   maxScore: number;
   status: 'DRAFT' | 'PUBLISHED';
+  attachmentUrl?: string | null;
+  attachmentMetadata?: string | null;
 }
 
 export interface CreateAssignmentRequest {

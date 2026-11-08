@@ -41,7 +41,9 @@ public class AssignmentDTO {
             String topic,
             LocalDateTime dueAt,
             BigDecimal maxScore,
-            Assignment.Status status
+            Assignment.Status status,
+            String attachmentUrl,
+            String attachmentMetadata
     ) {}
 
     public record CreateAssignmentRequest(
