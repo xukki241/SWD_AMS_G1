@@ -187,7 +187,8 @@ export function Sidebar({
       const content = page.content || []
       return content.filter((c) => user && c.instructorId === user.userId)
     },
-    enabled: isTeacher && !isAdmin && !!user,
+    // Dual-role: any signed-in non-admin can own courses (TEACHER granted on create).
+    enabled: !isAdmin && !!user,
   })
 
   const studentLinks: NavLink[] = [
@@ -264,11 +265,10 @@ export function Sidebar({
                 href: "/teacher/courses",
                 icon: Home,
               } as NavLink,
-              ...teacherLinks,
             ]
-          : isTeacher
-            ? teacherLinks
-            : []),
+          : []),
+        // Dual-role users (and pure teachers) get teaching tools.
+        ...(isTeacher || isStudent ? teacherLinks : []),
       ]
 
   const enrolledCourses: { id: number; title: string }[] = (myEnrollments || [])
@@ -349,7 +349,7 @@ export function Sidebar({
 
         {isCourseUser && !isAdmin && (
           <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-3">
-            {isTeacher && (
+            {!isAdmin && (
               <CourseSection
                 label={t("dashboard.courseList.teaching")}
                 empty={t("dashboard.courseList.emptyTeacher")}

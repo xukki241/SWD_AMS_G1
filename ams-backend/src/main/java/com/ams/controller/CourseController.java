@@ -25,8 +25,8 @@ public class CourseController {
     private final CourseService courseService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    @Operation(summary = "List courses with keyword, category, status and pagination")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "List courses owned by the current user (admin sees all)")
     public ResponseEntity<Page<CourseDTO.CourseSummaryResponse>> listCourses(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,

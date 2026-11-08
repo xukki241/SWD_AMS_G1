@@ -46,6 +46,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { courseService } from "@/services/course.service"
 import { categoryService } from "@/services/category.service"
+import { authService } from "@/services/auth.service"
+import { useAuthStore } from "@/stores/authStore"
 import { CourseStaffGuard } from "@/components/courses/CourseStaffGuard"
 import { CourseStatusBadge, DifficultyBadge } from "@/components/courses/CourseStatusBadge"
 import { ConfirmDialog } from "@/components/courses/ConfirmDialog"
@@ -75,9 +77,26 @@ function CoursesList() {
   const queryClient = useQueryClient()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const setAuth = useAuthStore((s) => s.setAuth)
   const { t } = useI18n()
   const [keyword, setKeyword] = useState("")
   const [debouncedKeyword, setDebouncedKeyword] = useState("")
+
+  // Sync TEACHER role into the JWT if it was granted after login (dual-role).
+  useEffect(() => {
+    let cancelled = false
+    authService
+      .refresh()
+      .then((session) => {
+        if (!cancelled) setAuth(session)
+      })
+      .catch(() => {
+        /* keep existing session */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [setAuth])
   const [categoryId, setCategoryId] = useState("all")
   const [status, setStatus] = useState<"all" | CourseStatus>("all")
   const [page, setPage] = useState(0)
