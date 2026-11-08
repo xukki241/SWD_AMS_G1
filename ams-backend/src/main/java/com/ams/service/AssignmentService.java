@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -78,6 +80,7 @@ public class AssignmentService {
             AssignmentDTO.CreateAssignmentRequest request,
             MultipartFile attachment
     ) {
+        validateFutureDueAt(request.dueAt());
         User teacher = currentUser();
 
         Course course = courseRepository.findById(courseId)
@@ -193,6 +196,7 @@ public class AssignmentService {
             assignment.setTopic(blankToNull(request.topic()));
         }
         if (request.dueAt() != null) {
+            validateFutureDueAt(request.dueAt());
             assignment.setDueAt(request.dueAt());
         }
         if (request.maxScore() != null) {
@@ -295,6 +299,12 @@ public class AssignmentService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static void validateFutureDueAt(java.time.LocalDateTime dueAt) {
+        if (dueAt == null || !dueAt.toLocalDate().isAfter(LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh")))) {
+            throw new BadRequestException("Due date must be after today");
+        }
     }
 
     private User currentUser() {

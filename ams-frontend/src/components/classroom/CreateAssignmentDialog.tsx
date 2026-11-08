@@ -21,6 +21,19 @@ import { sanitizeScoreInput } from "@/components/classroom/ScoreInput"
 import { assignmentService } from "@/services/assignment.service"
 import { useI18n, getApiErrorMessage } from "@/i18n"
 
+function localDateString(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function getMinimumDueAt() {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return `${localDateString(tomorrow)}T00:00`
+}
+
 export function CreateAssignmentDialog({
   courseId,
   open,
@@ -121,6 +134,7 @@ export function CreateAssignmentDialog({
               <Input
                 id="asg-due"
                 type="datetime-local"
+              min={getMinimumDueAt()}
                 value={dueAt}
                 onChange={(e) => setDueAt(e.target.value)}
               />
@@ -196,7 +210,7 @@ export function CreateAssignmentDialog({
           </Button>
           <Button
             onClick={() => createMutation.mutate()}
-            disabled={!title.trim() || !dueAt || createMutation.isPending}
+            disabled={!title.trim() || !dueAt || dueAt.slice(0, 10) <= localDateString(new Date()) || createMutation.isPending}
           >
             {createMutation.isPending ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />

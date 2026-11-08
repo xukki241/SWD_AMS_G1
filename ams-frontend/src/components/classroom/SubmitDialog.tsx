@@ -157,7 +157,7 @@ export function SubmitDialog({
   )
 
   const submit = () => {
-    if (!file || !assignment) return
+    if ((!file && !note.trim()) || !assignment) return
     setRetryCount(0)
     doUpload(0)
   }

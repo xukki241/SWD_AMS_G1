@@ -97,7 +97,7 @@ export function YourWorkPanel({
 
   const doUpload = useCallback(
     async (attempt: number) => {
-      if (!file) return
+      if (!file && !note.trim()) return
       setPhase(attempt === 0 ? "uploading" : "retrying")
       setErrorMsg(null)
       setProgress(0)
@@ -112,7 +112,7 @@ export function YourWorkPanel({
           onUploadProgress: (e) => {
             if (e.total) setProgress(Math.round((e.loaded / e.total) * 100))
           },
-        })
+        }, note)
 
         setPhase("done")
         setProgress(100)
@@ -164,7 +164,7 @@ export function YourWorkPanel({
   )
 
   const turnIn = () => {
-    if (!file) return
+    if (!file && !note.trim()) return
     setRetryCount(0)
     doUpload(0)
   }
@@ -306,7 +306,7 @@ export function YourWorkPanel({
               <Button
                 className="w-full rounded-full shadow-gc hover:shadow-gc-lg"
                 onClick={turnIn}
-                disabled={inFlight || !file}
+                disabled={inFlight || (!file && !note.trim())}
               >
                 {inFlight ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />

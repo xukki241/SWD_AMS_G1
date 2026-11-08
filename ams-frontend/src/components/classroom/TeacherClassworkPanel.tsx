@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertCircle, CalendarClock, FileText, Loader2, Plus, Search, Users } from "lucide-react"
+import { AlertCircle, CalendarClock, Check, FileText, Loader2, Pencil, Plus, Search, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,14 +11,28 @@ import { FileChip } from "@/components/classroom/FileChip"
 import { GradeDialog } from "@/components/classroom/GradeDialog"
 import { StatusBadge } from "@/components/classroom/StatusBadge"
 import { parseFileMeta } from "@/components/classroom/format"
-import { useI18n, formatDateTime } from "@/i18n"
+import { useI18n, formatDateTime, getApiErrorMessage } from "@/i18n"
 import { assignmentService } from "@/services/assignment.service"
 import { submissionService } from "@/services/submission.service"
 import { evaluationService } from "@/services/evaluation.service"
+import { useToast } from "@/lib/use-toast"
 import { cn } from "@/lib/utils"
 import type { Submission } from "@/types"
 
 type GradeFilter = "all" | "submitted" | "graded" | "ungraded"
+
+function localDateString(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function minimumDueAt() {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return `${localDateString(tomorrow)}T00:00`
+}
 
 export function TeacherClassworkPanel({ courseId }: { courseId: number }) {
   const { t } = useI18n()
@@ -114,11 +128,29 @@ function AssignmentCard({
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<GradeFilter>("all")
   const [search, setSearch] = useState("")
+  const [editingDueAt, setEditingDueAt] = useState(false)
+  const [dueAt, setDueAt] = useState(assignment.dueAt.slice(0, 16))
+  const { toast } = useToast()
 
   const publishAssignment = useMutation({
     mutationFn: () => assignmentService.patch(assignment.id, { status: "PUBLISHED" }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["course-assignments", assignment.courseId] }),
+  })
+  const updateDueDate = useMutation({
+    mutationFn: () => assignmentService.patch(assignment.id, { dueAt }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["course-assignments", assignment.courseId] })
+      queryClient.invalidateQueries({ queryKey: ["student-course-assignments", assignment.courseId] })
+      queryClient.invalidateQueries({ queryKey: ["student-work"] })
+      setEditingDueAt(false)
+      toast({ title: t("classroom.manage.dueUpdated"), variant: "success" })
+    },
+    onError: (error: unknown) => toast({
+      title: t("classroom.manage.dueUpdateFailed"),
+      description: getApiErrorMessage(error, t("classroom.manage.dueUpdateFailed")),
+      variant: "destructive",
+    }),
   })
   const { data: submissions, isLoading, isError, refetch } = useQuery({
     queryKey: ["submissions", assignment.id],
@@ -187,8 +219,43 @@ function AssignmentCard({
             <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
               <CalendarClock className="h-3.5 w-3.5" />
               {t("classroom.manage.due", { date: formatDateTime(assignment.dueAt) })}
+              <button
+                type="button"
+                className="ml-1 inline-flex items-center gap-1 rounded px-1.5 py-1 text-primary hover:bg-primary/10"
+                onClick={() => {
+                  setDueAt(assignment.dueAt.slice(0, 16))
+                  setEditingDueAt((current) => !current)
+                }}
+              >
+                <Pencil className="h-3 w-3" />
+                {t("classroom.manage.editDue")}
+              </button>
               <span>· {t("classroom.manage.maxScore", { score: assignment.maxScore })}</span>
             </p>
+            {editingDueAt && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Input
+                  aria-label={t("classroom.manage.editDue")}
+                  type="datetime-local"
+                  min={minimumDueAt()}
+                  value={dueAt}
+                  onChange={(event) => setDueAt(event.target.value)}
+                  className="w-auto"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => updateDueDate.mutate()}
+                  disabled={!dueAt || dueAt.slice(0, 10) <= localDateString(new Date()) || updateDueDate.isPending}
+                >
+                  {updateDueDate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  <span className="ml-1">{t("classroom.manage.saveDue")}</span>
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingDueAt(false)}>
+                  <X className="h-4 w-4" />
+                  <span className="ml-1">{t("common.actions.cancel")}</span>
+                </Button>
+              </div>
+            )}
           </div>
           <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
             {t("classroom.manage.pending", { count: pendingCount })}
