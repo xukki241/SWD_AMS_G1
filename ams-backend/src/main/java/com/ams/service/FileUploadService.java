@@ -5,6 +5,7 @@ import com.cloudinary.utils.ObjectUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -28,25 +29,65 @@ public class FileUploadService {
     @Value("${file.storage.base-url:http://localhost:8080}")
     private String baseUrl;
 
+    @Value("${cloudinary.cloud-name:}")
+    private String cloudName;
+
+    @Value("${cloudinary.api-key:}")
+    private String apiKey;
+
+    @Value("${cloudinary.api-secret:}")
+    private String apiSecret;
+
     public FileUploadService(Cloudinary cloudinary) {
         this.cloudinary = cloudinary;
     }
 
     public Map uploadFile(MultipartFile file, String folder) throws IOException {
         String originalFilename = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename();
-        log.info("Uploading file '{}' to Cloudinary folder '{}'", originalFilename, folder);
+        log.info("Uploading file '{}' to folder '{}'", originalFilename, folder);
 
-        try {
-            Map uploadParams = ObjectUtils.asMap(
-                    "folder", "ams/" + folder,
-                    "resource_type", "auto"
-            );
-            return cloudinary.uploader().upload(file.getBytes(), uploadParams);
-        } catch (Exception e) {
-            // Cloudinary credentials may be invalid/absent (POC) - fall back to local disk
-            log.warn("Cloudinary upload failed ({}); storing locally instead", e.getMessage());
-            return saveLocally(file, folder, originalFilename);
+        if (isCloudinaryConfigured()) {
+            try {
+                String resourceType = resolveResourceType(originalFilename, file.getContentType());
+                Map uploadParams = ObjectUtils.asMap(
+                        "folder", "ams/" + folder,
+                        "resource_type", resourceType,
+                        "use_filename", true,
+                        "unique_filename", true,
+                        "overwrite", false
+                );
+                Map result = cloudinary.uploader().upload(file.getBytes(), uploadParams);
+                Object url = result.get("secure_url");
+                if (url != null && StringUtils.hasText(String.valueOf(url))) {
+                    return result;
+                }
+                log.warn("Cloudinary returned empty secure_url; falling back to local storage");
+            } catch (Exception e) {
+                log.warn("Cloudinary upload failed ({}); storing locally instead", e.getMessage());
+            }
+        } else {
+            log.warn("Cloudinary is not configured; storing '{}' locally", originalFilename);
         }
+        return saveLocally(file, folder, originalFilename);
+    }
+
+    private boolean isCloudinaryConfigured() {
+        return StringUtils.hasText(cloudName)
+                && StringUtils.hasText(apiKey)
+                && StringUtils.hasText(apiSecret);
+    }
+
+    /** Images → image; video → video; everything else (pdf/docx/zip) → raw. */
+    private static String resolveResourceType(String filename, String contentType) {
+        String type = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
+        if (type.startsWith("image/")) return "image";
+        if (type.startsWith("video/")) return "video";
+        String lower = filename.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+                || lower.endsWith(".gif") || lower.endsWith(".webp")) {
+            return "image";
+        }
+        return "raw";
     }
 
     private Map saveLocally(MultipartFile file, String folder, String originalFilename) throws IOException {
@@ -68,6 +109,7 @@ public class FileUploadService {
         result.put("public_id", "ams/" + folder + "/" + name);
         result.put("format", safeExt.isEmpty() ? "file" : safeExt);
         result.put("bytes", file.getSize());
+        result.put("original_filename", originalFilename);
         return result;
     }
 }

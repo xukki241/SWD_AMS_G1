@@ -72,12 +72,9 @@ public class SubmissionService {
         boolean hasFile = file != null && !file.isEmpty();
         if (!hasFile && (cleanAnswer == null || cleanAnswer.isBlank())) throw new BadRequestException("Attach a file or enter your answer");
         if (hasFile && file.getSize() > 10L * 1024 * 1024) throw new BadRequestException("Submission file must be 10 MB or smaller");
-        if (hasFile) {
-            String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
-            if (!(contentType.equals("application/pdf") || contentType.startsWith("text/")
-                    || contentType.startsWith("image/"))) {
-                throw new BadRequestException("Unsupported submission file type");
-            }
+        if (hasFile && !isAllowedSubmissionFile(file)) {
+            throw new BadRequestException(
+                    "Unsupported submission file type. Allowed: PDF, DOC/DOCX, ZIP, text, or image.");
         }
 
         if (submissionRepository.findByCourseEnrollmentIdAndAssignmentId(enrollmentId, assignmentId).isPresent()) {
@@ -227,5 +224,36 @@ public class SubmissionService {
                 s.getSubmissionStatus(),
                 evalDto
         );
+    }
+
+    private static boolean isAllowedSubmissionFile(MultipartFile file) {
+        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
+        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
+        if (contentType.equals("application/pdf")
+                || contentType.startsWith("text/")
+                || contentType.startsWith("image/")
+                || contentType.equals("application/zip")
+                || contentType.equals("application/x-zip-compressed")
+                || contentType.equals("application/msword")
+                || contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                || contentType.equals("application/vnd.openxmlformats-officedocument.presentationml.presentation")
+                || contentType.equals("application/octet-stream")) {
+            // octet-stream is common for browsers on .docx/.zip — still gate by extension.
+            if (!contentType.equals("application/octet-stream")) return true;
+        }
+        return name.endsWith(".pdf")
+                || name.endsWith(".txt")
+                || name.endsWith(".md")
+                || name.endsWith(".csv")
+                || name.endsWith(".png")
+                || name.endsWith(".jpg")
+                || name.endsWith(".jpeg")
+                || name.endsWith(".gif")
+                || name.endsWith(".webp")
+                || name.endsWith(".zip")
+                || name.endsWith(".doc")
+                || name.endsWith(".docx")
+                || name.endsWith(".ppt")
+                || name.endsWith(".pptx");
     }
 }
