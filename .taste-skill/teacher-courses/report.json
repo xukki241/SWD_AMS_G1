@@ -1,0 +1,1260 @@
+{
+ "url": "http://localhost:3000/teacher/courses",
+ "at": "2026-11-07T05:24:31.486Z",
+ "allow": [],
+ "viewports": [
+  {
+   "width": 1440,
+   "height": 900,
+   "load": "load",
+   "screens": 1,
+   "filled": [
+    0.18
+   ],
+   "motion": {
+    "elements": 1,
+    "css": 1,
+    "transitions": 0,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "page": {
+     "height": 900,
+     "screens": 1,
+     "words": 54,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 1,
+     "sections": 0,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Đăng nhập",
+     "words": 2,
+     "chars": 9,
+     "lines": 1,
+     "size": 28,
+     "vw": 1.9,
+     "font": "__Inter_d8ebd1",
+     "weight": 300,
+     "tracking": -0.02,
+     "leading": 1.5,
+     "top": 160,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "h1": {
+     "text": "Đăng nhập",
+     "words": 2,
+     "lines": 1,
+     "size": 28,
+     "font": "__Inter_d8ebd1"
+    },
+    "headings": [
+     {
+      "text": "Đăng nhập",
+      "words": 2,
+      "chars": 9,
+      "lines": 1,
+      "size": 28,
+      "vw": 1.9,
+      "font": "__Inter_d8ebd1",
+      "weight": 300,
+      "tracking": -0.025,
+      "leading": 1.5,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.09,
+      "top": 160,
+      "tag": "h1",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 1,
+     "maxLines": 1,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 1,
+     "medianWords": null,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "__Inter_d8ebd1",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      12,
+      14,
+      28
+     ],
+     "sizeCount": 3,
+     "notLoaded": [],
+     "body": null,
+     "measureChars": null,
+     "max": {
+      "size": 28,
+      "vw": 1.9,
+      "font": "__Inter_d8ebd1",
+      "text": "Đăng nhập"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.6,
+     "smallText": 3
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#f9fafb",
+     "bodyBgHsl": {
+      "h": 210,
+      "s": 0.2,
+      "l": 0.98
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#f9fafb",
+       "top": 0,
+       "hsl": {
+        "h": 210,
+        "s": 0.2,
+        "l": 0.98
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#606366",
+       "share": 0.48
+      },
+      {
+       "color": "#d92f24",
+       "share": 0.21
+      },
+      {
+       "color": "#202122",
+       "share": 0.16
+      },
+      {
+       "color": "#0b57d0",
+       "share": 0.11
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.04
+      }
+     ],
+     "button": {
+      "bg": "#ffffff",
+      "hsl": {
+       "h": 0,
+       "s": 0,
+       "l": 1
+      },
+      "fg": "#202122"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 4,
+     "inHero": 4,
+     "radius": "pill",
+     "height": 30,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Đăng nhập",
+      "Quản trị viên",
+      "Giảng viên",
+      "Học viên"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 2,
+     "shadowOverlay": 0,
+     "shadowSamples": [
+      "div.w-full.max-w-[400px] → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(60, 64,",
+      "button.inline-flex.items-center → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(60, 64,"
+     ],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 2,
+     "hairlineSamples": [
+      "div.mt-4.border-t 334px",
+      "div.mt-6.border-t 334px"
+     ],
+     "outlinedBoxes": 1,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 1,
+     "boxRadius": 8,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": null,
+    "fontsLoaded": [
+     "__inter_d8ebd1",
+     "__inter_fallback_d8ebd1"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "pageH": 900,
+    "margins": {
+     "left": 553,
+     "right": 553
+    },
+    "sections": [],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Đăng nhập",
+      "size": 28,
+      "top": 160,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [],
+    "leftBlocks": 0,
+    "bodySize": 14,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0.33,
+    "voidBox": {
+     "x": 0,
+     "y": 120,
+     "w": 540,
+     "h": 780
+    }
+   },
+   "app": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "dark": false,
+    "ground": "#f9fafb",
+    "sidebar": null,
+    "topbar": null,
+    "canvas": {
+     "left": 553,
+     "right": 553
+    },
+    "hero": {
+     "text": "Đăng nhập",
+     "words": 2,
+     "chars": 9,
+     "lines": 1,
+     "size": 28,
+     "vw": 1.9,
+     "font": "__Inter_d8ebd1",
+     "weight": 300,
+     "tracking": -0.02,
+     "leading": 1.5,
+     "top": 160,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "charts": 0,
+    "layout": {
+     "panels": 1,
+     "firstScreen": 1,
+     "ragged": [],
+     "voids": [
+      {
+       "gap": 69,
+       "at": 527,
+       "panel": "Đăng nhập"
+      }
+     ]
+    },
+    "tiles": 0,
+    "panels": {
+     "count": 2,
+     "radii": [
+      [
+       8,
+       1
+      ],
+      [
+       0,
+       1
+      ]
+     ],
+     "heavyBorders": 2,
+     "borderSamples": [
+      "#d1d6dc on #ffffff (1.46:1)",
+      "#d1d6dc on #ffffff (1.46:1)"
+     ],
+     "heavyShadows": 1,
+     "softShadows": 1,
+     "shadowSamples": [
+      "rgba(60, 64, 67, 0.3) 0px 1px 2px 0px"
+     ],
+     "glass": 0
+    },
+    "chips": {
+     "count": 1,
+     "hues": 1,
+     "samples": [
+      {
+       "hue": 217,
+       "size": 44,
+       "radius": "9999px"
+      }
+     ]
+    },
+    "numbers": {
+     "cells": 0,
+     "leftAligned": 0,
+     "figures": 0,
+     "tabularShare": null,
+     "kpiMax": null
+    },
+    "rows": null,
+    "chartHues": 0,
+    "placeholders": [],
+    "type": {
+     "under13": 0.4,
+     "tiny": 0,
+     "tinySamples": [],
+     "sizes": [
+      12,
+      14,
+      28
+     ]
+    },
+    "title": {
+     "text": "Đăng nhập",
+     "size": 28,
+     "top": 160
+    },
+    "colourShare": 0.013
+   },
+   "consoleErrors": []
+  },
+  {
+   "width": 768,
+   "height": 1024,
+   "load": "load",
+   "screens": 1,
+   "filled": [
+    0.34
+   ],
+   "motion": {
+    "elements": 1,
+    "css": 1,
+    "transitions": 0,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "page": {
+     "height": 1024,
+     "screens": 1,
+     "words": 54,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 1,
+     "sections": 0,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Đăng nhập",
+     "words": 2,
+     "chars": 9,
+     "lines": 1,
+     "size": 28,
+     "vw": 3.6,
+     "font": "__Inter_d8ebd1",
+     "weight": 300,
+     "tracking": -0.02,
+     "leading": 1.5,
+     "top": 222,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "h1": {
+     "text": "Đăng nhập",
+     "words": 2,
+     "lines": 1,
+     "size": 28,
+     "font": "__Inter_d8ebd1"
+    },
+    "headings": [
+     {
+      "text": "Đăng nhập",
+      "words": 2,
+      "chars": 9,
+      "lines": 1,
+      "size": 28,
+      "vw": 3.6,
+      "font": "__Inter_d8ebd1",
+      "weight": 300,
+      "tracking": -0.025,
+      "leading": 1.5,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.18,
+      "top": 222,
+      "tag": "h1",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 1,
+     "maxLines": 1,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 1,
+     "medianWords": null,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "__Inter_d8ebd1",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      12,
+      14,
+      28
+     ],
+     "sizeCount": 3,
+     "notLoaded": [],
+     "body": null,
+     "measureChars": null,
+     "max": {
+      "size": 28,
+      "vw": 3.6,
+      "font": "__Inter_d8ebd1",
+      "text": "Đăng nhập"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.6,
+     "smallText": 3
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#f9fafb",
+     "bodyBgHsl": {
+      "h": 210,
+      "s": 0.2,
+      "l": 0.98
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#f9fafb",
+       "top": 0,
+       "hsl": {
+        "h": 210,
+        "s": 0.2,
+        "l": 0.98
+       }
+      },
+      {
+       "color": "#ffffff",
+       "top": 133,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#606366",
+       "share": 0.48
+      },
+      {
+       "color": "#d92f24",
+       "share": 0.21
+      },
+      {
+       "color": "#202122",
+       "share": 0.16
+      },
+      {
+       "color": "#0b57d0",
+       "share": 0.11
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.04
+      }
+     ],
+     "button": {
+      "bg": "#ffffff",
+      "hsl": {
+       "h": 0,
+       "s": 0,
+       "l": 1
+      },
+      "fg": "#202122"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 4,
+     "inHero": 4,
+     "radius": "pill",
+     "height": 30,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Đăng nhập",
+      "Quản trị viên",
+      "Giảng viên",
+      "Học viên"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 2,
+     "shadowOverlay": 0,
+     "shadowSamples": [
+      "div.w-full.max-w-[400px] → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(60, 64,",
+      "button.inline-flex.items-center → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(60, 64,"
+     ],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 2,
+     "hairlineSamples": [
+      "div.mt-4.border-t 334px",
+      "div.mt-6.border-t 334px"
+     ],
+     "outlinedBoxes": 1,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 1,
+     "boxRadius": 8,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": null,
+    "fontsLoaded": [
+     "__inter_d8ebd1",
+     "__inter_fallback_d8ebd1"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "pageH": 1024,
+    "margins": {
+     "left": 217,
+     "right": 217
+    },
+    "sections": [],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Đăng nhập",
+      "size": 28,
+      "top": 222,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [],
+    "leftBlocks": 0,
+    "bodySize": 14,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "dark": false,
+    "ground": "#f9fafb",
+    "sidebar": null,
+    "topbar": null,
+    "canvas": {
+     "left": 217,
+     "right": 217
+    },
+    "hero": {
+     "text": "Đăng nhập",
+     "words": 2,
+     "chars": 9,
+     "lines": 1,
+     "size": 28,
+     "vw": 3.6,
+     "font": "__Inter_d8ebd1",
+     "weight": 300,
+     "tracking": -0.02,
+     "leading": 1.5,
+     "top": 222,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "charts": 0,
+    "layout": {
+     "panels": 1,
+     "firstScreen": 1,
+     "ragged": [],
+     "voids": [
+      {
+       "gap": 69,
+       "at": 589,
+       "panel": "Đăng nhập"
+      }
+     ]
+    },
+    "tiles": 0,
+    "panels": {
+     "count": 2,
+     "radii": [
+      [
+       8,
+       1
+      ],
+      [
+       0,
+       1
+      ]
+     ],
+     "heavyBorders": 2,
+     "borderSamples": [
+      "#d1d6dc on #ffffff (1.46:1)",
+      "#d1d6dc on #ffffff (1.46:1)"
+     ],
+     "heavyShadows": 1,
+     "softShadows": 1,
+     "shadowSamples": [
+      "rgba(60, 64, 67, 0.3) 0px 1px 2px 0px"
+     ],
+     "glass": 0
+    },
+    "chips": {
+     "count": 1,
+     "hues": 1,
+     "samples": [
+      {
+       "hue": 217,
+       "size": 44,
+       "radius": "9999px"
+      }
+     ]
+    },
+    "numbers": {
+     "cells": 0,
+     "leftAligned": 0,
+     "figures": 0,
+     "tabularShare": null,
+     "kpiMax": null
+    },
+    "rows": null,
+    "chartHues": 0,
+    "placeholders": [],
+    "type": {
+     "under13": 0.4,
+     "tiny": 0,
+     "tinySamples": [],
+     "sizes": [
+      12,
+      14,
+      28
+     ]
+    },
+    "title": {
+     "text": "Đăng nhập",
+     "size": 28,
+     "top": 222
+    },
+    "colourShare": 0.023
+   },
+   "consoleErrors": []
+  },
+  {
+   "width": 390,
+   "height": 844,
+   "load": "load",
+   "screens": 1,
+   "filled": [
+    0.7
+   ],
+   "motion": {
+    "elements": 1,
+    "css": 1,
+    "transitions": 0,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "page": {
+     "height": 844,
+     "screens": 1,
+     "words": 54,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 1,
+     "sections": 0,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Đăng nhập",
+     "words": 2,
+     "chars": 9,
+     "lines": 1,
+     "size": 28,
+     "vw": 7.2,
+     "font": "__Inter_d8ebd1",
+     "weight": 300,
+     "tracking": -0.02,
+     "leading": 1.5,
+     "top": 132,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "h1": {
+     "text": "Đăng nhập",
+     "words": 2,
+     "lines": 1,
+     "size": 28,
+     "font": "__Inter_d8ebd1"
+    },
+    "headings": [
+     {
+      "text": "Đăng nhập",
+      "words": 2,
+      "chars": 9,
+      "lines": 1,
+      "size": 28,
+      "vw": 7.2,
+      "font": "__Inter_d8ebd1",
+      "weight": 300,
+      "tracking": -0.025,
+      "leading": 1.5,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.35,
+      "top": 132,
+      "tag": "h1",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 1,
+     "maxLines": 1,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 1,
+     "medianWords": null,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "__Inter_d8ebd1",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      12,
+      14,
+      28
+     ],
+     "sizeCount": 3,
+     "notLoaded": [],
+     "body": null,
+     "measureChars": null,
+     "max": {
+      "size": 28,
+      "vw": 7.2,
+      "font": "__Inter_d8ebd1",
+      "text": "Đăng nhập"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.6,
+     "smallText": 3
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#f9fafb",
+     "bodyBgHsl": {
+      "h": 210,
+      "s": 0.2,
+      "l": 0.98
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#f9fafb",
+       "top": 0,
+       "hsl": {
+        "h": 210,
+        "s": 0.2,
+        "l": 0.98
+       }
+      },
+      {
+       "color": "#ffffff",
+       "top": 43,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#606366",
+       "share": 0.48
+      },
+      {
+       "color": "#d92f24",
+       "share": 0.21
+      },
+      {
+       "color": "#202122",
+       "share": 0.16
+      },
+      {
+       "color": "#0b57d0",
+       "share": 0.11
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.04
+      }
+     ],
+     "button": {
+      "bg": "#ffffff",
+      "hsl": {
+       "h": 0,
+       "s": 0,
+       "l": 1
+      },
+      "fg": "#202122"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 4,
+     "inHero": 4,
+     "radius": "pill",
+     "height": 30,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Đăng nhập",
+      "Quản trị viên",
+      "Giảng viên",
+      "Học viên"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 2,
+     "shadowOverlay": 0,
+     "shadowSamples": [
+      "div.w-full.max-w-[400px] → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(60, 64,",
+      "button.inline-flex.items-center → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(60, 64,"
+     ],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 2,
+     "hairlineSamples": [
+      "div.mt-4.border-t 292px",
+      "div.mt-6.border-t 292px"
+     ],
+     "outlinedBoxes": 1,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 1,
+     "boxRadius": 8,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": null,
+    "fontsLoaded": [
+     "__inter_d8ebd1",
+     "__inter_fallback_d8ebd1"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "pageH": 844,
+    "margins": {
+     "left": 49,
+     "right": 49
+    },
+    "sections": [
+     {
+      "sel": "div.mb-6.flex",
+      "tag": "div",
+      "top": 76,
+      "height": 122,
+      "words": 9,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Đăng nhập",
+       "size": 28,
+       "tag": "h1"
+      },
+      "left": 89,
+      "right": 89,
+      "textLeft": 89,
+      "textRight": 89,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "form.space-y-4",
+      "tag": "form",
+      "top": 274,
+      "height": 208,
+      "words": 9,
+      "media": 0,
+      "middle": 0,
+      "heading": null,
+      "left": 49,
+      "right": 49,
+      "textLeft": 49,
+      "textRight": 159,
+      "fullBleed": false,
+      "footer": true,
+      "hero": true,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Đăng nhập",
+      "size": 28,
+      "top": 132,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [],
+    "leftBlocks": 0,
+    "bodySize": 14,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "dark": false,
+    "ground": "#f9fafb",
+    "sidebar": null,
+    "topbar": null,
+    "canvas": {
+     "left": 49,
+     "right": 49
+    },
+    "hero": {
+     "text": "Đăng nhập",
+     "words": 2,
+     "chars": 9,
+     "lines": 1,
+     "size": 28,
+     "vw": 7.2,
+     "font": "__Inter_d8ebd1",
+     "weight": 300,
+     "tracking": -0.02,
+     "leading": 1.5,
+     "top": 132,
+     "tag": "h1",
+     "kind": "heading",
+     "align": "left",
+     "position": "left"
+    },
+    "charts": 0,
+    "layout": {
+     "panels": 1,
+     "firstScreen": 1,
+     "ragged": [],
+     "voids": [
+      {
+       "gap": 69,
+       "at": 499,
+       "panel": "Đăng nhập"
+      }
+     ]
+    },
+    "tiles": 0,
+    "panels": {
+     "count": 2,
+     "radii": [
+      [
+       8,
+       1
+      ],
+      [
+       0,
+       1
+      ]
+     ],
+     "heavyBorders": 2,
+     "borderSamples": [
+      "#d1d6dc on #ffffff (1.46:1)",
+      "#d1d6dc on #ffffff (1.46:1)"
+     ],
+     "heavyShadows": 1,
+     "softShadows": 1,
+     "shadowSamples": [
+      "rgba(60, 64, 67, 0.3) 0px 1px 2px 0px"
+     ],
+     "glass": 0
+    },
+    "chips": {
+     "count": 1,
+     "hues": 1,
+     "samples": [
+      {
+       "hue": 217,
+       "size": 44,
+       "radius": "9999px"
+      }
+     ]
+    },
+    "numbers": {
+     "cells": 0,
+     "leftAligned": 0,
+     "figures": 0,
+     "tabularShare": null,
+     "kpiMax": null
+    },
+    "rows": null,
+    "chartHues": 0,
+    "placeholders": [],
+    "type": {
+     "under13": 0.4,
+     "tiny": 0,
+     "tinySamples": [],
+     "sizes": [
+      12,
+      14,
+      28
+     ]
+    },
+    "title": {
+     "text": "Đăng nhập",
+     "size": 28,
+     "top": 132
+    },
+    "colourShare": 0.042
+   },
+   "consoleErrors": []
+  }
+ ],
+ "findings": [
+  {
+   "level": "WARN",
+   "id": "hero-void",
+   "width": 1440,
+   "message": "33% of the first screen is one empty block (540×780px at 0,120).",
+   "fix": "Place the void on purpose or fill it: move the picture, the film or one fact into it, grow the headline to meet it, or shrink the screen to its content. A void reads as placed only when something closes it on the far side and it is the screen's one rest."
+  },
+  {
+   "level": "FAIL",
+   "id": "heavy-shadow",
+   "width": 1440,
+   "message": "1 panel shadow(s) heavy enough to read as floating: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px",
+   "fix": "Panels sit on the ground: separate them with a fill one step from the ground or a quiet 1px border. A shadow, if any, is under 8% black with a small blur. Real overlays (menus, dialogs, popovers) may float.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "panel-void",
+   "width": 1440,
+   "message": "1 card(s) hold a blank band inside: 69px in \"Đăng nhập\".",
+   "fix": "A card stretches to its neighbour only when it has content to fill. Keep a legend or a note directly under its chart (only an action or a total may sit at a stretched card's foot), let a short card keep its own height (align-items: start), and let a filtered block shrink to its rows."
+  }
+ ],
+ "images": [
+  {
+   "viewport": "desktop",
+   "width": 1440,
+   "fold": "E:\\Semester7\\SWD392\\SWD_AMS_G1\\.taste-skill\\teacher-courses\\desktop-fold.jpg",
+   "pages": [
+    "E:\\Semester7\\SWD392\\SWD_AMS_G1\\.taste-skill\\teacher-courses\\desktop-page-01.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "tablet",
+   "width": 768,
+   "fold": "E:\\Semester7\\SWD392\\SWD_AMS_G1\\.taste-skill\\teacher-courses\\tablet-fold.jpg",
+   "pages": [
+    "E:\\Semester7\\SWD392\\SWD_AMS_G1\\.taste-skill\\teacher-courses\\tablet-page-01.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "mobile",
+   "width": 390,
+   "fold": "E:\\Semester7\\SWD392\\SWD_AMS_G1\\.taste-skill\\teacher-courses\\mobile-fold.jpg",
+   "pages": [
+    "E:\\Semester7\\SWD392\\SWD_AMS_G1\\.taste-skill\\teacher-courses\\mobile-page-01.jpg"
+   ],
+   "film": []
+  }
+ ]
+}

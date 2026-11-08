@@ -1,41 +1,76 @@
 import api from '@/lib/axios';
 import {
   Assignment,
+  AssignmentOverviewItem,
   AssignmentTemplate,
   CreateAssignmentRequest,
   CreateAssignmentTemplateRequest,
-  AssignmentClass,
-  AllocateAssignmentRequest,
   Page,
 } from '@/types';
 
 export const assignmentService = {
-  // Assignments
-  getAll: async (page = 0, size = 10): Promise<Page<Assignment>> => {
-    const res = await api.get<Page<Assignment>>('/assignments', { params: { page, size } });
+  getAll: async (): Promise<Assignment[]> => {
+    const res = await api.get<Assignment[]>('/assignments');
     return res.data;
   },
   getById: async (id: number): Promise<Assignment> => {
     const res = await api.get<Assignment>(`/assignments/${id}`);
     return res.data;
   },
-  create: async (data: CreateAssignmentRequest): Promise<Assignment> => {
-    const res = await api.post<Assignment>('/assignments', data);
+  getByCourse: async (courseId: number): Promise<Assignment[]> => {
+    const res = await api.get<Assignment[]>(`/assignments/course/${courseId}`);
+    return res.data;
+  },
+  getMyOverview: async (): Promise<AssignmentOverviewItem[]> => {
+    const res = await api.get<AssignmentOverviewItem[]>('/assignments/overview');
+    return res.data;
+  },
+  /** Create an assignment for a course (instructor or admin), optional handout file. */
+  createForCourse: async (
+    courseId: number,
+    data: CreateAssignmentRequest,
+    file?: File | null
+  ): Promise<Assignment> => {
+    if (file) {
+      const form = new FormData();
+      form.append(
+        'data',
+        new Blob([JSON.stringify(data)], { type: 'application/json' })
+      );
+      form.append('file', file);
+      const res = await api.post<Assignment>(`/assignments/course/${courseId}`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data;
+    }
+    const res = await api.post<Assignment>(`/assignments/course/${courseId}`, data);
     return res.data;
   },
   update: async (id: number, data: Partial<CreateAssignmentRequest>): Promise<Assignment> => {
     const res = await api.put<Assignment>(`/assignments/${id}`, data);
     return res.data;
   },
+  /** Partial update: title, dueAt, instructions, topic, maxScore (owning teacher). */
+  patch: async (
+    id: number,
+    data: {
+      title?: string;
+      instructions?: string;
+      rubric?: string;
+      topic?: string;
+      dueAt?: string;
+      maxScore?: number;
+      status?: 'DRAFT' | 'PUBLISHED';
+    }
+  ): Promise<Assignment> => {
+    const res = await api.patch<Assignment>(`/assignments/${id}`, data);
+    return res.data;
+  },
   delete: async (id: number): Promise<void> => {
     await api.delete(`/assignments/${id}`);
   },
-  getMyAssignments: async (): Promise<Assignment[]> => {
-    const res = await api.get<Assignment[]>('/assignments/my-assignments');
-    return res.data;
-  },
 
-  // Assignment Templates
+  // Reusable assignment templates
   getTemplates: async (page = 0, size = 10): Promise<Page<AssignmentTemplate>> => {
     const res = await api.get<Page<AssignmentTemplate>>('/assignment-templates', {
       params: { page, size },
@@ -59,19 +94,5 @@ export const assignmentService = {
   },
   deleteTemplate: async (id: number): Promise<void> => {
     await api.delete(`/assignment-templates/${id}`);
-  },
-
-  // Assignment Class Allocation
-  allocate: async (data: AllocateAssignmentRequest): Promise<AssignmentClass> => {
-    const res = await api.post<AssignmentClass>('/assignment-classes', data);
-    return res.data;
-  },
-  getAllocations: async (assignmentId: number): Promise<AssignmentClass[]> => {
-    const res = await api.get<AssignmentClass[]>(`/assignment-classes/assignment/${assignmentId}`);
-    return res.data;
-  },
-  cancelAllocation: async (id: number): Promise<AssignmentClass> => {
-    const res = await api.patch<AssignmentClass>(`/assignment-classes/${id}/cancel`);
-    return res.data;
   },
 };

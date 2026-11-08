@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/stores/authStore"
 import { authService } from "@/services/auth.service"
+import { homePathForAuth } from "@/lib/authRedirect"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { getApiErrorMessage, useI18n } from "@/i18n"
 import { BookOpen } from "lucide-react"
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 
 export default function LoginPage() {
   const [username, setUsername] = useState("")
@@ -16,6 +19,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const { setAuth } = useAuthStore()
   const router = useRouter()
+  const { t } = useI18n()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,16 +27,11 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const data = await authService.login({ username, password })
+      const data = await authService.login({ identifier: username, password })
       setAuth(data)
-
-      const roles = data.roles || []
-      if (roles.includes("ROLE_ADMIN")) router.push("/admin")
-      else if (roles.includes("ROLE_TEACHER")) router.push("/teacher")
-      else if (roles.includes("ROLE_EXPERT")) router.push("/expert")
-      else router.push("/student")
+      router.push(homePathForAuth(data))
     } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid credentials. Please try again.")
+      setError(getApiErrorMessage(err, t("auth.login.errorFallback")))
     } finally {
       setLoading(false)
     }
@@ -43,11 +42,24 @@ export default function LoginPage() {
     setPassword("Password@123")
   }
 
+  const handleGoogleCredential = async (credential: string) => {
+    setError(null)
+    setLoading(true)
+    try {
+      const data = await authService.google(credential)
+      setAuth(data)
+      router.replace(homePathForAuth(data))
+    } catch (err: any) {
+      setError(getApiErrorMessage(err, t("auth.login.errorFallback")))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const demoAccounts = [
-    { label: "Admin", value: "admin" },
-    { label: "Teacher", value: "teacher1" },
-    { label: "Student", value: "student1" },
-    { label: "Expert", value: "expert1" },
+    { label: t("common.roles.admin"), value: "admin" },
+    { label: t("common.roles.teacher"), value: "teacher1" },
+    { label: t("common.roles.student"), value: "student1" },
   ]
 
   return (
@@ -58,9 +70,11 @@ export default function LoginPage() {
             <BookOpen className="h-5 w-5" />
           </div>
           <h1 className="text-[28px] font-light tracking-tight text-foreground">
-            Sign in
+            {t("auth.login.title")}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Use your AMS account</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("auth.login.subtitle")}
+          </p>
         </div>
 
         {error && (
@@ -73,12 +87,12 @@ export default function LoginPage() {
               htmlFor="username"
               className="text-xs font-medium text-muted-foreground"
             >
-              Username
+              {t("auth.login.identifier")}
             </label>
             <Input
               id="username"
               type="text"
-              placeholder="e.g. student1, teacher1, admin"
+              placeholder={t("auth.login.identifierPlaceholder")}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="h-10 rounded-full"
@@ -91,7 +105,7 @@ export default function LoginPage() {
               htmlFor="password"
               className="text-xs font-medium text-muted-foreground"
             >
-              Password
+              {t("auth.login.password")}
             </label>
             <Input
               id="password"
@@ -109,13 +123,24 @@ export default function LoginPage() {
             disabled={loading}
             className="h-10 w-full rounded-full shadow-gc hover:shadow-gc-lg"
           >
-            {loading ? "Authenticating…" : "Sign in"}
+            {loading ? t("auth.login.submitting") : t("auth.login.submit")}
           </Button>
         </form>
 
+        <div className="mt-4 border-t pt-4">
+          <GoogleSignInButton
+            onCredential={handleGoogleCredential}
+            onError={(message) => setError(message || null)}
+          />
+        </div>
+
+        <div className="mt-3 text-right text-sm">
+          <Link href="/forgot-password" className="text-primary hover:underline">{t("auth.login.forgotPassword")}</Link>
+        </div>
+
         <div className="mt-6 border-t pt-5">
           <p className="mb-2 text-center text-xs font-medium text-muted-foreground">
-            Demo accounts · password Password@123
+            {t("auth.login.demoTitle")}
           </p>
           <div className="grid grid-cols-2 gap-2">
             {demoAccounts.map((a) => (
@@ -132,12 +157,12 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          New to AMS?{" "}
+          {t("auth.login.noAccount")}{" "}
           <Link
             href="/register"
             className="font-medium text-primary hover:underline"
           >
-            Create account
+            {t("auth.login.createOne")}
           </Link>
         </div>
       </div>

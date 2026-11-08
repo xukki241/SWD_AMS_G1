@@ -1,5 +1,9 @@
+"use client"
+
 import { Paperclip } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { openFreshTab } from "@/lib/tab"
+import { useI18n } from "@/i18n"
 
 export function FileChip({
   name,
@@ -16,7 +20,8 @@ export function FileChip({
   label?: string
   className?: string
 }) {
-  const display = name || label || "attachment"
+  const { t } = useI18n()
+  const display = name || label || t("classroom.fileChip.fallback")
   const chip = (
     <span
       className={cn(
@@ -32,18 +37,16 @@ export function FileChip({
 
   if (href) {
     return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        download={download}
+      <button
+        type="button"
+        onClick={() => openFreshTab(href, download)}
         className={cn(
-          "inline-flex rounded-full transition-colors hover:bg-accent",
+          "inline-flex rounded-full transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           className
         )}
       >
         {chip}
-      </a>
+      </button>
     )
   }
 

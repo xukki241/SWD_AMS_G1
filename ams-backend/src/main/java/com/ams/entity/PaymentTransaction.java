@@ -21,8 +21,8 @@ public class PaymentTransaction {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "class_registration_id", nullable = false)
-    private ClassRegistration classRegistration;
+    @JoinColumn(name = "course_enrollment_id", nullable = false)
+    private CourseEnrollment courseEnrollment;
 
     @Column(nullable = false, length = 20)
     @Builder.Default

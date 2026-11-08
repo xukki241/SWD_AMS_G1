@@ -42,15 +42,15 @@ public class AssignmentTemplateService {
     @Transactional
     public AssignmentDTO.AssignmentTemplateResponse createTemplate(AssignmentDTO.CreateTemplateRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User expert = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Expert user not found: " + username));
+        User creator = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Template creator not found: " + username));
 
         Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Subject not found with id: " + request.subjectId()));
 
         AssignmentTemplate template = AssignmentTemplate.builder()
                 .subject(subject)
-                .expert(expert)
+                .createdBy(creator)
                 .title(request.title())
                 .instructions(request.instructions())
                 .defaultDueRule(request.defaultDueRule())
@@ -66,8 +66,8 @@ public class AssignmentTemplateService {
                 t.getId(),
                 t.getSubject().getId(),
                 t.getSubject().getSubjectName(),
-                t.getExpert().getId(),
-                t.getExpert().getFullName(),
+                t.getCreatedBy().getId(),
+                t.getCreatedBy().getFullName(),
                 t.getTitle(),
                 t.getInstructions(),
                 t.getDefaultDueRule()

@@ -30,16 +30,19 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(Authentication authentication) {
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        Object principal = authentication.getPrincipal();
+        String username = principal instanceof UserDetails details
+                ? details.getUsername()
+                : String.valueOf(principal);
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
-        String roles = userDetails.getAuthorities().stream()
+        String roles = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
 
         return Jwts.builder()
-                .subject(userDetails.getUsername())
+                .subject(username)
                 .claim("roles", roles)
                 .issuedAt(now)
                 .expiration(expiryDate)

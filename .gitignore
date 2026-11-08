@@ -1,12 +1,47 @@
-# Environment files (NEVER COMMIT SENSITIVE KEYS)
+# ---------------------------------------------------------------------------
+# Environment & secrets (never commit live keys)
+# ---------------------------------------------------------------------------
 .env
+.env.*
+!.env.example
+!**/.env.example
+!**/.env.local.example
 .env.local
 .env.*.local
+.env.development
 .env.production
+.env.staging
+*.pem
+*.key
+*.p12
+*.jks
+secrets/
+credentials.json
+service-account*.json
 
-# Compiled class & package files
+# ---------------------------------------------------------------------------
+# Node / Next.js
+# ---------------------------------------------------------------------------
+node_modules/
+.next/
+out/
+build/
+dist/
+.turbo/
+.vercel/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+next-env.d.ts.bak
+
+# ---------------------------------------------------------------------------
+# Java / Maven
+# ---------------------------------------------------------------------------
+target/
+.mvn/wrapper/maven-wrapper.jar
 *.class
-*.log
 *.jar
 *.war
 *.nar
@@ -17,38 +52,84 @@
 hs_err_pid*
 replay_pid*
 
-# Node / Next.js
-node_modules/
-.next/
-out/
-build/
-dist/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# Java / Maven
-target/
-.mvn/wrapper/maven-wrapper.jar
-*.iml
+# ---------------------------------------------------------------------------
+# IDE / editors
+# ---------------------------------------------------------------------------
 .idea/
 .vscode/
+*.iml
+*.iws
+*.ipr
 .settings/
 .project
 .classpath
+.factorypath
+*.swp
+*.swo
+*~
+.junie/
 
-# OS files
+# ---------------------------------------------------------------------------
+# OS
+# ---------------------------------------------------------------------------
 .DS_Store
+.DS_Store?
+._*
 Thumbs.db
--
-# local DB dump (not for git)
+ehthumbs.db
+Desktop.ini
 
-# local DB dump (not for git)
-ams-db-backup-*.sql
+# ---------------------------------------------------------------------------
+# Logs & temp
+# ---------------------------------------------------------------------------
+*.log
+logs/
+tmp/
+temp/
+*.tmp
 
-# Next.js build info
-*.tsbuildinfo
+# ---------------------------------------------------------------------------
+# Playwright / e2e
+# ---------------------------------------------------------------------------
+ams-frontend/test-results/
+ams-frontend/playwright-report/
+ams-frontend/blob-report/
+ams-frontend/playwright/.cache/
+test-results/
+playwright-report/
+blob-report/
 
-# local file-upload storage (when running backend outside docker)
+# ---------------------------------------------------------------------------
+# Local tooling & tunnel leftovers (cloudflared, ngrok, etc.)
+# ---------------------------------------------------------------------------
+.tools/
+cloudflared*
+**/cloudflared.exe
+**/cloudflared
+tunnel-url.txt
+tunnel.*.log
+*.stderr.log
+*.stdout.log
+ipn-body.json
+ipn-paid.json
+
+# ---------------------------------------------------------------------------
+# Local file-upload storage (backend outside Docker)
+# ---------------------------------------------------------------------------
 ams-backend/storage/
+
+# ---------------------------------------------------------------------------
+# Local DB dumps (not for git)
+# ---------------------------------------------------------------------------
+ams-db-backup-*.sql
+*.sql.bak
+*.dump
+
+# ---------------------------------------------------------------------------
+# Coverage / misc
+# ---------------------------------------------------------------------------
+coverage/
+.nyc_output/
+.cache/
+.parcel-cache/
+.next-*/

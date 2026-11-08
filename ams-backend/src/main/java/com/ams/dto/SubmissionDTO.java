@@ -8,7 +8,7 @@ public class SubmissionDTO {
 
     public record SubmissionResponse(
             Long id,
-            Long classRegistrationId,
+            Long courseEnrollmentId,
             Long studentId,
             String studentName,
             Long assignmentId,

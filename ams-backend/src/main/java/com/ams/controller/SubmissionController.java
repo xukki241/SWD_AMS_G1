@@ -24,17 +24,18 @@ public class SubmissionController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('STUDENT')")
-    @Operation(summary = "Submit assignment file (uploaded to Cloudinary)")
+    @Operation(summary = "Submit assignment file for a course enrollment (uploaded to Cloudinary)")
     public ResponseEntity<SubmissionDTO.SubmissionResponse> submitAssignment(
-            @RequestParam("classRegistrationId") Long classRegistrationId,
+            @RequestParam("courseEnrollmentId") Long courseEnrollmentId,
             @RequestParam("assignmentId") Long assignmentId,
-            @RequestParam("file") MultipartFile file
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "answerText", required = false) String answerText
     ) throws IOException {
-        return ResponseEntity.ok(submissionService.submitAssignment(classRegistrationId, assignmentId, file));
+        return ResponseEntity.ok(submissionService.submitAssignment(courseEnrollmentId, assignmentId, file, answerText));
     }
 
     @GetMapping("/assignment/{assignmentId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'EXPERT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Get all student submissions for an assignment")
     public ResponseEntity<List<SubmissionDTO.SubmissionResponse>> getSubmissionsByAssignment(@PathVariable Long assignmentId) {
         return ResponseEntity.ok(submissionService.getSubmissionsByAssignment(assignmentId));
@@ -45,5 +46,13 @@ public class SubmissionController {
     @Operation(summary = "Get current student's submissions")
     public ResponseEntity<List<SubmissionDTO.SubmissionResponse>> getMySubmissions() {
         return ResponseEntity.ok(submissionService.getMySubmissions());
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Unsubmit (withdraw) own non-graded submission")
+    public ResponseEntity<Void> unsubmit(@PathVariable Long id) {
+        submissionService.unsubmit(id);
+        return ResponseEntity.noContent().build();
     }
 }

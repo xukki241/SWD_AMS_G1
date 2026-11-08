@@ -27,6 +27,6 @@ public class Role {
     private Boolean isActive = true;
 
     public enum RoleName {
-        ADMIN, EXPERT, TEACHER, STUDENT
+        ADMIN, TEACHER, STUDENT
     }
 }

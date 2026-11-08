@@ -1,7 +1,7 @@
 package com.ams.service;
 
 import com.ams.dto.DashboardDTO;
-import com.ams.entity.ClassRegistration;
+import com.ams.entity.CourseEnrollment;
 import com.ams.entity.Role;
 import com.ams.entity.Submission;
 import com.ams.entity.User;
@@ -24,10 +24,9 @@ public class DashboardService {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final SubjectRepository subjectRepository;
-    private final SubjectClassRepository subjectClassRepository;
+    private final CourseRepository courseRepository;
+    private final CourseEnrollmentRepository enrollmentRepository;
     private final AssignmentRepository assignmentRepository;
-    private final AssignmentTemplateRepository templateRepository;
-    private final ClassRegistrationRepository registrationRepository;
     private final SubmissionRepository submissionRepository;
     private final AssignmentEvaluationRepository evaluationRepository;
 
@@ -36,13 +35,12 @@ public class DashboardService {
         long totalUsers = userRepository.count();
         long totalStudents = countByRole(Role.RoleName.STUDENT);
         long totalTeachers = countByRole(Role.RoleName.TEACHER);
-        long totalExperts = countByRole(Role.RoleName.EXPERT);
         long totalSubjects = subjectRepository.count();
-        long totalClasses = subjectClassRepository.count();
-        long totalRegistrations = registrationRepository.count();
+        long totalCourses = courseRepository.findByDeletedFalse().size();
+        long totalEnrollments = enrollmentRepository.count();
 
         return new DashboardDTO.AdminDashboardResponse(
-                totalUsers, totalStudents, totalTeachers, totalExperts, totalSubjects, totalClasses, totalRegistrations
+                totalUsers, totalStudents, totalTeachers, totalSubjects, totalCourses, totalEnrollments
         );
     }
 
@@ -53,14 +51,16 @@ public class DashboardService {
                 .orElseThrow(() -> new ResourceNotFoundException("Teacher not found: " + username));
 
         long totalAssignments = assignmentRepository.findByTeacherId(teacher.getId()).size();
-        long totalClasses = subjectClassRepository.findByTeacherId(teacher.getId()).size();
+        long totalCourses = courseRepository.findByDeletedFalse().stream()
+                .filter(c -> c.getInstructor() != null && c.getInstructor().getId().equals(teacher.getId()))
+                .count();
 
         long completedEvals = evaluationRepository.count();
         long totalSubmissions = submissionRepository.count();
         long pendingEvals = Math.max(0, totalSubmissions - completedEvals);
 
         return new DashboardDTO.TeacherDashboardResponse(
-                totalAssignments, totalClasses, pendingEvals, completedEvals
+                totalAssignments, totalCourses, pendingEvals, completedEvals
         );
     }
 
@@ -70,12 +70,15 @@ public class DashboardService {
         User student = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + username));
 
-        List<ClassRegistration> regs = registrationRepository.findByStudentId(student.getId());
-        long totalRegs = regs.size();
-        long activeClasses = regs.stream().filter(r -> r.getStatus() == ClassRegistration.RegistrationStatus.ACTIVE).count();
+        List<CourseEnrollment> enrollments = enrollmentRepository.findByStudentId(student.getId());
+        long totalEnrollments = enrollments.size();
+        long activeCourses = enrollments.stream()
+                .filter(e -> e.getStatus() == CourseEnrollment.EnrollmentStatus.ACTIVE
+                        || e.getStatus() == CourseEnrollment.EnrollmentStatus.COMPLETED)
+                .count();
 
-        List<Submission> submissions = regs.stream()
-                .flatMap(r -> submissionRepository.findByClassRegistrationId(r.getId()).stream())
+        List<Submission> submissions = enrollments.stream()
+                .flatMap(e -> submissionRepository.findByCourseEnrollmentId(e.getId()).stream())
                 .toList();
 
         long submitted = submissions.size();
@@ -94,20 +97,8 @@ public class DashboardService {
                         .divide(BigDecimal.valueOf(scores.size()), 2, RoundingMode.HALF_UP);
 
         return new DashboardDTO.StudentDashboardResponse(
-                totalRegs, activeClasses, submitted, graded, averageScore
+                totalEnrollments, activeCourses, submitted, graded, averageScore
         );
-    }
-
-    @Transactional(readOnly = true)
-    public DashboardDTO.ExpertDashboardResponse getExpertDashboard() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User expert = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Expert not found: " + username));
-
-        long totalTemplates = templateRepository.findByExpertId(expert.getId()).size();
-        long managedClasses = subjectClassRepository.findByExpertId(expert.getId()).size();
-
-        return new DashboardDTO.ExpertDashboardResponse(totalTemplates, managedClasses);
     }
 
     private long countByRole(Role.RoleName roleName) {

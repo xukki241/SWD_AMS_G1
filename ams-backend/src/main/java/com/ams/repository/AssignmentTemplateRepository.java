@@ -9,5 +9,5 @@ import java.util.List;
 @Repository
 public interface AssignmentTemplateRepository extends JpaRepository<AssignmentTemplate, Long> {
     List<AssignmentTemplate> findBySubjectId(Long subjectId);
-    List<AssignmentTemplate> findByExpertId(Long expertId);
+    List<AssignmentTemplate> findByCreatedById(Long createdById);
 }

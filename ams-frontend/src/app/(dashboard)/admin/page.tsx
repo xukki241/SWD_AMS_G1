@@ -1,13 +1,12 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import Link from "next/link"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/axios"
 import { useToast } from "@/lib/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import {
   Select,
@@ -26,37 +25,39 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
-import { ClassCard } from "@/components/classroom/ClassCard"
-import { CreateClassDialog } from "@/components/classroom/CreateClassDialog"
 import { ErrorState } from "@/components/classroom/ErrorState"
 import { EmptyState } from "@/components/classroom/EmptyState"
+import { CourseStatusBadge } from "@/components/courses/CourseStatusBadge"
 import { formatDateTime, formatVnd } from "@/components/classroom/format"
-import {
-  AdminDashboard,
-  AuditLogEntry,
-  MyClass,
-  Subject,
-  UserInfo,
-} from "@/components/classroom/classroomTypes"
+import { AuditLogEntry, UserInfo } from "@/components/classroom/classroomTypes"
+import { getApiErrorMessage, formatNumber, roleLabel, useI18n } from "@/i18n"
+import { courseService } from "@/services/course.service"
+import type { AdminDashboard, CourseSummary } from "@/types"
 import {
   Users,
-  BookMarked,
   FolderKanban,
   Loader2,
-  Plus,
   ScrollText,
+  GraduationCap,
+  ClipboardList,
 } from "lucide-react"
 
-const ROLE_OPTIONS = ["ROLE_STUDENT", "ROLE_TEACHER", "ROLE_EXPERT", "ROLE_ADMIN"]
+/** Self-serve onboarding covers Student/Teacher; admin can still grant ADMIN. */
+const ROLE_OPTIONS = ["ROLE_ADMIN"]
 
 export default function AdminDashboardPage() {
+  const { t } = useI18n()
   const [tab, setTab] = useState("users")
 
-  // Keep the sidebar hash links (#users, #subjects, …) and the tabs in sync.
+  // Keep the sidebar hash links (#users, #courses, …) and the tabs in sync.
   useEffect(() => {
     const syncFromHash = () => {
-      const hash = window.location.hash.replace("#", "")
-      if (["users", "subjects", "classes", "audit"].includes(hash)) setTab(hash)
+      let hash = window.location.hash.replace("#", "")
+      // Legacy #classes bookmarks land on the courses tab.
+      if (hash === "classes") hash = "courses"
+      if (["users", "courses", "audit"].includes(hash)) setTab(hash)
+      // Legacy #subjects bookmarks land on users (accounts-only admin).
+      if (hash === "subjects") setTab("users")
     }
     syncFromHash()
     window.addEventListener("hashchange", syncFromHash)
@@ -73,10 +74,8 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Admin dashboard</h2>
-        <p className="text-muted-foreground">
-          Manage users, subjects, classes, and review the audit trail.
-        </p>
+        <h2 className="text-3xl font-bold tracking-tight">{t("dashboard.admin.title")}</h2>
+        <p className="text-muted-foreground">{t("dashboard.admin.subtitle")}</p>
       </div>
 
       <AdminKpis />
@@ -84,27 +83,21 @@ export default function AdminDashboardPage() {
       <Tabs value={tab} onValueChange={changeTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="users">
-            <Users className="h-4 w-4 mr-1.5" /> Users
+            <Users className="h-4 w-4 mr-1.5" /> {t("dashboard.admin.tabs.users")}
           </TabsTrigger>
-          <TabsTrigger value="subjects">
-            <BookMarked className="h-4 w-4 mr-1.5" /> Subjects
-          </TabsTrigger>
-          <TabsTrigger value="classes">
-            <FolderKanban className="h-4 w-4 mr-1.5" /> Classes
+          <TabsTrigger value="courses">
+            <FolderKanban className="h-4 w-4 mr-1.5" /> {t("dashboard.admin.tabs.courses")}
           </TabsTrigger>
           <TabsTrigger value="audit">
-            <ScrollText className="h-4 w-4 mr-1.5" /> Audit trail
+            <ScrollText className="h-4 w-4 mr-1.5" /> {t("dashboard.admin.tabs.audit")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
           <UsersTab />
         </TabsContent>
-        <TabsContent value="subjects">
-          <SubjectsTab />
-        </TabsContent>
-        <TabsContent value="classes">
-          <ClassesTab />
+        <TabsContent value="courses">
+          <CoursesTab />
         </TabsContent>
         <TabsContent value="audit">
           <AuditTab />
@@ -117,14 +110,14 @@ export default function AdminDashboardPage() {
 /* ---------------- KPI cards ---------------- */
 
 function AdminKpis() {
+  const { t } = useI18n()
   const {
     data: stats,
     isError,
     refetch,
   } = useQuery({
     queryKey: ["admin-stats"],
-    queryFn: async () =>
-      (await api.get("/dashboard/admin")).data as AdminDashboard,
+    queryFn: async () => (await api.get("/dashboard/admin")).data as AdminDashboard,
   })
 
   if (isError) return <ErrorState onRetry={() => refetch()} />
@@ -132,13 +125,28 @@ function AdminKpis() {
   const cards = stats
     ? [
         {
-          label: "Users",
-          value: stats.totalUsers,
-          hint: `${stats.totalStudents} students · ${stats.totalTeachers} teachers · ${stats.totalExperts} experts`,
+          label: t("dashboard.admin.kpi.users"),
+          value: formatNumber(stats.totalUsers),
+          hint: t("dashboard.admin.kpi.usersHint", {
+            students: formatNumber(stats.totalStudents),
+            teachers: formatNumber(stats.totalTeachers),
+          }),
         },
-        { label: "Subjects", value: stats.totalSubjects, hint: "catalog entries" },
-        { label: "Classes", value: stats.totalClasses, hint: "class sections" },
-        { label: "Registrations", value: stats.totalRegistrations, hint: "enrollments" },
+        {
+          label: t("dashboard.admin.kpi.courses"),
+          value: formatNumber(stats.totalCourses),
+          hint: t("dashboard.admin.kpi.coursesHint"),
+        },
+        {
+          label: t("dashboard.admin.kpi.enrollments"),
+          value: formatNumber(stats.totalEnrollments),
+          hint: t("dashboard.admin.kpi.enrollmentsHint"),
+        },
+        {
+          label: t("dashboard.admin.kpi.subjects"),
+          value: formatNumber(stats.totalSubjects),
+          hint: t("dashboard.admin.kpi.subjectsHint"),
+        },
       ]
     : null
 
@@ -173,6 +181,7 @@ function AdminKpis() {
 /* ---------------- Users tab ---------------- */
 
 function UsersTab() {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({})
@@ -189,28 +198,31 @@ function UsersTab() {
 
   const assignRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
-      await api.post(`/users/${userId}/roles`, { role })
+      await api.post(`/users/${userId}/roles`, { roleName: role })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] })
-      toast({ title: "Role assigned", variant: "success" })
+      toast({ title: t("dashboard.admin.users.roleAssigned"), variant: "success" })
     },
     onError: (err: any) => {
       toast({
-        title: "Could not assign role",
-        description: err.response?.data?.message || "Please try again.",
+        title: t("dashboard.admin.users.roleAssignFailed"),
+        description: getApiErrorMessage(err, t("common.actions.tryAgain")),
         variant: "destructive",
       })
     },
   })
 
+  const unlockUser = useMutation({
+    mutationFn: async (userId: number) => (await api.post(`/users/${userId}/unlock`)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+  })
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Users &amp; roles</CardTitle>
-        <CardDescription>
-          Assign a role to a user — the role is added alongside any existing roles.
-        </CardDescription>
+        <CardTitle>{t("dashboard.admin.users.title")}</CardTitle>
+        <CardDescription>{t("dashboard.admin.users.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         {isError ? (
@@ -222,12 +234,14 @@ function UsersTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Roles</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Assign role</TableHead>
+                  <TableHead>{t("dashboard.admin.users.id")}</TableHead>
+                  <TableHead>{t("dashboard.admin.users.name")}</TableHead>
+                  <TableHead>{t("dashboard.admin.users.email")}</TableHead>
+                  <TableHead>{t("dashboard.admin.users.roles")}</TableHead>
+                  <TableHead>{t("dashboard.admin.users.status")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("dashboard.admin.users.assignRole")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -242,7 +256,7 @@ function UsersTab() {
                       <div className="flex flex-wrap gap-1">
                         {(u.roles || []).map((r) => (
                           <Badge key={r} variant="secondary" className="text-xs">
-                            {r.replace("ROLE_", "")}
+                            {roleLabel(r)}
                           </Badge>
                         ))}
                       </div>
@@ -254,8 +268,19 @@ function UsersTab() {
                         }
                         className="text-xs"
                       >
-                        {u.accountStatus}
+                        {u.accountStatus === "ACTIVE"
+                          ? t("common.status.active")
+                          : u.accountStatus === "INACTIVE"
+                            ? t("common.status.inactive")
+                            : u.accountStatus === "SUSPENDED"
+                              ? t("common.status.suspended")
+                              : u.accountStatus}
                       </Badge>
+                      {u.accountStatus === "SUSPENDED" && (
+                        <Button size="sm" variant="outline" className="ml-2" onClick={() => unlockUser.mutate(u.id)} disabled={unlockUser.isPending}>
+                          {t("dashboard.admin.users.unlock")}
+                        </Button>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -266,12 +291,12 @@ function UsersTab() {
                           }
                         >
                           <SelectTrigger className="h-8 w-36">
-                            <SelectValue placeholder="Pick a role" />
+                            <SelectValue placeholder={t("dashboard.admin.users.pickRole")} />
                           </SelectTrigger>
                           <SelectContent>
                             {ROLE_OPTIONS.map((r) => (
                               <SelectItem key={r} value={r}>
-                                {r.replace("ROLE_", "")}
+                                {roleLabel(r)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -287,7 +312,7 @@ function UsersTab() {
                           {assignRole.isPending ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
-                            "Apply"
+                            t("dashboard.admin.users.apply")
                           )}
                         </Button>
                       </div>
@@ -303,179 +328,25 @@ function UsersTab() {
   )
 }
 
-/* ---------------- Subjects tab ---------------- */
+/* ---------------- Courses tab (read-only) ---------------- */
 
-function SubjectsTab() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const [code, setCode] = useState("")
-  const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
-  const [status, setStatus] = useState<string>("ACTIVE")
-
+function CoursesTab() {
+  const { t } = useI18n()
   const {
-    data: subjects,
+    data: courses,
     isLoading,
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["admin-subjects"],
-    queryFn: async () => (await api.get("/subjects")).data as Subject[],
-  })
-
-  const createSubject = useMutation({
-    mutationFn: async () => {
-      await api.post("/subjects", {
-        subjectCode: code.trim(),
-        subjectName: name.trim(),
-        description: description.trim() || undefined,
-        status: status as "ACTIVE" | "INACTIVE",
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-subjects"] })
-      queryClient.invalidateQueries({ queryKey: ["subjects"] })
-      toast({ title: "Subject created", variant: "success" })
-      setCode("")
-      setName("")
-      setDescription("")
-      setStatus("ACTIVE")
-    },
-    onError: (err: any) => {
-      toast({
-        title: "Could not create subject",
-        description: err.response?.data?.message || "Please check the form.",
-        variant: "destructive",
-      })
-    },
-  })
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Subjects</CardTitle>
-          <CardDescription>The subject catalog available to class creators</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isError ? (
-            <ErrorState onRetry={() => refetch()} />
-          ) : isLoading ? (
-            <TableSkeleton rows={4} cols={3} />
-          ) : subjects && subjects.length > 0 ? (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {subjects.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-mono text-sm">{s.subjectCode}</TableCell>
-                      <TableCell className="font-medium text-foreground">
-                        {s.subjectName}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={s.status === "ACTIVE" ? "success" : "secondary"}
-                          className="text-xs"
-                        >
-                          {s.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <EmptyState title="No subjects yet" description="Add the first subject to get started." />
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-4 w-4 text-primary" /> Add subject
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <Label>Code *</Label>
-            <Input placeholder="e.g. CS402" value={code} onChange={(e) => setCode(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-            <Label>Name *</Label>
-            <Input
-              placeholder="e.g. Web Development"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Description</Label>
-            <Input
-              placeholder="Short description (optional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="INACTIVE">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            className="w-full"
-            onClick={() => createSubject.mutate()}
-            disabled={!code.trim() || !name.trim() || createSubject.isPending}
-          >
-            {createSubject.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4 mr-1.5" />
-            )}
-            Create subject
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-/* ---------------- Classes tab ---------------- */
-
-function ClassesTab() {
-  const {
-    data: allClasses,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
-    queryKey: ["admin-classes"],
-    queryFn: async () => (await api.get("/subject-classes")).data as MyClass[],
+    queryKey: ["admin-courses"],
+    queryFn: async () => (await courseService.list({ page: 0, size: 50 })).content,
   })
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Every class section, with its join code, capacity, and tuition fee.
-        </p>
-        <CreateClassDialog />
-      </div>
+      <p className="text-sm text-muted-foreground">
+        {t("dashboard.admin.courses.description")}
+      </p>
       {isError ? (
         <ErrorState onRetry={() => refetch()} />
       ) : isLoading ? (
@@ -484,36 +355,63 @@ function ClassesTab() {
             <StatSkeleton key={i} />
           ))}
         </div>
-      ) : allClasses && allClasses.length > 0 ? (
+      ) : courses && courses.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {allClasses.map((c) => (
-            <div key={c.id} className="relative">
-              <ClassCard data={c} />
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="rounded bg-muted px-2 py-0.5 font-mono">
-                  join: {c.joinCode}
-                </span>
-                <span>
-                  capacity {c.capacity > 0 ? c.capacity : "unlimited"}
-                </span>
-                <span>fee {formatVnd(c.registrationFee)}</span>
-              </div>
-            </div>
+          {courses.map((c) => (
+            <AdminCourseCard key={c.id} course={c} />
           ))}
         </div>
       ) : (
         <EmptyState
-          title="No classes yet"
-          description="Create the first class section."
+          title={t("dashboard.admin.courses.emptyTitle")}
+          description={t("dashboard.admin.courses.emptyDescription")}
         />
       )}
     </div>
   )
 }
 
+function AdminCourseCard({ course }: { course: CourseSummary }) {
+  const { t } = useI18n()
+  return (
+    <Link
+      href={`/courses/${course.id}`}
+      className="group rounded-xl border bg-card transition-shadow hover:shadow-md"
+    >
+      <div className="flex h-20 items-end rounded-t-xl bg-primary/90 p-3">
+        <span className="line-clamp-2 text-base font-semibold text-primary-foreground">
+          {course.title}
+        </span>
+      </div>
+      <div className="space-y-2 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
+            {course.code}
+          </span>
+          <CourseStatusBadge status={course.status} />
+        </div>
+        <p className="truncate text-sm text-muted-foreground">
+          {course.instructorName} · {course.categoryName}
+        </p>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            {course.difficultyLevel === "BEGINNER"
+              ? t("dashboard.difficulty.beginner")
+              : course.difficultyLevel === "INTERMEDIATE"
+                ? t("dashboard.difficulty.intermediate")
+                : t("dashboard.difficulty.advanced")}
+          </span>
+          <span className="font-medium text-foreground">{formatVnd(course.price)}</span>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
 /* ---------------- Audit tab ---------------- */
 
 function AuditTab() {
+  const { t } = useI18n()
   const {
     data: logs,
     isLoading,
@@ -529,9 +427,9 @@ function AuditTab() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Audit trail</CardTitle>
+        <CardTitle>{t("dashboard.nav.auditTrail")}</CardTitle>
         <CardDescription>
-          The most recent {shown.length} system events (newest first)
+          {t("dashboard.admin.audit.recent", { count: shown.length })}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -544,10 +442,10 @@ function AuditTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>When</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Resource</TableHead>
-                  <TableHead>Ref</TableHead>
+                  <TableHead>{t("dashboard.admin.audit.when")}</TableHead>
+                  <TableHead>{t("dashboard.admin.audit.action")}</TableHead>
+                  <TableHead>{t("dashboard.admin.audit.resource")}</TableHead>
+                  <TableHead>{t("dashboard.admin.audit.ref")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -567,7 +465,10 @@ function AuditTab() {
             </Table>
           </div>
         ) : (
-          <EmptyState title="No audit events" description="Actions will appear here as they happen." />
+          <EmptyState
+            title={t("dashboard.admin.audit.emptyTitle")}
+            description={t("dashboard.admin.audit.emptyDescription")}
+          />
         )}
       </CardContent>
     </Card>

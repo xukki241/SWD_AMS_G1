@@ -25,7 +25,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCase(username, username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
 
         List<UserRole> activeRoles = userRoleRepository.findActiveRolesByUserId(user.getId());
@@ -33,11 +33,16 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         List<SimpleGrantedAuthority> authorities = activeRoles.stream()
                 .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getRoleName().name()))
                 .collect(Collectors.toList());
+        // New accounts have no role until /choose-role; Spring rejects empty authorities.
+        if (authorities.isEmpty()) {
+            authorities = List.of(new SimpleGrantedAuthority("ROLE_ONBOARDING"));
+        }
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getUsername())
                 .password(user.getPassword())
                 .disabled(user.getAccountStatus() != User.AccountStatus.ACTIVE)
+                .accountLocked(user.getFailedLoginAttempts() >= 3)
                 .authorities(authorities)
                 .build();
     }

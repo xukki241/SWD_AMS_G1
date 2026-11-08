@@ -15,7 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/assignment-templates")
 @RequiredArgsConstructor
-@Tag(name = "Assignment Templates", description = "Expert Assignment Blueprint APIs")
+@Tag(name = "Assignment Templates", description = "Reusable Assignment Blueprint APIs")
 public class AssignmentTemplateController {
 
     private final AssignmentTemplateService templateService;
@@ -33,7 +33,7 @@ public class AssignmentTemplateController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXPERT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Create assignment template")
     public ResponseEntity<AssignmentDTO.AssignmentTemplateResponse> createTemplate(@Valid @RequestBody AssignmentDTO.CreateTemplateRequest request) {
         return ResponseEntity.ok(templateService.createTemplate(request));

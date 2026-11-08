@@ -9,11 +9,24 @@ import java.util.List;
 public class AuthDTO {
 
     public record LoginRequest(
-            @NotBlank(message = "Username is required")
-            String username,
+            @NotBlank(message = "Email or username is required")
+            String identifier,
 
             @NotBlank(message = "Password is required")
             String password
+    ) {}
+
+    public record RegisterResponse(String message, String email) {}
+    public record ForgotPasswordRequest(@NotBlank @Email String email) {}
+    public record ResetPasswordRequest(
+            @NotBlank String token,
+            @NotBlank @Size(min = 10, message = "Password must be at least 10 characters") String password
+    ) {}
+    public record GoogleLoginRequest(@NotBlank String idToken) {}
+
+    public record ChooseRoleRequest(
+            @NotBlank(message = "Role is required")
+            String role
     ) {}
 
     public record RegisterRequest(
@@ -40,6 +53,8 @@ public class AuthDTO {
             String username,
             String email,
             String fullName,
-            List<String> roles
+            String avatarUrl,
+            List<String> roles,
+            boolean onboardingCompleted
     ) {}
 }

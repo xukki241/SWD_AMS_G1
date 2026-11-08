@@ -1,0 +1,85 @@
+"use client"
+
+import React from "react"
+import Link from "next/link"
+import { useQuery } from "@tanstack/react-query"
+import { ChevronLeft } from "lucide-react"
+import { useParams } from "next/navigation"
+import { CourseStaffGuard } from "@/components/courses/CourseStaffGuard"
+import { CourseForm } from "@/components/courses/CourseForm"
+import { courseService } from "@/services/course.service"
+import { getApiErrorMessage, useI18n } from "@/i18n"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+
+function EditCourseInner() {
+  const params = useParams<{ id: string }>()
+  const courseId = Number(params?.id)
+  const { t } = useI18n()
+
+  const { data: course, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["course", courseId],
+    queryFn: () => courseService.getById(courseId),
+    enabled: Number.isFinite(courseId) && courseId > 0,
+  })
+
+  if (!Number.isFinite(courseId) || courseId <= 0) {
+    return (
+      <div className="rounded-lg border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
+        {t("courses.edit.invalidId")}
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    )
+  }
+
+  if (isError || !course) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-lg border bg-card px-6 py-12 text-center">
+        <p className="text-sm font-medium">
+          {getApiErrorMessage(error, t("courses.edit.loadError"))}
+        </p>
+        <Button size="sm" variant="outline" onClick={() => refetch()}>
+          {t("common.actions.retry")}
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2 text-muted-foreground">
+          <Link href={`/courses/${course.id}`}>
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            {t("courses.edit.backToCourse")}
+          </Link>
+        </Button>
+        <h1 className="text-3xl font-bold tracking-tight">{t("courses.edit.title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("courses.edit.editing", { title: course.title })}{" "}
+          <span className="ml-1 font-mono text-xs">({course.code})</span>
+        </p>
+      </div>
+      <CourseForm course={course} />
+    </div>
+  )
+}
+
+export default function EditCoursePage() {
+  return (
+    <CourseStaffGuard>
+      <div className="mx-auto max-w-5xl">
+        <EditCourseInner />
+      </div>
+    </CourseStaffGuard>
+  )
+}

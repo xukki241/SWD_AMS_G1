@@ -2,17 +2,13 @@
 
 import React, { useMemo, useState } from "react"
 import Link from "next/link"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import api from "@/lib/axios"
-import { useToast } from "@/lib/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
-import {
-  ClassCard,
-} from "@/components/classroom/ClassCard"
-import { JoinClassDialog } from "@/components/classroom/JoinClassDialog"
-import { VietQrDialog } from "@/components/classroom/VietQrDialog"
+import { SePayDialog } from "@/components/classroom/SePayDialog"
+import { SubmitDialog } from "@/components/classroom/SubmitDialog"
 import { ErrorState } from "@/components/classroom/ErrorState"
 import { EmptyState } from "@/components/classroom/EmptyState"
 import { StatusBadge } from "@/components/classroom/StatusBadge"
@@ -20,235 +16,260 @@ import {
   formatVnd,
   formatDate,
   formatDateTime,
+  avatarColor,
+  classInitial,
 } from "@/components/classroom/format"
-import {
-  MyClass,
-  Registration,
+import { enrollmentService } from "@/services/enrollment.service"
+import { paymentService } from "@/services/payment.service"
+import { assignmentService } from "@/services/assignment.service"
+import { formatNumber, useI18n } from "@/i18n"
+import type {
+  CourseEnrollment,
   PaymentTransaction,
   AssignmentOverviewItem,
-} from "@/components/classroom/classroomTypes"
+  StudentDashboard,
+} from "@/types"
 import {
-  FolderKanban,
-  GraduationCap,
   Clock,
-  CreditCard,
-  ExternalLink,
   Wallet,
-  Loader2,
-  QrCode,
+  GraduationCap,
+  BookOpen,
   CheckCircle2,
+  TrendingUp,
 } from "lucide-react"
 
 export default function StudentDashboardPage() {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
+  const { t, formatDate } = useI18n()
 
-  const [vnPayBusyId, setVnPayBusyId] = useState<number | null>(null)
-  const [qrRegistration, setQrRegistration] = useState<Registration | null>(null)
+  const [sepayEnrollment, setSepayEnrollment] = useState<CourseEnrollment | null>(null)
+  const [submitItem, setSubmitItem] = useState<AssignmentOverviewItem | null>(null)
 
-  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useQuery({
-    queryKey: ["student-stats"],
-    queryFn: async () => (await api.get("/dashboard/student")).data,
+  const { data: stats } = useQuery({
+    queryKey: ["student-dashboard"],
+    queryFn: async () => (await api.get("/dashboard/student")).data as StudentDashboard,
   })
 
-  const { data: myClasses, isLoading: classesLoading, isError: classesError, refetch: refetchClasses } = useQuery({
-    queryKey: ["student-my-classes"],
-    queryFn: async () => (await api.get("/subject-classes/my")).data as MyClass[],
+  const {
+    data: enrollments,
+    isLoading: enrollmentsLoading,
+    isError: enrollmentsError,
+    refetch: refetchEnrollments,
+  } = useQuery({
+    queryKey: ["student-enrollments"],
+    queryFn: () => enrollmentService.getMyEnrollments(),
   })
 
-  const { data: registrations, isLoading: regsLoading, isError: regsError, refetch: refetchRegs } = useQuery({
-    queryKey: ["student-registrations"],
-    queryFn: async () => (await api.get("/registrations/my")).data as Registration[],
-  })
-
-  const { data: payments, isLoading: payLoading, isError: payError, refetch: refetchPay } = useQuery({
+  const {
+    data: payments,
+    isLoading: payLoading,
+    isError: payError,
+    refetch: refetchPay,
+  } = useQuery({
     queryKey: ["student-payments"],
-    queryFn: async () => (await api.get("/payment/my")).data as PaymentTransaction[],
+    queryFn: () => paymentService.getMyPayments(),
   })
 
-  const { data: overview, isLoading: overviewLoading, isError: overviewError, refetch: refetchOverview } = useQuery({
-    queryKey: ["student-assignments-overview"],
-    queryFn: async () =>
-      (await api.get("/assignments/overview")).data as AssignmentOverviewItem[],
+  const {
+    data: overview,
+    isLoading: overviewLoading,
+    isError: overviewError,
+    refetch: refetchOverview,
+  } = useQuery({
+    queryKey: ["student-work"],
+    queryFn: () => assignmentService.getMyOverview(),
   })
 
-  const pendingRegs = useMemo(
-    () => (registrations || []).filter((r) => r.status === "PENDING_PAYMENT"),
-    [registrations]
+  const pendingEnrollments = useMemo(
+    () => (enrollments || []).filter((e) => e.status === "PENDING_PAYMENT"),
+    [enrollments]
   )
 
-  const upcoming = useMemo(
+  const pendingWork = useMemo(
     () =>
       [...(overview || [])]
-        .filter((o) => new Date(o.dueAt).getTime() >= Date.now() - 365 * 24 * 3600 * 1000)
+        .filter((o) => o.workState !== "GRADED")
         .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()),
     [overview]
   )
 
-  const payVnPay = async (reg: Registration) => {
-    setVnPayBusyId(reg.id)
-    try {
-      const res = await api.post(`/payment/create/${reg.id}`)
-      window.location.href = res.data.paymentUrl
-    } catch (err: any) {
-      toast({
-        title: "Could not start payment",
-        description: err.response?.data?.message || "Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setVnPayBusyId(null)
-    }
-  }
+  const kpis = [
+    { label: t("dashboard.student.kpi.enrolled"), value: formatNumber(stats?.totalEnrollments ?? 0), icon: BookOpen },
+    { label: t("dashboard.student.kpi.active"), value: formatNumber(stats?.activeCourses ?? 0), icon: GraduationCap },
+    { label: t("dashboard.student.kpi.submitted"), value: formatNumber(stats?.submittedAssignments ?? 0), icon: CheckCircle2 },
+    {
+      label: t("dashboard.student.kpi.averageScore"),
+      value:
+        stats?.averageScore !== null && stats?.averageScore !== undefined
+          ? Number(stats.averageScore).toFixed(1)
+          : "—",
+      icon: TrendingUp,
+    },
+  ]
 
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Hi, welcome back 👋</h2>
-          <p className="text-muted-foreground">
-            Join classes, track deadlines, and manage your tuition in one place.
+          <h2 className="text-2xl font-semibold tracking-tight">
+            {t("dashboard.student.title")}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {t("dashboard.student.subtitle")}
           </p>
         </div>
-        <div id="find" className="flex gap-2">
-          <JoinClassDialog />
-        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        {stats ? (
-          <>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">My Classes</CardTitle>
-                <FolderKanban className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.activeClasses}</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats.totalRegistrations} total enrollments
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Submitted</CardTitle>
-                <GraduationCap className="h-4 w-4 text-emerald-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.submittedAssignments}</div>
-                <p className="text-xs text-muted-foreground">works handed in</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Graded</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.gradedAssignments}</div>
-                <p className="text-xs text-muted-foreground">with final scores</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                <Wallet className="h-4 w-4 text-amber-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {stats.averageScore != null ? Number(stats.averageScore).toFixed(1) : "—"}
+      {/* KPI cards */}
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {kpis.map((k) => (
+          <Card key={k.label} className="shadow-gc">
+            <CardContent className="flex items-center gap-3 p-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]">
+                <k.icon className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-2xl font-semibold tabular-nums text-foreground">
+                  {k.value}
                 </div>
-                <p className="text-xs text-muted-foreground">across graded work</p>
-              </CardContent>
-            </Card>
-          </>
-        ) : statsError ? (
-          <ErrorState onRetry={() => refetchStats()} />
-        ) : (
-          <>
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-          </>
-        )}
-      </div>
+                <div className="text-xs text-muted-foreground">{k.label}</div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
 
-      {/* My classes */}
-      <section id="classes">
-        <div className="mb-4 flex items-end justify-between">
+      {/* My courses — enrollment cards */}
+      <section id="classes" className="scroll-mt-20">
+        <div className="mb-3 flex items-end justify-between">
           <div>
-            <h3 className="text-xl font-bold tracking-tight">My classes</h3>
+            <h3 className="text-lg font-medium tracking-tight text-foreground">
+              {t("dashboard.nav.myCourses")}
+            </h3>
             <p className="text-sm text-muted-foreground">
-              Open a class to see its stream, assignments, and people.
+              {t("dashboard.student.courses.description")}
             </p>
           </div>
         </div>
-        {classesError ? (
-          <ErrorState onRetry={() => refetchClasses()} />
-        ) : classesLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
+
+        {enrollmentsError ? (
+          <ErrorState onRetry={() => refetchEnrollments()} />
+        ) : enrollmentsLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
               <StatSkeleton key={i} />
             ))}
           </div>
-        ) : myClasses && myClasses.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {myClasses.map((c) => (
-              <ClassCard key={c.classId ?? c.id} data={c} showMyStatus />
-            ))}
+        ) : enrollments && enrollments.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {enrollments.map((e) => {
+              const banner = e.courseThumbnailUrl
+              return (
+                <Link
+                  key={e.id}
+                  href={`/courses/${e.courseId}`}
+                  className="group overflow-hidden rounded-xl border bg-card shadow-gc transition-shadow hover:shadow-gc-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {banner ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={banner}
+                      alt={e.courseTitle}
+                      className="h-28 w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className={`flex h-28 w-full items-center justify-center ${avatarColor(
+                        e.courseTitle
+                      )}`}
+                    >
+                      <span className="text-4xl font-bold text-white">
+                        {classInitial(e.courseTitle)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="space-y-2 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="line-clamp-2 font-medium text-foreground group-hover:underline">
+                        {e.courseTitle}
+                      </h4>
+                      <StatusBadge status={e.status} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{e.courseCode}</p>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-sm font-medium text-foreground">
+                        {formatVnd(Number(e.amount))}
+                      </span>
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {e.registrationReference}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         ) : (
-          <EmptyState
-            title="No classes yet"
-            description="Use “Join a class” to enroll with a 6-character join code."
-          />
+          <div className="space-y-3"><EmptyState
+            title={t("dashboard.student.courses.emptyTitle")}
+            description={t("dashboard.student.courses.emptyDescription")}
+          /><div className="text-center"><Button asChild><Link href="/catalog">Browse Courses</Link></Button></div></div>
         )}
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Upcoming deadlines */}
-        <section id="work">
-          <Card>
+        <section id="work" className="scroll-mt-20">
+          <Card className="shadow-gc">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" /> Upcoming deadlines
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Clock className="h-5 w-5 text-[hsl(var(--success))]" />{" "}
+                {t("dashboard.student.work.title")}
               </CardTitle>
-              <CardDescription>Your classwork sorted by due date</CardDescription>
+              <CardDescription>{t("dashboard.student.work.description")}</CardDescription>
             </CardHeader>
             <CardContent>
               {overviewError ? (
                 <ErrorState onRetry={() => refetchOverview()} />
               ) : overviewLoading ? (
                 <TableSkeleton rows={3} cols={3} />
-              ) : upcoming.length > 0 ? (
+              ) : pendingWork.length > 0 ? (
                 <ul className="space-y-2">
-                  {upcoming.map((o) => {
+                  {pendingWork.slice(0, 8).map((o) => {
                     const pastDue = new Date(o.dueAt).getTime() < Date.now()
                     return (
                       <li
-                        key={`${o.classId}-${o.assignmentId}`}
+                        key={`${o.enrollmentId}-${o.assignmentId}`}
                         className="flex items-center justify-between gap-3 rounded-lg border p-3"
                       >
                         <div className="min-w-0">
                           <div className="truncate font-medium text-foreground">{o.title}</div>
                           <div className="truncate text-xs text-muted-foreground">
-                            {o.className} · due {formatDate(o.dueAt)}
-                            {pastDue && o.workState !== "GRADED" && (
-                              <span className="ml-1 text-amber-600">(past due)</span>
+                            {t("dashboard.student.work.dueItem", {
+                              code: o.courseCode,
+                              date: formatDate(o.dueAt),
+                            })}
+                            {pastDue && (
+                              <span className="ml-1 text-amber-600">
+                                {t("dashboard.student.work.overdue")}
+                              </span>
                             )}
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <StatusBadge status={o.workState} />
                           <Link
-                            href={`/classes/${o.classId}`}
+                            href={`/courses/${o.courseId}`}
                             className="text-xs font-medium text-primary hover:underline"
                           >
-                            Open
+                            {t("common.actions.open")}
                           </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full"
+                            onClick={() => setSubmitItem(o)}
+                          >
+                            {t("common.actions.submit")}
+                          </Button>
                         </div>
                       </li>
                     )
@@ -256,73 +277,66 @@ export default function StudentDashboardPage() {
                 </ul>
               ) : (
                 <EmptyState
-                  title="No pending work"
-                  description="Deadlines will appear here once your teachers assign classwork."
+                  title={t("dashboard.student.work.emptyTitle")}
+                  description={t("dashboard.student.work.emptyDescription")}
                 />
               )}
             </CardContent>
           </Card>
         </section>
 
-        {/* Payments */}
-        <section id="payments">
-          <Card>
+        <section id="payments" className="scroll-mt-20">
+          <Card className="shadow-gc">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" /> Tuition & payments
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Wallet className="h-5 w-5 text-[hsl(var(--success))]" />{" "}
+                {t("dashboard.student.payments.title")}
               </CardTitle>
               <CardDescription>
-                Pay pending enrollments (sandbox — no real money moves)
+                {t("dashboard.student.payments.description")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {regsError || payError ? (
+              {enrollmentsError || payError ? (
                 <ErrorState
                   onRetry={() => {
-                    refetchRegs()
+                    refetchEnrollments()
                     refetchPay()
                   }}
                 />
-              ) : regsLoading || payLoading ? (
+              ) : enrollmentsLoading || payLoading ? (
                 <TableSkeleton rows={3} cols={3} />
               ) : (
                 <>
-                  {pendingRegs.length > 0 && (
+                  {pendingEnrollments.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-sm font-semibold text-foreground">Awaiting payment</p>
-                      {pendingRegs.map((reg) => (
+                      <p className="text-sm font-semibold text-foreground">
+                        {t("dashboard.student.payments.awaiting")}
+                      </p>
+                      {pendingEnrollments.map((e) => (
                         <div
-                          key={reg.id}
+                          key={e.id}
                           className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-amber-500/5 p-3"
                         >
                           <div className="min-w-0">
                             <div className="truncate text-sm font-medium text-foreground">
-                              {reg.className}
+                              {e.courseTitle}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              Ref: {reg.registrationReference}
+                              {t("dashboard.student.payments.ref", {
+                                ref: e.registrationReference,
+                              })}{" "}
+                              <span className="font-medium">{formatVnd(Number(e.amount))}</span>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Button
                               size="sm"
-                              onClick={() => payVnPay(reg)}
-                              disabled={vnPayBusyId === reg.id}
+                              className="rounded-full"
+                              onClick={() => setSepayEnrollment(e)}
                             >
-                              {vnPayBusyId === reg.id ? (
-                                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                              ) : (
-                                <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                              )}
-                              Pay via VNPay (Sandbox)
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setQrRegistration(reg)}
-                            >
-                              <QrCode className="h-3.5 w-3.5 mr-1" />
-                              VietQR (Sandbox)
+                              <Wallet className="h-3.5 w-3.5 mr-1" />
+                              Thanh toán SePay
                             </Button>
                           </div>
                         </div>
@@ -332,11 +346,11 @@ export default function StudentDashboardPage() {
 
                   <div>
                     <p className="mb-2 text-sm font-semibold text-foreground">
-                      Payment history
+                      {t("dashboard.student.payments.history")}
                     </p>
                     {payments && payments.length > 0 ? (
                       <ul className="space-y-1.5">
-                        {payments.map((p) => (
+                        {payments.map((p: PaymentTransaction) => (
                           <li
                             key={p.id}
                             className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm"
@@ -359,7 +373,9 @@ export default function StudentDashboardPage() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-muted-foreground">No payments yet.</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("dashboard.student.payments.noTransactions")}
+                      </p>
                     )}
                   </div>
                 </>
@@ -369,11 +385,24 @@ export default function StudentDashboardPage() {
         </section>
       </div>
 
-      {qrRegistration && (
-        <VietQrDialog
-          open={!!qrRegistration}
-          onOpenChange={(o) => !o && setQrRegistration(null)}
-          registration={qrRegistration}
+
+      {sepayEnrollment && (
+        <SePayDialog
+          open={!!sepayEnrollment}
+          onOpenChange={(o) => !o && setSepayEnrollment(null)}
+          enrollment={sepayEnrollment}
+        />
+      )}
+
+      {submitItem && (
+        <SubmitDialog
+          open={!!submitItem}
+          onClose={() => setSubmitItem(null)}
+          onSubmitted={() => {
+            refetchOverview()
+          }}
+          enrollmentId={submitItem.enrollmentId}
+          assignmentId={submitItem.assignmentId}
         />
       )}
     </div>

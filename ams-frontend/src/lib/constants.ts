@@ -1,4 +1,4 @@
-export const ROLES = ['ADMIN', 'EXPERT', 'TEACHER', 'STUDENT'] as const;
+export const ROLES = ['ADMIN', 'TEACHER', 'STUDENT'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ACCOUNT_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as const;
@@ -26,25 +26,19 @@ export const NAV_ITEMS = {
   ADMIN: [
     { label: 'Dashboard', href: '/admin', icon: 'LayoutDashboard' },
     { label: 'Users & Roles', href: '/admin#users', icon: 'Users' },
-    { label: 'Subjects', href: '/admin#subjects', icon: 'BookOpen' },
     { label: 'Classes', href: '/admin#classes', icon: 'School' },
     { label: 'Audit Trail', href: '/admin#audit', icon: 'ShieldCheck' },
   ],
-  EXPERT: [
-    { label: 'Dashboard', href: '/expert', icon: 'LayoutDashboard' },
-    { label: 'My Classes', href: '/expert#classes', icon: 'School' },
-    { label: 'Templates', href: '/expert#templates', icon: 'FileText' },
-  ],
   TEACHER: [
     { label: 'Dashboard', href: '/teacher', icon: 'LayoutDashboard' },
-    { label: 'My Classes', href: '/teacher#classes', icon: 'School' },
-    { label: 'New Classwork', href: '/teacher#new-assignment', icon: 'ClipboardList' },
+    { label: 'My Classes', href: '/teacher/courses', icon: 'School' },
+    { label: 'To-do', href: '/teacher/work', icon: 'CheckSquare' },
   ],
   STUDENT: [
     { label: 'Home', href: '/student', icon: 'LayoutDashboard' },
-    { label: 'My Classes', href: '/student#classes', icon: 'School' },
+    { label: 'My Classes', href: '/student/courses', icon: 'School' },
     { label: 'Find a Class', href: '/student#find', icon: 'KeyRound' },
     { label: 'Payments', href: '/student#payments', icon: 'CreditCard' },
-    { label: 'My Work', href: '/student#work', icon: 'Upload' },
+    { label: 'My Work', href: '/student/work', icon: 'Upload' },
   ],
 } as const;

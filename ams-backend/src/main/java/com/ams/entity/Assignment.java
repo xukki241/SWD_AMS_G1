@@ -18,6 +18,11 @@ public class Assignment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Course this assignment belongs to (the course-centric model). */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "course_id", nullable = false)
+    private Course course;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "teacher_id", nullable = false)
     private User teacher;
@@ -32,10 +37,31 @@ public class Assignment {
     @Column(columnDefinition = "TEXT")
     private String instructions;
 
+    @Column(columnDefinition = "TEXT")
+    private String rubric;
+
+    /** Optional classwork topic for GC-style grouping (e.g. "Đồ án môn học"). */
+    @Column(length = 120)
+    private String topic;
+
     @Column(name = "due_at", nullable = false)
     private LocalDateTime dueAt;
 
     @Column(name = "max_score", nullable = false, precision = 5, scale = 2)
     @Builder.Default
     private BigDecimal maxScore = BigDecimal.TEN;
+
+    /** Optional instructor handout / brief uploaded to Cloudinary (or local fallback). */
+    @Column(name = "attachment_url", length = 1000)
+    private String attachmentUrl;
+
+    @Column(name = "attachment_metadata", columnDefinition = "TEXT")
+    private String attachmentMetadata;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private Status status = Status.PUBLISHED;
+
+    public enum Status { DRAFT, PUBLISHED }
 }

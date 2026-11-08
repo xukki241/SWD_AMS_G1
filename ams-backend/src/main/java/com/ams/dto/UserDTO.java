@@ -32,6 +32,10 @@ public class UserDTO {
             User.AccountStatus accountStatus
     ) {}
 
+    public record ProfileResponse(Long id, String username, String email, String fullName, String avatarUrl) {}
+    public record UpdateProfileRequest(@NotBlank String fullName) {}
+    public record ChangePasswordRequest(@NotBlank String currentPassword, @NotBlank String newPassword) {}
+
     public record AssignRoleRequest(
             @NotBlank String roleName,
             String note

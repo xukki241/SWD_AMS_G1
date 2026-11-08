@@ -15,7 +15,11 @@ public class EvaluationDTO {
             String evaluatorName,
             BigDecimal score,
             String feedback,
-            AssignmentEvaluation.EvaluationStatus evaluationStatus
+            AssignmentEvaluation.EvaluationStatus evaluationStatus,
+            BigDecimal aiDraftScore,
+            String aiDraftFeedback,
+            boolean published,
+            java.time.LocalDateTime viewedAt
     ) {}
 
     // Upper bound on score is the assignment's own maxScore (checked in EvaluationService), so no fixed @DecimalMax.
