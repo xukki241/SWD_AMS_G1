@@ -79,11 +79,15 @@ This starts Postgres, Spring Boot, and Next.js together.
 git clone https://github.com/xukki241/SWD_AMS_G1.git
 cd SWD_AMS_G1
 
-# Create a local env file (gitignored). Fill SePay / Cloudinary / VNPay as needed.
+# Create a local env file (gitignored). Demo Firebase Google config is already filled.
 cp .env.example .env
+# Optional host frontend: cp ams-frontend/.env.local.example ams-frontend/.env.local
 
 docker compose up --build
 ```
+
+**After every pull that touches auth/env/frontend:** rebuild (`docker compose up --build`).  
+`NEXT_PUBLIC_*` (Firebase Google) is baked into the Next.js image at **build** time — `git pull` alone does not update a running container. If you still see “Đăng nhập Google chưa được cấu hình”, your image was built without Firebase env: copy `.env.example` → `.env`, then rebuild.
 
 When healthy:
 
