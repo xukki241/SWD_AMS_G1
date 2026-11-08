@@ -5,7 +5,10 @@ Hand-in / grading SQL for PostgreSQL 16. Equivalent to Flyway `V1`–`V11` in `a
 | File | Purpose |
 | ---- | ------- |
 | `01_create_schema.sql` | CREATE TABLE / INDEX (final schema) |
-| `02_insert_data.sql` | Demo roles, users, courses, enrollments, payments, submissions |
+| `02_insert_data.sql` | Demo roles, users, courses, enrollments, payments, submissions (exclusive roles) |
+| `03_exclusive_roles_cleanup.sql` | Optional: strip dual STUDENT+TEACHER leftovers on old DBs |
+
+**Role rules:** Student = join only. Teacher = create/manage only. Never both.
 
 **Demo password:** `Password@123`  
 **Accounts:** `admin`, `teacher1`, `student1`, …
@@ -17,7 +20,9 @@ docker compose down -v
 docker compose up --build
 ```
 
-Backend runs Flyway on startup (`V1`…`V11`) and seeds the same demo data. Use the files above for code review / pgAdmin, not on the same empty DB as Flyway.
+Backend runs Flyway on startup (`V1`…`V12`) and seeds the same demo data. Use the files above for code review / pgAdmin, not on the same empty DB as Flyway.
+
+After pulling role fixes, always rebuild frontend/backend images (`--build`) and prefer `-v` once so V12 exclusive-role cleanup applies. Then **log out / log in** (or wait for session refresh) so JWT no longer carries a stale TEACHER grant on student accounts.
 
 ## Manual apply (empty database only)
 

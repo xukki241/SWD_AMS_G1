@@ -16,11 +16,12 @@ import {
 import { Search, Menu, LogOut, BookOpen, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LanguageSwitcher, roleLabel, useI18n } from "@/i18n"
+import { roleFlags } from "@/lib/roles"
 
 function homeHrefForRoles(roles: string[] | undefined) {
-  const list = roles || []
-  if (list.some((r) => r.includes("ADMIN"))) return "/admin"
-  if (list.some((r) => r.includes("TEACHER"))) return "/teacher"
+  const { isAdmin, canManageCourses } = roleFlags(roles)
+  if (isAdmin) return "/admin"
+  if (canManageCourses) return "/teacher"
   return "/student"
 }
 
@@ -36,14 +37,10 @@ export function Header({
   const { t } = useI18n()
 
   const roles = user?.roles || []
-  const isAdmin = roles.some((r) => r.includes("ADMIN"))
-  const isTeacher = roles.some((r) => r.includes("TEACHER"))
-  const isStudent = roles.some((r) => r.includes("STUDENT"))
-  // Exclusive roles: teacher/admin create; student joins via catalog.
-  const canCreateCourse = isAdmin || isTeacher
-  const showCourseAction = Boolean(user) && (canCreateCourse || isStudent)
-  const courseActionHref = canCreateCourse ? "/courses/new" : "/catalog"
-  const courseActionLabel = canCreateCourse
+  const { canManageCourses, canEnroll } = roleFlags(roles)
+  const showCourseAction = Boolean(user) && (canManageCourses || canEnroll)
+  const courseActionHref = canManageCourses ? "/courses/new" : "/catalog"
+  const courseActionLabel = canManageCourses
     ? t("common.actions.createCourse")
     : t("common.actions.joinCourse")
   const homeHref = homeHrefForRoles(roles)

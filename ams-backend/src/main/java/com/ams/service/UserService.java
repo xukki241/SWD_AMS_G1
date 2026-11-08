@@ -184,6 +184,20 @@ public class UserService {
         Role role = roleRepository.findByRoleName(rName)
                 .orElseThrow(() -> new BadRequestException("Role not found: " + cleanRole));
 
+        // Exclusive Student ↔ Teacher: assigning one revokes the other.
+        if (rName == Role.RoleName.TEACHER || rName == Role.RoleName.STUDENT) {
+            Role.RoleName opposite = rName == Role.RoleName.TEACHER
+                    ? Role.RoleName.STUDENT : Role.RoleName.TEACHER;
+            for (UserRole existing : userRoleRepository.findByUser(user)) {
+                if (existing.getAssignmentStatus() == UserRole.AssignmentStatus.ACTIVE
+                        && existing.getRole().getRoleName() == opposite) {
+                    existing.setAssignmentStatus(UserRole.AssignmentStatus.REVOKED);
+                    existing.setAssignmentNote("Exclusive roles: revoked when assigning " + cleanRole);
+                    userRoleRepository.save(existing);
+                }
+            }
+        }
+
         UserRole ur = UserRole.builder()
                 .user(user)
                 .role(role)

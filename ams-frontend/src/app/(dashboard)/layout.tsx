@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState } from "react"
 import { Header } from "@/components/layout/Header"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { useAuthStore } from "@/stores/authStore"
+import { authService } from "@/services/auth.service"
+import { roleFlags } from "@/lib/roles"
 import { useRouter, usePathname } from "next/navigation"
 
 export default function DashboardLayout({
@@ -11,10 +13,11 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { isAuthenticated, hasHydrated, user } = useAuthStore()
+  const { isAuthenticated, hasHydrated, user, setAuth } = useAuthStore()
   const router = useRouter()
   const pathname = usePathname()
   const firstRender = useRef(true)
+  const refreshedConflict = useRef(false)
   // Desktop + mobile: hamburger toggles this. Default open on large screens.
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -26,8 +29,19 @@ export default function DashboardLayout({
     }
     if (user && user.onboardingCompleted === false) {
       router.replace("/choose-role")
+      return
     }
-  }, [hasHydrated, isAuthenticated, user, router])
+    // After V12 dual-role cleanup, re-issue JWT so Manage Courses disappears for students.
+    if (user && roleFlags(user.roles).hasConflictingRoles && !refreshedConflict.current) {
+      refreshedConflict.current = true
+      authService
+        .refresh()
+        .then(setAuth)
+        .catch(() => {
+          /* keep session; user can re-login */
+        })
+    }
+  }, [hasHydrated, isAuthenticated, user, router, setAuth])
 
   useEffect(() => {
     // Scroll the main pane back to top on route change.

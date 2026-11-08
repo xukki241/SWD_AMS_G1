@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { courseService } from "@/services/course.service"
 import { enrollmentService } from "@/services/enrollment.service"
 import { useAuthStore } from "@/stores/authStore"
+import { roleFlags } from "@/lib/roles"
 import { Button } from "@/components/ui/button"
 import { formatPrice } from "@/components/courses/courseFormat"
 
@@ -12,9 +13,7 @@ export default function CatalogCourseDetailPage() {
   const id = Number(useParams<{ id: string }>().id)
   const router = useRouter()
   const roles = useAuthStore((s) => s.user?.roles || [])
-  const isStudent = roles.some((r) => r.includes("STUDENT"))
-  const isTeacher = roles.some((r) => r.includes("TEACHER"))
-  const canEnroll = isStudent && !isTeacher
+  const { canEnroll, canManageCourses } = roleFlags(roles)
 
   const { data: course, isLoading } = useQuery({
     queryKey: ["public-course", id],
@@ -89,7 +88,7 @@ export default function CatalogCourseDetailPage() {
             ) : (
               <Button onClick={() => router.push(`/catalog/confirm/${id}`)}>Đăng ký khóa học</Button>
             )
-          ) : isTeacher ? (
+          ) : canManageCourses ? (
             <p className="text-sm text-muted-foreground">
               Tài khoản giáo viên chỉ tạo và quản lý khóa học, không đăng ký học.
             </p>

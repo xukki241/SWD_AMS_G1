@@ -7,6 +7,7 @@ import { courseService } from "@/services/course.service"
 import { profileService } from "@/services/profile.service"
 import { enrollmentService } from "@/services/enrollment.service"
 import { useAuthStore } from "@/stores/authStore"
+import { roleFlags } from "@/lib/roles"
 import { formatPrice } from "@/components/courses/courseFormat"
 import { Button } from "@/components/ui/button"
 
@@ -17,7 +18,7 @@ export default function EnrollmentConfirmPage() {
   const [accepted, setAccepted] = useState(false)
   const [error, setError] = useState("")
   const roles = useAuthStore((s) => s.user?.roles || [])
-  const canEnroll = roles.some((r) => r.includes("STUDENT")) && !roles.some((r) => r.includes("TEACHER"))
+  const { canEnroll } = roleFlags(roles)
 
   useEffect(() => {
     if (!canEnroll) router.replace("/catalog")

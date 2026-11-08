@@ -4,18 +4,15 @@ import React from "react"
 import Link from "next/link"
 import { ShieldAlert } from "lucide-react"
 import { useAuthStore } from "@/stores/authStore"
+import { roleFlags } from "@/lib/roles"
 import { useI18n } from "@/i18n"
 import { Button } from "@/components/ui/button"
 
-/** Course authoring is for teachers/admins chosen at onboarding. */
+/** Course authoring is for pure teachers/admins — never students. */
 export function CourseStaffGuard({ children }: { children: React.ReactNode }) {
   const { t } = useI18n()
   const { user, hasHydrated } = useAuthStore()
-  const roles = user?.roles ?? []
-  const allowed = roles.some((role) => {
-    const name = role.toUpperCase()
-    return name.includes("TEACHER") || name.includes("ADMIN")
-  })
+  const { canManageCourses } = roleFlags(user?.roles)
 
   if (!hasHydrated) {
     return (
@@ -25,7 +22,7 @@ export function CourseStaffGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!allowed) {
+  if (!canManageCourses) {
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-6 py-12 text-center">
         <ShieldAlert className="h-10 w-10 text-destructive" />

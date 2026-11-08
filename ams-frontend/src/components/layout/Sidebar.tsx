@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuthStore } from "@/stores/authStore"
 import { cn } from "@/lib/utils"
+import { roleFlags } from "@/lib/roles"
 import { useI18n } from "@/i18n"
 import {
   enrollmentService,
@@ -157,18 +158,15 @@ export function Sidebar({
     return () => window.removeEventListener("hashchange", sync)
   }, [pathname])
 
-  const roles = user?.roles || []
-  const isAdmin = roles.some((r) => r.includes("ADMIN"))
-  const isTeacher = roles.some((r) => r.includes("TEACHER"))
-  const isStudent = roles.some((r) => r.includes("STUDENT"))
-  const isCourseUser = isStudent || isTeacher
+  const { isAdmin, canManageCourses, canEnroll } = roleFlags(user?.roles)
+  const isCourseUser = canManageCourses || canEnroll
 
-  const homePath = isAdmin ? "/admin" : isTeacher ? "/teacher" : "/student"
+  const homePath = isAdmin ? "/admin" : canManageCourses ? "/teacher" : "/student"
 
   const { data: myEnrollments } = useQuery({
     queryKey: ["sidebar-my-enrollments", user?.userId],
     queryFn: () => enrollmentService.getMyEnrollments(),
-    enabled: isStudent && !isTeacher && !isAdmin,
+    enabled: canEnroll,
   })
 
   const { data: teachingCourses } = useQuery({
@@ -178,7 +176,7 @@ export function Sidebar({
       const content = page.content || []
       return content.filter((c) => user && c.instructorId === user.userId)
     },
-    enabled: isTeacher && !isAdmin && !!user,
+    enabled: canManageCourses && !isAdmin && !!user,
   })
 
   const studentLinks: NavLink[] = [
@@ -246,7 +244,7 @@ export function Sidebar({
           section: "audit",
         },
       ]
-    : isTeacher
+    : canManageCourses
       ? [
           {
             name: t("dashboard.courseList.teaching"),
@@ -255,7 +253,7 @@ export function Sidebar({
           } as NavLink,
           ...teacherLinks,
         ]
-      : isStudent
+      : canEnroll
         ? studentLinks
         : []
 
@@ -273,7 +271,7 @@ export function Sidebar({
     if (/^\/courses\/\d+/.test(pathname)) {
       if (!link.section) return link.href === "/courses"
       // Students reach a course from "My Courses"; teachers/admins use course management.
-      if (isStudent && !isAdmin) return link.section === "classes"
+      if (canEnroll && !isAdmin) return link.section === "classes"
       return false
     }
     // Plain routes (no hash section) also match their nested paths, e.g. /courses/[id].
@@ -282,7 +280,7 @@ export function Sidebar({
     }
     if (pathname !== base && pathname !== homePath) return false
     // Empty hash defaults to the first section of the page.
-    const defaultSection = isAdmin ? "users" : isStudent ? "classes" : isTeacher ? "classes" : "courses"
+    const defaultSection = isAdmin ? "users" : canEnroll || canManageCourses ? "classes" : "courses"
     const effectiveHash = hash || defaultSection
     return effectiveHash === link.section
   }
@@ -337,7 +335,7 @@ export function Sidebar({
 
         {isCourseUser && !isAdmin && (
           <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-3">
-            {isTeacher && (
+            {canManageCourses && (
               <CourseSection
                 label={t("dashboard.courseList.teaching")}
                 empty={t("dashboard.courseList.emptyTeacher")}
@@ -350,7 +348,7 @@ export function Sidebar({
                 }}
               />
             )}
-            {isStudent && !isTeacher && (
+            {canEnroll && (
               <CourseSection
                 label={t("dashboard.nav.myCourses")}
                 empty={t("dashboard.courseList.emptyStudent")}

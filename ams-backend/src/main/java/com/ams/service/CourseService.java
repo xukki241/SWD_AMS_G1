@@ -145,6 +145,14 @@ public class CourseService {
     @Transactional
     public CourseDTO.CourseDetailResponse createCourse(CourseDTO.CourseRequest request, MultipartFile thumbnail) {
         User user = currentUser();
+        // Exclusive roles: students (even with a stale TEACHER grant) cannot create courses.
+        if (roleChecker.hasRole(user.getId(), Role.RoleName.STUDENT)
+                && !roleChecker.hasRole(user.getId(), Role.RoleName.ADMIN)) {
+            throw new AccessDeniedException("Students cannot create courses");
+        }
+        if (!roleChecker.hasRole(user.getId(), Role.RoleName.TEACHER, Role.RoleName.ADMIN)) {
+            throw new AccessDeniedException("Only teachers or administrators can create courses");
+        }
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.categoryId()));
 

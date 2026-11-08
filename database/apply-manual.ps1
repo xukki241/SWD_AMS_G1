@@ -26,4 +26,9 @@ Get-Content "$PSScriptRoot\02_insert_data.sql" -Raw |
   docker compose exec -T postgres psql -U ams_user -d ams_db -v ON_ERROR_STOP=1
 if ($LASTEXITCODE -ne 0) { throw "Insert script failed." }
 
-Write-Host "Done. Demo login: admin / Password@123"
+Write-Host "Applying 03_exclusive_roles_cleanup.sql ..."
+Get-Content "$PSScriptRoot\03_exclusive_roles_cleanup.sql" -Raw |
+  docker compose exec -T postgres psql -U ams_user -d ams_db -v ON_ERROR_STOP=1
+if ($LASTEXITCODE -ne 0) { throw "Exclusive-role cleanup failed." }
+
+Write-Host "Done. Demo login: admin / Password@123 (Student cannot Manage Courses)."
