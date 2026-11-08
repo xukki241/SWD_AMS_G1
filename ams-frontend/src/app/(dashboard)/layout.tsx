@@ -11,7 +11,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { isAuthenticated, hasHydrated } = useAuthStore()
+  const { isAuthenticated, hasHydrated, user } = useAuthStore()
   const router = useRouter()
   const pathname = usePathname()
   const firstRender = useRef(true)
@@ -19,10 +19,15 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
-    if (hasHydrated && !isAuthenticated) {
+    if (!hasHydrated) return
+    if (!isAuthenticated) {
       router.replace("/login")
+      return
     }
-  }, [hasHydrated, isAuthenticated, router])
+    if (user && user.onboardingCompleted === false) {
+      router.replace("/choose-role")
+    }
+  }, [hasHydrated, isAuthenticated, user, router])
 
   useEffect(() => {
     // Scroll the main pane back to top on route change.
@@ -35,7 +40,7 @@ export default function DashboardLayout({
     }
   }, [pathname])
 
-  if (!hasHydrated || !isAuthenticated) {
+  if (!hasHydrated || !isAuthenticated || user?.onboardingCompleted === false) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

@@ -39,9 +39,13 @@ export function Header({
   const isAdmin = roles.some((r) => r.includes("ADMIN"))
   const isTeacher = roles.some((r) => r.includes("TEACHER"))
   const isStudent = roles.some((r) => r.includes("STUDENT"))
-  // Dual-role: anyone signed in can create a course; students still join via catalog.
-  const showCourseAction = Boolean(user) && (isAdmin || isTeacher || isStudent)
-  const courseActionHref = "/courses/new"
+  // Exclusive roles: teacher/admin create; student joins via catalog.
+  const canCreateCourse = isAdmin || isTeacher
+  const showCourseAction = Boolean(user) && (canCreateCourse || isStudent)
+  const courseActionHref = canCreateCourse ? "/courses/new" : "/catalog"
+  const courseActionLabel = canCreateCourse
+    ? t("common.actions.createCourse")
+    : t("common.actions.joinCourse")
   const homeHref = homeHrefForRoles(roles)
 
   const handleLogout = () => {
@@ -92,7 +96,7 @@ export function Header({
             className="flex items-center gap-1.5 rounded-full bg-[hsl(var(--success))] px-4 py-2 text-sm font-medium text-white shadow-gc transition hover:shadow-gc-lg"
           >
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">{t("common.actions.createOrJoinCourse")}</span>
+            <span className="hidden sm:inline">{courseActionLabel}</span>
           </Link>
         )}
 

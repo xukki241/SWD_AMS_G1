@@ -55,6 +55,7 @@ const common: CommonMessages = {
     copy: "Sao chép",
     createCourse: "Tạo khóa học",
     createOrJoinCourse: "Tạo/Tham gia khóa học",
+    joinCourse: "Tham gia khóa học",
     profile: "Hồ sơ của tôi",
   },
   status: {

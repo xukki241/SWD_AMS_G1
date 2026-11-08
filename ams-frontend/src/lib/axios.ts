@@ -26,7 +26,14 @@ api.interceptors.response.use(
         // ignore
       }
       const path = window.location.pathname;
-      if (!path.startsWith('/login') && !path.startsWith('/register') && !path.startsWith('/forgot-password') && !path.startsWith('/reset-password') && !path.startsWith('/verify-email')) {
+      if (
+        !path.startsWith('/login') &&
+        !path.startsWith('/register') &&
+        !path.startsWith('/choose-role') &&
+        !path.startsWith('/forgot-password') &&
+        !path.startsWith('/reset-password') &&
+        !path.startsWith('/verify-email')
+      ) {
         window.location.href = '/login';
       }
     }

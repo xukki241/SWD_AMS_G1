@@ -49,6 +49,11 @@ public class User {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    /** False until the user picks Student or Teacher after first sign-in. */
+    @Column(name = "onboarding_completed", nullable = false)
+    @Builder.Default
+    private boolean onboardingCompleted = false;
+
     public enum AccountStatus {
         ACTIVE, INACTIVE, SUSPENDED
     }

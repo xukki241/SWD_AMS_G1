@@ -42,7 +42,8 @@ import {
   ClipboardList,
 } from "lucide-react"
 
-const ROLE_OPTIONS = ["ROLE_STUDENT", "ROLE_TEACHER", "ROLE_ADMIN"]
+/** Self-serve onboarding covers Student/Teacher; admin can still grant ADMIN. */
+const ROLE_OPTIONS = ["ROLE_ADMIN"]
 
 export default function AdminDashboardPage() {
   const { t } = useI18n()
@@ -197,7 +198,7 @@ function UsersTab() {
 
   const assignRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
-      await api.post(`/users/${userId}/roles`, { role })
+      await api.post(`/users/${userId}/roles`, { roleName: role })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] })

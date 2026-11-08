@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/stores/authStore"
 import { authService } from "@/services/auth.service"
+import { homePathForAuth } from "@/lib/authRedirect"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { getApiErrorMessage, useI18n } from "@/i18n"
@@ -28,11 +29,7 @@ export default function LoginPage() {
     try {
       const data = await authService.login({ identifier: username, password })
       setAuth(data)
-
-      const roles = data.roles || []
-      if (roles.includes("ROLE_ADMIN")) router.push("/admin")
-      else if (roles.includes("ROLE_TEACHER")) router.push("/teacher")
-      else router.push("/student")
+      router.push(homePathForAuth(data))
     } catch (err: any) {
       setError(getApiErrorMessage(err, t("auth.login.errorFallback")))
     } finally {
@@ -51,10 +48,7 @@ export default function LoginPage() {
     try {
       const data = await authService.google(credential)
       setAuth(data)
-      const roles = data.roles || []
-      if (roles.includes("ROLE_ADMIN")) router.replace("/admin")
-      else if (roles.includes("ROLE_TEACHER")) router.replace("/teacher")
-      else router.replace("/student")
+      router.replace(homePathForAuth(data))
     } catch (err: any) {
       setError(getApiErrorMessage(err, t("auth.login.errorFallback")))
     } finally {

@@ -19,6 +19,9 @@ export const authService = {
   forgotPassword: async (email: string): Promise<void> => { await api.post('/auth/forgot-password', { email }); },
   resetPassword: async (token: string, password: string): Promise<void> => { await api.post('/auth/reset-password', { token, password }); },
   google: async (idToken: string): Promise<AuthResponse> => (await api.post<AuthResponse>('/auth/google', { idToken })).data,
-  /** Re-issue JWT after role changes (e.g. TEACHER granted on first course create). */
+  /** First-login pick: STUDENT (join only) or TEACHER (create/manage only). */
+  chooseRole: async (role: 'STUDENT' | 'TEACHER'): Promise<AuthResponse> =>
+    (await api.post<AuthResponse>('/auth/choose-role', { role })).data,
+  /** Re-issue JWT with roles currently stored in the database. */
   refresh: async (): Promise<AuthResponse> => (await api.post<AuthResponse>('/auth/refresh')).data,
 };

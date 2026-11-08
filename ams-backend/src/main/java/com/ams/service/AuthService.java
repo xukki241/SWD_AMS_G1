@@ -21,6 +21,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,11 +33,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -80,8 +80,7 @@ public class AuthService {
             userRepository.save(user);
         }
         auditLogService.log("LOGIN", "User", user.getUsername());
-        List<String> roles = authentication.getAuthorities().stream().map(a -> a.getAuthority()).collect(Collectors.toList());
-        return response(user, tokenProvider.generateToken(authentication), roles);
+        return issueSession(user);
     }
 
     @Transactional
@@ -89,14 +88,16 @@ public class AuthService {
         validatePassword(request.password());
         if (userRepository.existsByUsername(request.username())) throw new DuplicateResourceException("Username is already taken");
         if (userRepository.existsByEmail(request.email())) throw new DuplicateResourceException("Email is already in use");
+        // No role yet — user picks Student/Teacher on first sign-in (/choose-role).
         User user = userRepository.save(User.builder()
-                .username(request.username().trim()).email(request.email().trim().toLowerCase(Locale.ROOT))
-                .password(passwordEncoder.encode(request.password())).fullName(request.fullName().trim())
-                .emailVerified(false).accountStatus(User.AccountStatus.ACTIVE).build());
-        Role student = roleRepository.findByRoleName(Role.RoleName.STUDENT)
-                .orElseThrow(() -> new BadRequestException("STUDENT role not found in system"));
-        userRoleRepository.save(UserRole.builder().user(user).role(student)
-                .assignmentStatus(UserRole.AssignmentStatus.ACTIVE).assignmentNote("Default registration role").build());
+                .username(request.username().trim())
+                .email(request.email().trim().toLowerCase(Locale.ROOT))
+                .password(passwordEncoder.encode(request.password()))
+                .fullName(request.fullName().trim())
+                .emailVerified(false)
+                .accountStatus(User.AccountStatus.ACTIVE)
+                .onboardingCompleted(false)
+                .build());
         String token = authTokenService.issue(user, AuthToken.TokenType.VERIFY_EMAIL, 24 * 60);
         emailDeliveryService.sendVerification(user.getEmail(), token);
         auditLogService.log("REGISTER_PENDING_VERIFICATION", "User", user.getUsername());
@@ -136,7 +137,7 @@ public class AuthService {
             throw new BadRequestException("Google account must have a verified email");
         }
         User user = userRepository.findByEmail(identity.email())
-                .orElseGet(() -> createGoogleStudent(identity.email(), identity.fullName()));
+                .orElseGet(() -> createGoogleUser(identity.email(), identity.fullName()));
         if (user.getAccountStatus() != User.AccountStatus.ACTIVE) {
             throw new BadRequestException("Account is locked or inactive; contact an administrator");
         }
@@ -144,14 +145,50 @@ public class AuthService {
             user.setEmailVerified(true);
             userRepository.save(user);
         }
-        List<SimpleGrantedAuthority> authorities = userRoleRepository.findActiveRolesByUserId(user.getId()).stream()
-                .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getRoleName().name())).toList();
-        // Principal must stay usable by JwtTokenProvider (String or UserDetails).
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                user.getUsername(), null, authorities);
         auditLogService.log("LOGIN_GOOGLE", "User", user.getUsername());
-        List<String> roles = authorities.stream().map(SimpleGrantedAuthority::getAuthority).toList();
-        return response(user, tokenProvider.generateToken(authentication), roles);
+        return issueSession(user);
+    }
+
+    /**
+     * First-time role pick (exclusive): STUDENT = join only; TEACHER = create/manage only.
+     */
+    @Transactional
+    public AuthDTO.AuthResponse chooseRole(AuthDTO.ChooseRoleRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+        if (user.isOnboardingCompleted()) {
+            throw new BadRequestException("Role was already selected");
+        }
+        String raw = request.role() == null ? "" : request.role().trim().toUpperCase(Locale.ROOT);
+        if (raw.startsWith("ROLE_")) raw = raw.substring(5);
+        if (!raw.equals("STUDENT") && !raw.equals("TEACHER")) {
+            throw new BadRequestException("Role must be STUDENT or TEACHER");
+        }
+
+        // Clear any provisional roles from older flows.
+        for (UserRole ur : userRoleRepository.findByUser(user)) {
+            if (ur.getAssignmentStatus() == UserRole.AssignmentStatus.ACTIVE) {
+                ur.setAssignmentStatus(UserRole.AssignmentStatus.REVOKED);
+                ur.setAssignmentNote("Replaced by first-login role choice");
+                userRoleRepository.save(ur);
+            }
+        }
+
+        Role.RoleName chosen = raw.equals("TEACHER") ? Role.RoleName.TEACHER : Role.RoleName.STUDENT;
+        Role role = roleRepository.findByRoleName(chosen)
+                .orElseThrow(() -> new BadRequestException(chosen.name() + " role not found in system"));
+        userRoleRepository.save(UserRole.builder().user(user).role(role)
+                .assignmentStatus(UserRole.AssignmentStatus.ACTIVE)
+                .assignmentNote(chosen == Role.RoleName.TEACHER
+                        ? "Onboarding: teacher (create & manage courses)"
+                        : "Onboarding: student (join courses only)")
+                .build());
+
+        user.setOnboardingCompleted(true);
+        userRepository.save(user);
+        auditLogService.log("CHOOSE_ROLE", "User", user.getUsername() + " -> " + raw);
+        return issueSession(user);
     }
 
     private record GoogleIdentity(String email, String fullName, boolean emailVerified) {}
@@ -183,19 +220,15 @@ public class AuthService {
         throw last != null ? last : new BadRequestException("Google credential is invalid");
     }
 
-    private User createGoogleStudent(String email, String fullName) {
+    private User createGoogleUser(String email, String fullName) {
         String base = email.substring(0, email.indexOf('@')).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
         if (base.length() > 42) base = base.substring(0, 42);
         String username = base;
         while (userRepository.existsByUsername(username)) username = base + UUID.randomUUID().toString().substring(0, 6);
-        Role student = roleRepository.findByRoleName(Role.RoleName.STUDENT)
-                .orElseThrow(() -> new BadRequestException("STUDENT role not found in system"));
-        User user = userRepository.save(User.builder().username(username).email(email)
+        return userRepository.save(User.builder().username(username).email(email)
                 .password(passwordEncoder.encode(UUID.randomUUID() + "A1!")).fullName(fullName)
-                .emailVerified(true).accountStatus(User.AccountStatus.ACTIVE).build());
-        userRoleRepository.save(UserRole.builder().user(user).role(student)
-                .assignmentStatus(UserRole.AssignmentStatus.ACTIVE).assignmentNote("Google sign-in").build());
-        return user;
+                .emailVerified(true).accountStatus(User.AccountStatus.ACTIVE)
+                .onboardingCompleted(false).build());
     }
 
     private JsonNode verifyGoogleToken(String idToken) {
@@ -216,25 +249,43 @@ public class AuthService {
         }
     }
 
-    /** Re-issue JWT with current active roles (e.g. after being granted TEACHER on first course create). */
     @Transactional(readOnly = true)
     public AuthDTO.AuthResponse refreshSession() {
-        String username = org.springframework.security.core.context.SecurityContextHolder
-                .getContext().getAuthentication().getName();
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BadRequestException("User not found"));
         if (user.getAccountStatus() != User.AccountStatus.ACTIVE) {
             throw new BadRequestException("Account is locked or inactive; contact an administrator");
         }
-        List<SimpleGrantedAuthority> authorities = userRoleRepository.findActiveRolesByUserId(user.getId()).stream()
-                .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getRoleName().name())).toList();
-        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getUsername(), null, authorities);
+        return issueSession(user);
+    }
+
+    private AuthDTO.AuthResponse issueSession(User user) {
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>(
+                userRoleRepository.findActiveRolesByUserId(user.getId()).stream()
+                        .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getRoleName().name()))
+                        .toList());
+        // Spring Security User.builder rejects empty authorities — provisional until /choose-role.
+        if (authorities.isEmpty()) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_ONBOARDING"));
+        }
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                user.getUsername(), null, authorities);
         List<String> roles = authorities.stream().map(SimpleGrantedAuthority::getAuthority).toList();
         return response(user, tokenProvider.generateToken(authentication), roles);
     }
 
     private AuthDTO.AuthResponse response(User user, String token, List<String> roles) {
-        return new AuthDTO.AuthResponse(token, "Bearer", user.getId(), user.getUsername(), user.getEmail(), user.getFullName(), user.getAvatarUrl(), roles);
+        return new AuthDTO.AuthResponse(
+                token,
+                "Bearer",
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getAvatarUrl(),
+                roles,
+                user.isOnboardingCompleted());
     }
 
     private void validatePassword(String password) {

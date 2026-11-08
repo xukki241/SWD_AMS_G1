@@ -59,4 +59,11 @@ public class AuthController {
     public ResponseEntity<AuthDTO.AuthResponse> refresh() {
         return ResponseEntity.ok(authService.refreshSession());
     }
+
+    @PostMapping("/choose-role")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "First-login role pick: STUDENT (join only) or TEACHER (create/manage only)")
+    public ResponseEntity<AuthDTO.AuthResponse> chooseRole(@Valid @RequestBody AuthDTO.ChooseRoleRequest request) {
+        return ResponseEntity.ok(authService.chooseRole(request));
+    }
 }

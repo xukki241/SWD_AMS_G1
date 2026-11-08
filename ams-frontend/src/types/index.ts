@@ -16,6 +16,8 @@ export interface AuthResponse {
   fullName: string;
   avatarUrl?: string | null;
   roles: string[];
+  /** False until the user picks Student or Teacher on first login. */
+  onboardingCompleted: boolean;
 }
 
 // User

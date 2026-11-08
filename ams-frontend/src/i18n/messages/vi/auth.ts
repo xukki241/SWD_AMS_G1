@@ -47,6 +47,17 @@ const auth: AuthMessages = {
     resetSuccess: "Mật khẩu đã đổi. Bạn có thể đăng nhập.",
     passwordRules: "Ít nhất 10 ký tự, gồm chữ hoa, chữ thường, số và ký hiệu.",
   },
+  chooseRole: {
+    title: "Bạn dùng AMS với vai trò nào?",
+    subtitle:
+      "Chọn một lần sau khi đăng ký. Học viên chỉ tham gia khóa học; giáo viên chỉ tạo và quản lý khóa học.",
+    studentTitle: "Tôi là học viên",
+    studentDescription: "Xem danh mục, đăng ký khóa học, nộp bài và theo dõi thanh toán.",
+    teacherTitle: "Tôi là giáo viên",
+    teacherDescription: "Tạo khóa học, quản lý nội dung & bài tập, và nhận thanh toán.",
+    continue: "Tiếp tục",
+    errorFallback: "Không lưu được lựa chọn. Vui lòng thử lại.",
+  },
 }
 
 export default auth

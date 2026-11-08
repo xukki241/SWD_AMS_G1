@@ -24,6 +24,11 @@ public class AuthDTO {
     ) {}
     public record GoogleLoginRequest(@NotBlank String idToken) {}
 
+    public record ChooseRoleRequest(
+            @NotBlank(message = "Role is required")
+            String role
+    ) {}
+
     public record RegisterRequest(
             @NotBlank(message = "Username is required")
             @Size(min = 3, max = 50)
@@ -49,6 +54,7 @@ public class AuthDTO {
             String email,
             String fullName,
             String avatarUrl,
-            List<String> roles
+            List<String> roles,
+            boolean onboardingCompleted
     ) {}
 }

@@ -5,7 +5,6 @@ import com.ams.entity.Category;
 import com.ams.entity.Course;
 import com.ams.entity.Role;
 import com.ams.entity.User;
-import com.ams.entity.UserRole;
 import com.ams.exception.BadRequestException;
 import com.ams.exception.DuplicateResourceException;
 import com.ams.exception.ResourceNotFoundException;
@@ -13,9 +12,7 @@ import com.ams.repository.CategoryRepository;
 import com.ams.repository.CourseRepository;
 import com.ams.repository.LessonRepository;
 import com.ams.repository.ModuleRepository;
-import com.ams.repository.RoleRepository;
 import com.ams.repository.UserRepository;
-import com.ams.repository.UserRoleRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -52,8 +49,6 @@ public class CourseService {
     private final FileUploadService fileUploadService;
     private final AuditLogService auditLogService;
     private final RoleChecker roleChecker;
-    private final RoleRepository roleRepository;
-    private final UserRoleRepository userRoleRepository;
 
     @Transactional(readOnly = true)
     public Page<CourseDTO.CourseSummaryResponse> listCourses(
@@ -184,25 +179,8 @@ public class CourseService {
                 .build();
 
         course = courseRepository.save(course);
-        ensureTeacherRole(user);
         auditLogService.log("COURSE_CREATED", "Course", course.getCode());
         return mapDetail(course);
-    }
-
-    /** Anyone who creates a course becomes a teacher while keeping existing roles (e.g. STUDENT). */
-    private void ensureTeacherRole(User user) {
-        if (roleChecker.hasRole(user.getId(), Role.RoleName.TEACHER, Role.RoleName.ADMIN)) {
-            return;
-        }
-        Role teacher = roleRepository.findByRoleName(Role.RoleName.TEACHER)
-                .orElseThrow(() -> new BadRequestException("TEACHER role not found in system"));
-        userRoleRepository.save(UserRole.builder()
-                .user(user)
-                .role(teacher)
-                .assignmentStatus(UserRole.AssignmentStatus.ACTIVE)
-                .assignmentNote("Granted on first course create")
-                .build());
-        auditLogService.log("ASSIGN_ROLE", "UserRole", user.getUsername() + " -> TEACHER");
     }
 
     @Transactional

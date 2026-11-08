@@ -37,6 +37,7 @@ export const useAuthStore = create<AuthState>()(
             fullName: data.fullName,
             avatarUrl: data.avatarUrl,
             roles: data.roles,
+            onboardingCompleted: data.onboardingCompleted ?? false,
           },
           isAuthenticated: true,
         });

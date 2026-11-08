@@ -18,8 +18,6 @@ import {
 import { cn } from "@/lib/utils"
 import { courseService } from "@/services/course.service"
 import { categoryService } from "@/services/category.service"
-import { authService } from "@/services/auth.service"
-import { useAuthStore } from "@/stores/authStore"
 import type {
   CourseDetail,
   CourseDifficulty,
@@ -82,7 +80,6 @@ function toFormState(course?: CourseDetail): FormState {
 export function CourseForm({ course }: { course?: CourseDetail }) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const setAuth = useAuthStore((s) => s.setAuth)
   const { t } = useI18n()
   const isEdit = Boolean(course)
 
@@ -158,15 +155,6 @@ export function CourseForm({ course }: { course?: CourseDetail }) {
       queryClient.invalidateQueries({ queryKey: ["courses"] })
       queryClient.invalidateQueries({ queryKey: ["course", saved.id] })
       queryClient.invalidateQueries({ queryKey: ["sidebar-my-courses"] })
-      if (!isEdit) {
-        try {
-          // Pick up TEACHER role granted on first course create.
-          const session = await authService.refresh()
-          setAuth(session)
-        } catch {
-          // Course was created; role refresh can wait until next login.
-        }
-      }
       router.push(isEdit ? "/courses?updated=1" : `/courses/${saved.id}?created=1`)
     },
     onError: (error: unknown) => {

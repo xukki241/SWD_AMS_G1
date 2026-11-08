@@ -53,6 +53,7 @@ const common = {
     copy: "Copy",
     createCourse: "Create course",
     createOrJoinCourse: "Create/Join course",
+    joinCourse: "Join course",
     profile: "My profile",
   },
   status: {

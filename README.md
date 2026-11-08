@@ -28,7 +28,8 @@ Assignment Management System (AMS) is a course-based learning platform POC for S
 - Assignments per course: submit → grade flow with student work-state overview
 - Payments: SePay and PayOS (hosted checkout + webhook/IPN), VNPay Sandbox, VietQR sandbox confirm
 - Roles: `ADMIN`, `TEACHER`, `STUDENT` with JWT auth
-- Flyway-managed PostgreSQL schema (V1–V3) and seed data for demos
+- Flyway-managed PostgreSQL schema (V1–V11) and seed data for demos
+- Hand-in SQL scripts under [`database/`](database/) (`01_create_schema.sql`, `02_insert_data.sql`)
 
 ## Tech stack
 
@@ -99,8 +100,9 @@ Compose notes:
 - Backend receives `DB_URL=jdbc:postgresql://postgres:5432/ams_db` inside the network (not the host port).
 - Frontend build/runtime uses `NEXT_PUBLIC_API_URL=http://localhost:8080/api` so the **browser** talks to the published backend port.
 - Secrets should come from your local `.env`. Do not commit `.env`. Compose may still ship demo defaults for some payment vars; override them in `.env` for real merchant credentials.
-- Flyway runs on **backend startup** (`V1`–`V2`). Seeds load with the API — not a separate seed container. `V1` creates the full course-centric schema (identity, categories/courses/modules/lessons, course_enrollments, assignments, submissions, payments, evaluations, audit); `V2` inserts the demo dataset: 6 courses, 23 users, 19 enrollments, payments (including the `student17` PENDING_PAYMENT retry path on `CRS-SCRUM2`), submissions and graded evaluations.
-- A **fresh Postgres volume** gets the full demo via Flyway. The schema was rewritten (legacy class tables removed) — an existing volume must be wiped once before running the new migrations.
+- Flyway runs on **backend startup** (`V1`–`V11`). Seeds load with the API — not a separate seed container. Schema + demo dataset (roles, 23 users, courses, enrollments, payments, submissions). New accounts pick Student/Teacher once at `/choose-role`.
+- Hand-in SQL (same end state): [`database/01_create_schema.sql`](database/01_create_schema.sql) + [`database/02_insert_data.sql`](database/02_insert_data.sql). See [`database/README.md`](database/README.md). Do **not** auto-run those into the Compose volume while Flyway also migrates.
+- A **fresh Postgres volume** gets the full demo via Flyway. Wipe once if an old volume blocks new migrations: `docker compose down -v`.
 
 Stop / reset:
 

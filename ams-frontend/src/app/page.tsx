@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuthStore } from "@/stores/authStore"
+import { homePathForAuth } from "@/lib/authRedirect"
 import { Button } from "@/components/ui/button"
 import { StatSkeleton } from "@/components/ui/loading"
 import { ErrorState } from "@/components/classroom/ErrorState"
@@ -43,10 +44,12 @@ export default function Home() {
       return
     }
     if (!isAuthenticated || !user) return
-    const roles = user.roles || []
-    if (roles.includes("ROLE_ADMIN")) router.replace("/admin")
-    else if (roles.includes("ROLE_TEACHER")) router.replace("/teacher")
-    else router.replace("/student")
+    router.replace(
+      homePathForAuth({
+        roles: user.roles || [],
+        onboardingCompleted: user.onboardingCompleted ?? false,
+      })
+    )
   }, [hasHydrated, isAuthenticated, user, router, logout])
 
   // Only spin while hydrating or while redirecting a valid session.

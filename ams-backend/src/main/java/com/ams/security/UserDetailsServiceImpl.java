@@ -33,6 +33,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         List<SimpleGrantedAuthority> authorities = activeRoles.stream()
                 .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getRoleName().name()))
                 .collect(Collectors.toList());
+        // New accounts have no role until /choose-role; Spring rejects empty authorities.
+        if (authorities.isEmpty()) {
+            authorities = List.of(new SimpleGrantedAuthority("ROLE_ONBOARDING"));
+        }
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getUsername())

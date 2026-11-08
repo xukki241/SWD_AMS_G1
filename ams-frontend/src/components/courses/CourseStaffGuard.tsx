@@ -7,10 +7,15 @@ import { useAuthStore } from "@/stores/authStore"
 import { useI18n } from "@/i18n"
 import { Button } from "@/components/ui/button"
 
-/** Any signed-in user can open course authoring (create grants TEACHER). */
+/** Course authoring is for teachers/admins chosen at onboarding. */
 export function CourseStaffGuard({ children }: { children: React.ReactNode }) {
   const { t } = useI18n()
-  const { isAuthenticated, hasHydrated } = useAuthStore()
+  const { user, hasHydrated } = useAuthStore()
+  const roles = user?.roles ?? []
+  const allowed = roles.some((role) => {
+    const name = role.toUpperCase()
+    return name.includes("TEACHER") || name.includes("ADMIN")
+  })
 
   if (!hasHydrated) {
     return (
@@ -20,7 +25,7 @@ export function CourseStaffGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!isAuthenticated) {
+  if (!allowed) {
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-6 py-12 text-center">
         <ShieldAlert className="h-10 w-10 text-destructive" />
@@ -29,7 +34,7 @@ export function CourseStaffGuard({ children }: { children: React.ReactNode }) {
           {t("courses.guard.description")}
         </p>
         <Button asChild variant="outline" className="mt-2">
-          <Link href="/login">{t("common.actions.signIn")}</Link>
+          <Link href="/catalog">{t("common.actions.browseCourses")}</Link>
         </Button>
       </div>
     )

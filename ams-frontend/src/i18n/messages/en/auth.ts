@@ -45,6 +45,17 @@ const auth = {
     resetSuccess: "Password updated. You can sign in.",
     passwordRules: "At least 10 characters, including upper/lowercase, a number, and a symbol.",
   },
+  chooseRole: {
+    title: "How will you use AMS?",
+    subtitle:
+      "Pick once after you sign up. Students join courses; teachers create and manage their own.",
+    studentTitle: "I’m a student",
+    studentDescription: "Browse the catalog, enroll, submit work, and track payments.",
+    teacherTitle: "I’m a teacher",
+    teacherDescription: "Create courses, manage content and assignments, and receive payments.",
+    continue: "Continue",
+    errorFallback: "Could not save your role. Please try again.",
+  },
 }
 
 export type AuthMessages = typeof auth

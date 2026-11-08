@@ -163,21 +163,12 @@ export function Sidebar({
   const isStudent = roles.some((r) => r.includes("STUDENT"))
   const isCourseUser = isStudent || isTeacher
 
-  const homePath = isAdmin
-    ? "/admin"
-    : isTeacher && !isStudent
-      ? "/teacher"
-      : isStudent
-        ? "/student"
-        : isTeacher
-          ? "/teacher"
-          : "/student"
+  const homePath = isAdmin ? "/admin" : isTeacher ? "/teacher" : "/student"
 
-  // Dual-role: load both enrolled courses and courses the user teaches.
   const { data: myEnrollments } = useQuery({
     queryKey: ["sidebar-my-enrollments", user?.userId],
     queryFn: () => enrollmentService.getMyEnrollments(),
-    enabled: isStudent && !isAdmin,
+    enabled: isStudent && !isTeacher && !isAdmin,
   })
 
   const { data: teachingCourses } = useQuery({
@@ -187,8 +178,7 @@ export function Sidebar({
       const content = page.content || []
       return content.filter((c) => user && c.instructorId === user.userId)
     },
-    // Dual-role: any signed-in non-admin can own courses (TEACHER granted on create).
-    enabled: !isAdmin && !!user,
+    enabled: isTeacher && !isAdmin && !!user,
   })
 
   const studentLinks: NavLink[] = [
@@ -256,20 +246,18 @@ export function Sidebar({
           section: "audit",
         },
       ]
-    : [
-        ...(isStudent ? studentLinks : []),
-        ...(isTeacher && !isStudent
-          ? [
-              {
-                name: t("dashboard.nav.myCourses"),
-                href: "/teacher/courses",
-                icon: Home,
-              } as NavLink,
-            ]
-          : []),
-        // Dual-role users (and pure teachers) get teaching tools.
-        ...(isTeacher || isStudent ? teacherLinks : []),
-      ]
+    : isTeacher
+      ? [
+          {
+            name: t("dashboard.courseList.teaching"),
+            href: "/teacher/courses",
+            icon: Home,
+          } as NavLink,
+          ...teacherLinks,
+        ]
+      : isStudent
+        ? studentLinks
+        : []
 
   const enrolledCourses: { id: number; title: string }[] = (myEnrollments || [])
     .filter((e: CourseEnrollment) => e.status !== "CANCELLED")
@@ -349,7 +337,7 @@ export function Sidebar({
 
         {isCourseUser && !isAdmin && (
           <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-3">
-            {!isAdmin && (
+            {isTeacher && (
               <CourseSection
                 label={t("dashboard.courseList.teaching")}
                 empty={t("dashboard.courseList.emptyTeacher")}
@@ -362,7 +350,7 @@ export function Sidebar({
                 }}
               />
             )}
-            {isStudent && (
+            {isStudent && !isTeacher && (
               <CourseSection
                 label={t("dashboard.nav.myCourses")}
                 empty={t("dashboard.courseList.emptyStudent")}

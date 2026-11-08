@@ -191,6 +191,10 @@ public class UserService {
                 .assignmentNote(request.note())
                 .build();
         userRoleRepository.save(ur);
+        if (!user.isOnboardingCompleted()) {
+            user.setOnboardingCompleted(true);
+            userRepository.save(user);
+        }
 
         auditLogService.log("ASSIGN_ROLE", "UserRole", user.getUsername() + " -> " + cleanRole);
         return mapToResponse(user);

@@ -19,7 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/courses")
 @RequiredArgsConstructor
-@Tag(name = "Courses", description = "Course management (any user can create; owner/admin manage)")
+@Tag(name = "Courses", description = "Course management (teachers/admins create; owner/admin manage)")
 public class CourseController {
 
     private final CourseService courseService;
@@ -45,16 +45,16 @@ public class CourseController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Create a course (JSON, thumbnailUrl optional). Grants TEACHER if needed.")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @Operation(summary = "Create a course (JSON). Teachers/admins only — role chosen at onboarding.")
     public ResponseEntity<CourseDTO.CourseDetailResponse> createCourse(
             @Valid @RequestBody CourseDTO.CourseRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(courseService.createCourse(request, null));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Create a course with an optional thumbnail upload. Grants TEACHER if needed.")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @Operation(summary = "Create a course with optional thumbnail. Teachers/admins only.")
     public ResponseEntity<CourseDTO.CourseDetailResponse> createCourseMultipart(
             @RequestPart("data") @Valid CourseDTO.CourseRequest request,
             @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail) {
