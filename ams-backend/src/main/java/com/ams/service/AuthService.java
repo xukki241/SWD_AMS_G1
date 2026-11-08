@@ -146,10 +146,12 @@ public class AuthService {
         }
         List<SimpleGrantedAuthority> authorities = userRoleRepository.findActiveRolesByUserId(user.getId()).stream()
                 .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getRoleName().name())).toList();
-        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getUsername(), null, authorities);
+        // Principal must stay usable by JwtTokenProvider (String or UserDetails).
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                user.getUsername(), null, authorities);
         auditLogService.log("LOGIN_GOOGLE", "User", user.getUsername());
-        return response(user, tokenProvider.generateToken(authentication), authorities.stream()
-                .map(SimpleGrantedAuthority::getAuthority).toList());
+        List<String> roles = authorities.stream().map(SimpleGrantedAuthority::getAuthority).toList();
+        return response(user, tokenProvider.generateToken(authentication), roles);
     }
 
     private record GoogleIdentity(String email, String fullName, boolean emailVerified) {}

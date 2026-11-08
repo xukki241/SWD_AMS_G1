@@ -36,9 +36,11 @@ export function Header({
   const { t } = useI18n()
 
   const roles = user?.roles || []
-  const canCreateCourse =
-    roles.some((r) => r.includes("TEACHER")) ||
-    roles.some((r) => r.includes("ADMIN"))
+  const isAdmin = roles.some((r) => r.includes("ADMIN"))
+  const isTeacher = roles.some((r) => r.includes("TEACHER"))
+  const isStudent = roles.some((r) => r.includes("STUDENT"))
+  const showCourseAction = isAdmin || isTeacher || isStudent
+  const courseActionHref = isAdmin || isTeacher ? "/courses/new" : "/catalog"
   const homeHref = homeHrefForRoles(roles)
 
   const handleLogout = () => {
@@ -83,13 +85,13 @@ export function Header({
 
         <LanguageSwitcher />
 
-        {canCreateCourse && (
+        {showCourseAction && (
           <Link
-            href="/courses/new"
+            href={courseActionHref}
             className="flex items-center gap-1.5 rounded-full bg-[hsl(var(--success))] px-4 py-2 text-sm font-medium text-white shadow-gc transition hover:shadow-gc-lg"
           >
             <Plus className="h-4 w-4" />
-            {t("common.actions.createCourse")}
+            <span className="hidden sm:inline">{t("common.actions.createOrJoinCourse")}</span>
           </Link>
         )}
 

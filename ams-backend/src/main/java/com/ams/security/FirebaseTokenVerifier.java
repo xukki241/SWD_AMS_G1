@@ -70,17 +70,19 @@ public class FirebaseTokenVerifier {
                     .parseSignedClaims(idToken)
                     .getPayload();
 
-            String email = claims.get("email", String.class);
-            if (email == null || email.isBlank()) {
+            Object emailClaim = claims.get("email");
+            String email = emailClaim == null ? "" : String.valueOf(emailClaim).trim();
+            if (email.isBlank()) {
                 throw new BadRequestException("Google account must have a verified email");
             }
-            Boolean verified = claims.get("email_verified", Boolean.class);
-            String name = claims.get("name", String.class);
+            boolean verified = parseEmailVerified(claims.get("email_verified"));
+            Object nameClaim = claims.get("name");
+            String name = nameClaim == null ? "" : String.valueOf(nameClaim).trim();
             return new VerifiedFirebaseUser(
                     claims.getSubject(),
                     email.toLowerCase(Locale.ROOT),
-                    name != null && !name.isBlank() ? name : email,
-                    verified == null || verified
+                    !name.isBlank() ? name : email,
+                    verified
             );
         } catch (BadRequestException ex) {
             throw ex;
@@ -88,6 +90,14 @@ public class FirebaseTokenVerifier {
             log.warn("Firebase token verify failed: {}", ex.getMessage());
             throw new BadRequestException("Google credential is invalid");
         }
+    }
+
+    private static boolean parseEmailVerified(Object value) {
+        if (value == null) return true;
+        if (value instanceof Boolean b) return b;
+        if (value instanceof Number n) return n.intValue() != 0;
+        String text = String.valueOf(value).trim();
+        return !"false".equalsIgnoreCase(text) && !"0".equals(text);
     }
 
     private RSAPublicKey resolveKey(String kid) throws Exception {
