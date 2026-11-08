@@ -15,7 +15,7 @@ const landing = {
     getStarted: "Get started",
     createStudentAccount: "Create a student account",
     footnote:
-      "Published courses · VNPay & VietQR sandbox · lessons, assignments & grading",
+      "Published courses · SePay payments · lessons, assignments & grading",
   },
   catalog: {
     title: "Featured courses",

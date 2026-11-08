@@ -99,7 +99,7 @@ const dashboard = {
     },
     payments: {
       title: "Tuition & payments",
-      description: "SePay & PayOS (bank transfer / QR), VNPay / VietQR sandbox",
+      description: "Pay with SePay (bank transfer)",
       awaiting: "Awaiting payment",
       ref: "Ref: {ref}",
       history: "Payment history",

@@ -4,12 +4,10 @@ import React, { useMemo, useState } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import api from "@/lib/axios"
-import { useToast } from "@/lib/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatSkeleton, TableSkeleton } from "@/components/ui/loading"
 import { SePayDialog } from "@/components/classroom/SePayDialog"
-import { PayOSDialog } from "@/components/classroom/PayOSDialog"
 import { SubmitDialog } from "@/components/classroom/SubmitDialog"
 import { ErrorState } from "@/components/classroom/ErrorState"
 import { EmptyState } from "@/components/classroom/EmptyState"
@@ -24,7 +22,7 @@ import {
 import { enrollmentService } from "@/services/enrollment.service"
 import { paymentService } from "@/services/payment.service"
 import { assignmentService } from "@/services/assignment.service"
-import { formatNumber, getApiErrorMessage, useI18n } from "@/i18n"
+import { formatNumber, useI18n } from "@/i18n"
 import type {
   CourseEnrollment,
   PaymentTransaction,
@@ -33,11 +31,7 @@ import type {
 } from "@/types"
 import {
   Clock,
-  CreditCard,
-  ExternalLink,
   Wallet,
-  Loader2,
-  QrCode,
   GraduationCap,
   BookOpen,
   CheckCircle2,
@@ -45,12 +39,9 @@ import {
 } from "lucide-react"
 
 export default function StudentDashboardPage() {
-  const { toast } = useToast()
   const { t, formatDate } = useI18n()
 
-  const [vnPayBusyId, setVnPayBusyId] = useState<number | null>(null)
   const [sepayEnrollment, setSepayEnrollment] = useState<CourseEnrollment | null>(null)
-  const [payosEnrollment, setPayosEnrollment] = useState<CourseEnrollment | null>(null)
   const [submitItem, setSubmitItem] = useState<AssignmentOverviewItem | null>(null)
 
   const { data: stats } = useQuery({
@@ -114,22 +105,6 @@ export default function StudentDashboardPage() {
       icon: TrendingUp,
     },
   ]
-
-  const payVnPay = async (enrollment: CourseEnrollment) => {
-    setVnPayBusyId(enrollment.id)
-    try {
-      const res = await paymentService.payVnPay(enrollment.id)
-      window.location.href = res.paymentUrl
-    } catch (err: any) {
-      toast({
-        title: t("dashboard.student.payments.payFailed"),
-        description: getApiErrorMessage(err, t("common.actions.tryAgain")),
-        variant: "destructive",
-      })
-    } finally {
-      setVnPayBusyId(null)
-    }
-  }
 
   return (
     <div className="space-y-8">
@@ -314,7 +289,7 @@ export default function StudentDashboardPage() {
           <Card className="shadow-gc">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <CreditCard className="h-5 w-5 text-[hsl(var(--success))]" />{" "}
+                <Wallet className="h-5 w-5 text-[hsl(var(--success))]" />{" "}
                 {t("dashboard.student.payments.title")}
               </CardTitle>
               <CardDescription>
@@ -361,30 +336,7 @@ export default function StudentDashboardPage() {
                               onClick={() => setSepayEnrollment(e)}
                             >
                               <Wallet className="h-3.5 w-3.5 mr-1" />
-                              SePay
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-full"
-                              onClick={() => setPayosEnrollment(e)}
-                            >
-                              <CreditCard className="h-3.5 w-3.5 mr-1" />
-                              PayOS
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-full"
-                              onClick={() => payVnPay(e)}
-                              disabled={vnPayBusyId === e.id}
-                            >
-                              {vnPayBusyId === e.id ? (
-                                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                              ) : (
-                                <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                              )}
-                              VNPay
+                              Thanh toán SePay
                             </Button>
                           </div>
                         </div>
@@ -439,14 +391,6 @@ export default function StudentDashboardPage() {
           open={!!sepayEnrollment}
           onOpenChange={(o) => !o && setSepayEnrollment(null)}
           enrollment={sepayEnrollment}
-        />
-      )}
-
-      {payosEnrollment && (
-        <PayOSDialog
-          open={!!payosEnrollment}
-          onOpenChange={(o) => !o && setPayosEnrollment(null)}
-          enrollment={payosEnrollment}
         />
       )}
 

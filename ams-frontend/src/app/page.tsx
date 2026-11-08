@@ -28,7 +28,7 @@ const DIFFICULTY_KEY: Record<string, TranslationKey> = {
 
 export default function Home() {
   const router = useRouter()
-  const { isAuthenticated, user, hasHydrated } = useAuthStore()
+  const { isAuthenticated, user, hasHydrated, logout } = useAuthStore()
   const { t } = useI18n()
 
   const { data: catalog, isLoading, isError, refetch } = useQuery({
@@ -37,14 +37,20 @@ export default function Home() {
   })
 
   useEffect(() => {
-    if (!hasHydrated || !isAuthenticated || !user) return
+    if (!hasHydrated) return
+    if (isAuthenticated && !user) {
+      logout()
+      return
+    }
+    if (!isAuthenticated || !user) return
     const roles = user.roles || []
     if (roles.includes("ROLE_ADMIN")) router.replace("/admin")
     else if (roles.includes("ROLE_TEACHER")) router.replace("/teacher")
     else router.replace("/student")
-  }, [hasHydrated, isAuthenticated, user, router])
+  }, [hasHydrated, isAuthenticated, user, router, logout])
 
-  if (!hasHydrated || isAuthenticated) {
+  // Only spin while hydrating or while redirecting a valid session.
+  if (!hasHydrated || (isAuthenticated && user)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

@@ -15,33 +15,6 @@ interface AuthState {
 }
 
 const AUTH_TOKEN_KEY = 'ams_token';
-const AUTH_STORE_KEY = 'ams-auth-store';
-
-function writeAuthStorage(
-  next: Pick<AuthState, 'token' | 'user' | 'isAuthenticated'>
-) {
-  if (typeof window === 'undefined') return;
-  if (next.token) localStorage.setItem(AUTH_TOKEN_KEY, next.token);
-  else localStorage.removeItem(AUTH_TOKEN_KEY);
-  try {
-    const raw = localStorage.getItem(AUTH_STORE_KEY);
-    const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-    localStorage.setItem(
-      AUTH_STORE_KEY,
-      JSON.stringify({
-        ...parsed,
-        state: {
-          ...(parsed.state || {}),
-          token: next.token,
-          user: next.user,
-          isAuthenticated: next.isAuthenticated,
-        },
-      })
-    );
-  } catch {
-    // ignore storage write failures
-  }
-}
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -52,7 +25,10 @@ export const useAuthStore = create<AuthState>()(
       hasHydrated: false,
       setHasHydrated: (value) => set({ hasHydrated: value }),
       setAuth: (data) => {
-        const next = {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+        }
+        set({
           token: data.token,
           user: {
             userId: data.userId,
@@ -63,29 +39,37 @@ export const useAuthStore = create<AuthState>()(
             roles: data.roles,
           },
           isAuthenticated: true,
-        };
-        writeAuthStorage(next);
-        set(next);
+        });
       },
       logout: () => {
-        writeAuthStorage({ token: null, user: null, isAuthenticated: false });
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+        }
         set({ token: null, user: null, isAuthenticated: false });
       },
-      updateProfile: (profile) => set((state) => ({ user: state.user ? { ...state.user, ...profile } : null })),
+      updateProfile: (profile) =>
+        set((state) => ({ user: state.user ? { ...state.user, ...profile } : null })),
       hasRole: (role) => get().user?.roles.includes(`ROLE_${role}`) ?? false,
     }),
     {
-      name: AUTH_STORE_KEY,
+      name: 'ams-auth-store',
       partialize: (state) => ({
         token: state.token,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
-      onRehydrateStorage: () => (state) => {
-        // Always mark hydrated (even when storage was empty / state undefined)
-        useAuthStore.setState({ hasHydrated: true });
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.warn('auth rehydrate failed', error);
+        }
+        // Prefer store method so subscribers always see the update.
+        useAuthStore.getState().setHasHydrated(true);
         if (state?.token && typeof window !== 'undefined') {
           localStorage.setItem(AUTH_TOKEN_KEY, state.token);
+        }
+        // Corrupt persist: logged-in flag without a user — clear it.
+        if (state?.isAuthenticated && !state.user) {
+          useAuthStore.getState().logout();
         }
       },
     }

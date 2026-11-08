@@ -17,7 +17,7 @@ const landing: LandingMessages = {
     getStarted: "Bắt đầu",
     createStudentAccount: "Tạo tài khoản học viên",
     footnote:
-      "Khóa học đã xuất bản · VNPay & VietQR sandbox · bài học, bài tập & chấm điểm",
+      "Khóa học đã xuất bản · thanh toán SePay · bài học, bài tập & chấm điểm",
   },
   catalog: {
     title: "Khóa học nổi bật",

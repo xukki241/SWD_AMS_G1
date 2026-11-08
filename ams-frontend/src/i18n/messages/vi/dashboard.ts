@@ -102,7 +102,7 @@ const dashboard: DashboardMessages = {
     },
     payments: {
       title: "Học phí & thanh toán",
-      description: "SePay & PayOS (chuyển khoản / QR), VNPay / VietQR sandbox",
+      description: "Thanh toán qua SePay (chuyển khoản)",
       awaiting: "Chờ thanh toán",
       ref: "Mã: {ref}",
       history: "Lịch sử thanh toán",
