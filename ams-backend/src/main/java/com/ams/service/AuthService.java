@@ -10,6 +10,7 @@ import com.ams.exception.DuplicateResourceException;
 import com.ams.repository.RoleRepository;
 import com.ams.repository.UserRepository;
 import com.ams.repository.UserRoleRepository;
+import com.ams.security.FirebaseTokenVerifier;
 import com.ams.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,6 +50,7 @@ public class AuthService {
     private final AuthTokenService authTokenService;
     private final EmailDeliveryService emailDeliveryService;
     private final ObjectMapper objectMapper;
+    private final FirebaseTokenVerifier firebaseTokenVerifier;
 
     @Value("${app.google.client-id:}") private String googleClientId;
 
@@ -129,21 +131,54 @@ public class AuthService {
 
     @Transactional
     public AuthDTO.AuthResponse loginWithGoogle(String idToken) {
-        if (googleClientId.isBlank()) throw new BadRequestException("Google sign-in is not configured");
-        JsonNode claims = verifyGoogleToken(idToken);
-        String email = claims.path("email").asText("").toLowerCase(Locale.ROOT);
-        if (email.isBlank() || !claims.path("email_verified").asBoolean(false)) {
+        GoogleIdentity identity = resolveGoogleIdentity(idToken);
+        if (identity.email().isBlank() || !identity.emailVerified()) {
             throw new BadRequestException("Google account must have a verified email");
         }
-        User user = userRepository.findByEmail(email).orElseGet(() -> createGoogleStudent(email, claims.path("name").asText(email)));
-        if (user.getAccountStatus() != User.AccountStatus.ACTIVE) throw new BadRequestException("Account is locked or inactive; contact an administrator");
-        if (!user.isEmailVerified()) { user.setEmailVerified(true); userRepository.save(user); }
+        User user = userRepository.findByEmail(identity.email())
+                .orElseGet(() -> createGoogleStudent(identity.email(), identity.fullName()));
+        if (user.getAccountStatus() != User.AccountStatus.ACTIVE) {
+            throw new BadRequestException("Account is locked or inactive; contact an administrator");
+        }
+        if (!user.isEmailVerified()) {
+            user.setEmailVerified(true);
+            userRepository.save(user);
+        }
         List<SimpleGrantedAuthority> authorities = userRoleRepository.findActiveRolesByUserId(user.getId()).stream()
                 .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getRoleName().name())).toList();
         Authentication authentication = new UsernamePasswordAuthenticationToken(user.getUsername(), null, authorities);
         auditLogService.log("LOGIN_GOOGLE", "User", user.getUsername());
         return response(user, tokenProvider.generateToken(authentication), authorities.stream()
                 .map(SimpleGrantedAuthority::getAuthority).toList());
+    }
+
+    private record GoogleIdentity(String email, String fullName, boolean emailVerified) {}
+
+    private GoogleIdentity resolveGoogleIdentity(String idToken) {
+        boolean googleConfigured = googleClientId != null && !googleClientId.isBlank();
+        boolean firebaseConfigured = firebaseTokenVerifier.isConfigured();
+        if (!googleConfigured && !firebaseConfigured) {
+            throw new BadRequestException("Google sign-in is not configured");
+        }
+        BadRequestException last = null;
+        if (googleConfigured) {
+            try {
+                JsonNode claims = verifyGoogleToken(idToken);
+                String email = claims.path("email").asText("").toLowerCase(Locale.ROOT);
+                return new GoogleIdentity(email, claims.path("name").asText(email), claims.path("email_verified").asBoolean(false));
+            } catch (BadRequestException ex) {
+                last = ex;
+            }
+        }
+        if (firebaseConfigured) {
+            try {
+                FirebaseTokenVerifier.VerifiedFirebaseUser fb = firebaseTokenVerifier.verify(idToken);
+                return new GoogleIdentity(fb.email(), fb.fullName(), fb.emailVerified());
+            } catch (BadRequestException ex) {
+                last = ex;
+            }
+        }
+        throw last != null ? last : new BadRequestException("Google credential is invalid");
     }
 
     private User createGoogleStudent(String email, String fullName) {

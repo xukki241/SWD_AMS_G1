@@ -17,6 +17,13 @@ import { Search, Menu, LogOut, BookOpen, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LanguageSwitcher, roleLabel, useI18n } from "@/i18n"
 
+function homeHrefForRoles(roles: string[] | undefined) {
+  const list = roles || []
+  if (list.some((r) => r.includes("ADMIN"))) return "/admin"
+  if (list.some((r) => r.includes("TEACHER"))) return "/teacher"
+  return "/student"
+}
+
 export function Header({
   onMenuToggle,
   mobileMenuOpen = false,
@@ -32,6 +39,7 @@ export function Header({
   const canCreateCourse =
     roles.some((r) => r.includes("TEACHER")) ||
     roles.some((r) => r.includes("ADMIN"))
+  const homeHref = homeHrefForRoles(roles)
 
   const handleLogout = () => {
     logout()
@@ -51,15 +59,18 @@ export function Header({
         >
           <Menu className="h-5 w-5" />
         </button>
-        <div className="flex items-center gap-2.5">
-          {/* AMS mark — green GC-adjacent brand chip */}
+        <Link
+          href={homeHref}
+          className="flex items-center gap-2.5 rounded-lg outline-none ring-offset-background transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={t("common.appName")}
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--success))] text-white shadow-gc">
             <BookOpen className="h-4 w-4" />
           </div>
           <span className="hidden text-lg font-medium tracking-tight text-foreground sm:block">
             {t("common.appName")}
           </span>
-        </div>
+        </Link>
       </div>
 
       <div className="flex items-center gap-3">

@@ -15,7 +15,8 @@ export default function DashboardLayout({
   const router = useRouter()
   const pathname = usePathname()
   const firstRender = useRef(true)
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  // Desktop + mobile: hamburger toggles this. Default open on large screens.
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) {
@@ -28,7 +29,10 @@ export default function DashboardLayout({
     const main = document.querySelector("main")
     if (main) main.scrollTo({ top: 0, behavior: "instant" })
     if (firstRender.current) firstRender.current = false
-    setMobileSidebarOpen(false)
+    // On mobile, close the drawer after navigation.
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+      setSidebarOpen(false)
+    }
   }, [pathname])
 
   if (!hasHydrated || !isAuthenticated) {
@@ -44,13 +48,13 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       <Header
-        mobileMenuOpen={mobileSidebarOpen}
-        onMenuToggle={() => setMobileSidebarOpen((open) => !open)}
+        mobileMenuOpen={sidebarOpen}
+        onMenuToggle={() => setSidebarOpen((open) => !open)}
       />
       <div className="flex">
         <Sidebar
-          mobileOpen={mobileSidebarOpen}
-          onMobileClose={() => setMobileSidebarOpen(false)}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
         <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-8 max-h-[calc(100dvh-4rem)]">
           <div

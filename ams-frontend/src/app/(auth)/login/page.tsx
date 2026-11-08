@@ -133,7 +133,12 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-4 border-t pt-4"><GoogleSignInButton onCredential={handleGoogleCredential} /></div>
+        <div className="mt-4 border-t pt-4">
+          <GoogleSignInButton
+            onCredential={handleGoogleCredential}
+            onError={(message) => setError(message || null)}
+          />
+        </div>
 
         <div className="mt-3 text-right text-sm">
           <Link href="/forgot-password" className="text-primary hover:underline">{t("auth.login.forgotPassword")}</Link>

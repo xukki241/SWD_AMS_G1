@@ -81,12 +81,20 @@ function NavItem({
 }
 
 export function Sidebar({
-  mobileOpen = false,
+  open = true,
+  onClose,
+  /** @deprecated use `open` */
+  mobileOpen,
+  /** @deprecated use `onClose` */
   onMobileClose,
 }: {
+  open?: boolean
+  onClose?: () => void
   mobileOpen?: boolean
   onMobileClose?: () => void
 }) {
+  const sidebarOpen = mobileOpen ?? open
+  const closeSidebar = onMobileClose ?? onClose
   const pathname = usePathname()
   const { user } = useAuthStore()
   const { t } = useI18n()
@@ -236,22 +244,28 @@ export function Sidebar({
 
   return (
     <>
-      {mobileOpen && (
+      {sidebarOpen && (
         <button
           type="button"
           aria-label={t("common.labels.closeMenu")}
           className="fixed inset-x-0 bottom-0 top-16 z-30 bg-black/30 md:hidden"
-          onClick={onMobileClose}
+          onClick={closeSidebar}
         />
       )}
       <aside
         id="app-sidebar"
         className={cn(
-          "fixed inset-y-16 left-0 z-40 flex w-64 shrink-0 flex-col border-r bg-card transition-transform duration-200 md:sticky md:top-16 md:z-20 md:min-h-[calc(100dvh-4rem)] md:translate-x-0",
-          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          "z-40 flex shrink-0 flex-col border-r bg-card transition-all duration-200",
+          // Mobile: fixed drawer
+          "fixed inset-y-16 left-0 w-64",
+          // Desktop: sticky column that can collapse to 0 width
+          "md:sticky md:top-16 md:z-20 md:min-h-[calc(100dvh-4rem)]",
+          sidebarOpen
+            ? "translate-x-0 md:w-64"
+            : "-translate-x-full md:w-0 md:translate-x-0 md:overflow-hidden md:border-0"
         )}
       >
-      <nav className="flex flex-1 flex-col gap-1 p-3">
+      <nav className="flex w-64 flex-1 flex-col gap-1 p-3">
         <div className="space-y-0.5">
           {primaryLinks.map((item) => (
             <NavItem
@@ -263,7 +277,9 @@ export function Sidebar({
               onNavigate={(h) => {
                 const next = h.includes("#") ? h.split("#")[1] || "" : ""
                 setHash(next)
-                onMobileClose?.()
+                if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+                  closeSidebar?.()
+                }
               }}
             />
           ))}
@@ -296,7 +312,11 @@ export function Sidebar({
                           ? "bg-accent text-accent-foreground"
                           : "text-foreground hover:bg-muted"
                       )}
-                      onClick={onMobileClose}
+                      onClick={() => {
+                        if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+                          closeSidebar?.()
+                        }
+                      }}
                       title={c.title}
                     >
                       <CourseDot name={c.title} />
