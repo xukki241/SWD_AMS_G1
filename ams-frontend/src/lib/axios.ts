@@ -20,7 +20,15 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('ams_token');
-      window.location.href = '/login';
+      try {
+        localStorage.removeItem('ams-auth-store');
+      } catch {
+        // ignore
+      }
+      const path = window.location.pathname;
+      if (!path.startsWith('/login') && !path.startsWith('/register') && !path.startsWith('/forgot-password') && !path.startsWith('/reset-password') && !path.startsWith('/verify-email')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

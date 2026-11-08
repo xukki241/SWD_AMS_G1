@@ -46,13 +46,20 @@ export default function LoginPage() {
   }
 
   const handleGoogleCredential = async (credential: string) => {
+    setError(null)
     setLoading(true)
     try {
       const data = await authService.google(credential)
       setAuth(data)
-      router.push(data.roles.includes("ROLE_ADMIN") ? "/admin" : data.roles.includes("ROLE_TEACHER") ? "/teacher" : "/student")
-    } catch (err: any) { setError(getApiErrorMessage(err, t("auth.login.errorFallback"))) }
-    finally { setLoading(false) }
+      const roles = data.roles || []
+      if (roles.includes("ROLE_ADMIN")) router.replace("/admin")
+      else if (roles.includes("ROLE_TEACHER")) router.replace("/teacher")
+      else router.replace("/student")
+    } catch (err: any) {
+      setError(getApiErrorMessage(err, t("auth.login.errorFallback")))
+    } finally {
+      setLoading(false)
+    }
   }
 
   const demoAccounts = [
