@@ -17,9 +17,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Plus } from "lucide-react"
 import { UploadDropzone } from "@/components/classroom/UploadDropzone"
+import { RubricCriteriaEditor } from "@/components/classroom/RubricCriteriaEditor"
 import { sanitizeScoreInput } from "@/components/classroom/ScoreInput"
 import { assignmentService } from "@/services/assignment.service"
 import { useI18n, getApiErrorMessage } from "@/i18n"
+import type { RubricCriterion } from "@/types"
 
 function localDateString(date: Date) {
   const year = date.getFullYear()
@@ -48,6 +50,7 @@ export function CreateAssignmentDialog({
   const [title, setTitle] = useState("")
   const [instructions, setInstructions] = useState("")
   const [rubric, setRubric] = useState("")
+  const [rubricCriteria, setRubricCriteria] = useState<RubricCriterion[]>([])
   const [topic, setTopic] = useState("")
   const [dueAt, setDueAt] = useState("")
   const [maxScore, setMaxScore] = useState("10")
@@ -56,11 +59,15 @@ export function CreateAssignmentDialog({
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { t } = useI18n()
+  const criterionTotal = rubricCriteria.reduce((sum, item) => sum + (Number(item.maxScore) || 0), 0)
+  const rubricCriteriaValid = rubricCriteria.length === 0 || (rubricCriteria.every((item) => item.id && item.name.trim() && item.maxScore > 0)
+    && Math.abs(criterionTotal - (Number(maxScore) || 10)) <= 0.01)
 
   const reset = () => {
     setTitle("")
     setInstructions("")
     setRubric("")
+    setRubricCriteria([])
     setTopic("")
     setDueAt("")
     setMaxScore("10")
@@ -76,6 +83,7 @@ export function CreateAssignmentDialog({
           title: title.trim(),
           instructions: instructions.trim() || undefined,
           rubric: rubric.trim() || undefined,
+          rubricCriteria: rubricCriteria.length ? rubricCriteria : undefined,
           topic: topic.trim() || undefined,
           dueAt,
           maxScore: Number(maxScore) || 10,
@@ -188,6 +196,12 @@ export function CreateAssignmentDialog({
               rows={3}
             />
           </div>
+          <RubricCriteriaEditor
+            criteria={rubricCriteria}
+            maxScore={Number(maxScore) || 10}
+            onChange={setRubricCriteria}
+            disabled={createMutation.isPending}
+          />
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -210,7 +224,7 @@ export function CreateAssignmentDialog({
           </Button>
           <Button
             onClick={() => createMutation.mutate()}
-            disabled={!title.trim() || !dueAt || dueAt.slice(0, 10) <= localDateString(new Date()) || createMutation.isPending}
+            disabled={!title.trim() || !dueAt || dueAt.slice(0, 10) <= localDateString(new Date()) || !rubricCriteriaValid || createMutation.isPending}
           >
             {createMutation.isPending ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />

@@ -18,6 +18,8 @@ public class EvaluationDTO {
             AssignmentEvaluation.EvaluationStatus evaluationStatus,
             BigDecimal aiDraftScore,
             String aiDraftFeedback,
+            java.util.List<com.ams.entity.AssignmentEvaluation.CriterionScore> aiDraftCriteria,
+            java.util.List<com.ams.entity.AssignmentEvaluation.CriterionScore> criteriaScores,
             boolean published,
             java.time.LocalDateTime viewedAt
     ) {}
@@ -26,6 +28,7 @@ public class EvaluationDTO {
     public record CreateEvaluationRequest(
             @NotNull Long submissionId,
             @NotNull @DecimalMin("0.0") BigDecimal score,
-            String feedback
+            String feedback,
+            java.util.List<com.ams.entity.AssignmentEvaluation.CriterionScore> criteriaScores
     ) {}
 }

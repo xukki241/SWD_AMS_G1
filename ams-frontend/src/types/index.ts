@@ -98,6 +98,19 @@ export interface CreateAssignmentTemplateRequest {
 }
 
 // Assignment
+export interface RubricCriterion {
+  id: string;
+  name: string;
+  description: string;
+  maxScore: number;
+}
+
+export interface CriterionScore {
+  id: string;
+  score: number;
+  feedback?: string;
+}
+
 export interface Assignment {
   id: number;
   courseId: number;
@@ -109,6 +122,7 @@ export interface Assignment {
   title: string;
   instructions?: string;
   rubric?: string | null;
+  rubricCriteria?: RubricCriterion[] | null;
   topic?: string;
   dueAt: string;
   maxScore: number;
@@ -122,6 +136,7 @@ export interface CreateAssignmentRequest {
   title: string;
   instructions?: string;
   rubric?: string;
+  rubricCriteria?: RubricCriterion[];
   topic?: string;
   dueAt: string;
   maxScore?: number;
@@ -203,6 +218,7 @@ export interface Submission {
   submittedAt: string;
   secureFileReference?: string;
   fileMetadata?: string;
+  answerText?: string | null;
   submissionStatus: 'DRAFT' | 'SUBMITTED' | 'LATE' | 'GRADED';
   evaluation?: AssignmentEvaluation;
 }
@@ -211,13 +227,15 @@ export interface Submission {
 export interface AssignmentEvaluation {
   id: number;
   submissionId: number;
-  evaluatorId: number;
+  evaluatorId: number | null;
   evaluatorName: string;
   score?: number;
   feedback?: string;
   evaluationStatus: 'PENDING' | 'COMPLETED' | 'APPEALED';
   aiDraftScore?: number | null;
   aiDraftFeedback?: string | null;
+  aiDraftCriteria?: CriterionScore[] | null;
+  criteriaScores?: CriterionScore[] | null;
   published?: boolean;
   viewedAt?: string | null;
 }
@@ -226,6 +244,7 @@ export interface CreateEvaluationRequest {
   submissionId: number;
   score?: number;
   feedback?: string;
+  criteriaScores?: CriterionScore[];
 }
 
 export interface UpdateEvaluationRequest {

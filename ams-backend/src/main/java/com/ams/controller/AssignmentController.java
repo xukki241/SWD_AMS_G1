@@ -115,6 +115,7 @@ public class AssignmentController {
             @jakarta.validation.constraints.NotBlank String title,
             String instructions,
             String rubric,
+            java.util.List<com.ams.entity.Assignment.RubricCriterion> rubricCriteria,
             String topic,
             @jakarta.validation.constraints.NotNull java.time.LocalDateTime dueAt,
             java.math.BigDecimal maxScore,
@@ -123,7 +124,7 @@ public class AssignmentController {
     ) {
         public AssignmentDTO.CreateAssignmentRequest toCreateRequest() {
             return new AssignmentDTO.CreateAssignmentRequest(
-                    templateId, title, instructions, rubric, topic, dueAt, maxScore, status);
+                    templateId, title, instructions, rubric, rubricCriteria, topic, dueAt, maxScore, status);
         }
     }
 }

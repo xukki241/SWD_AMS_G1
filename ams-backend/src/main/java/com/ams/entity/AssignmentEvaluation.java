@@ -2,8 +2,11 @@ package com.ams.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Entity
 @Table(name = "assignment_evaluations")
@@ -31,6 +34,14 @@ public class AssignmentEvaluation {
     @Column(name = "ai_draft_feedback", columnDefinition = "TEXT")
     private String aiDraftFeedback;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ai_draft_criteria", columnDefinition = "jsonb")
+    private List<CriterionScore> aiDraftCriteria;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "criteria_scores", columnDefinition = "jsonb")
+    private List<CriterionScore> criteriaScores;
+
     @Column(name = "is_published", nullable = false)
     @Builder.Default
     private boolean published = false;
@@ -52,4 +63,6 @@ public class AssignmentEvaluation {
     public enum EvaluationStatus {
         PENDING, COMPLETED, APPEALED
     }
+
+    public record CriterionScore(String id, BigDecimal score, String feedback) {}
 }

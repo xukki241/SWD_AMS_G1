@@ -31,6 +31,7 @@ public class EvaluationService {
     private final RoleChecker roleChecker;
     private final AuditLogService auditLogService;
     private final EmailDeliveryService emailDeliveryService;
+    private final SubmissionService submissionService;
 
     @Transactional
     public EvaluationDTO.EvaluationResponse evaluateSubmission(EvaluationDTO.CreateEvaluationRequest request) {
@@ -47,6 +48,7 @@ public class EvaluationService {
 
         Assignment assignment = submission.getAssignment();
         assertEvaluatorAuthorized(evaluator, assignment);
+        submissionService.requireLiveGradingClaim(submission, evaluator.getId());
 
         // Score must be within the assignment's configured maximum (SRS: max_score).
         BigDecimal maxScore = assignment.getMaxScore() == null ? BigDecimal.TEN : assignment.getMaxScore();
@@ -60,9 +62,12 @@ public class EvaluationService {
                         .submission(submission)
                         .build());
 
+        validateCriterionScores(assignment, request.score(), request.criteriaScores());
+
         evaluation.setEvaluator(evaluator);
         evaluation.setScore(request.score());
         evaluation.setFeedback(request.feedback());
+        evaluation.setCriteriaScores(request.criteriaScores());
         evaluation.setEvaluationStatus(AssignmentEvaluation.EvaluationStatus.COMPLETED);
         evaluation.setPublished(false);
 
@@ -79,6 +84,7 @@ public class EvaluationService {
                 evaluation.getScore(),
                 evaluation.getFeedback(),
                 evaluation.getEvaluationStatus(), evaluation.getAiDraftScore(), evaluation.getAiDraftFeedback(),
+                evaluation.getAiDraftCriteria(), evaluation.getCriteriaScores(),
                 evaluation.isPublished(), evaluation.getViewedAt()
         );
     }
@@ -114,6 +120,7 @@ public class EvaluationService {
                 eval.getScore(),
                 eval.getFeedback(),
                 eval.getEvaluationStatus(), eval.getAiDraftScore(), eval.getAiDraftFeedback(),
+                eval.getAiDraftCriteria(), eval.getCriteriaScores(),
                 eval.isPublished(), eval.getViewedAt()
         );
     }
@@ -123,13 +130,17 @@ public class EvaluationService {
         AssignmentEvaluation evaluation = evaluationRepository.findBySubmissionId(submissionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Evaluation not found for submission id: " + submissionId));
         assertEvaluatorAuthorized(currentUser(), evaluation.getSubmission().getAssignment());
+        submissionService.requireLiveGradingClaim(evaluation.getSubmission(), currentUser().getId());
         if (evaluation.getScore() == null || evaluation.getEvaluationStatus() != AssignmentEvaluation.EvaluationStatus.COMPLETED) {
             throw new BadRequestException("Grade the submission before publishing it");
         }
+        validateCriterionScores(evaluation.getSubmission().getAssignment(), evaluation.getScore(), evaluation.getCriteriaScores());
         evaluation.setPublished(true);
         evaluation = evaluationRepository.save(evaluation);
         Submission submission = evaluation.getSubmission();
         submission.setSubmissionStatus(Submission.SubmissionStatus.GRADED);
+        submission.setGradingClaimOwner(null);
+        submission.setGradingClaimExpiresAt(null);
         submissionRepository.save(submission);
         try {
             emailDeliveryService.sendGradePublished(
@@ -144,7 +155,37 @@ public class EvaluationService {
                 evaluation.getEvaluator() == null ? null : evaluation.getEvaluator().getId(),
                 evaluation.getEvaluator() == null ? "" : evaluation.getEvaluator().getFullName(),
                 evaluation.getScore(), evaluation.getFeedback(), evaluation.getEvaluationStatus(),
-                evaluation.getAiDraftScore(), evaluation.getAiDraftFeedback(), evaluation.isPublished(), evaluation.getViewedAt());
+                evaluation.getAiDraftScore(), evaluation.getAiDraftFeedback(), evaluation.getAiDraftCriteria(),
+                evaluation.getCriteriaScores(), evaluation.isPublished(), evaluation.getViewedAt());
+    }
+
+    private void validateCriterionScores(Assignment assignment, BigDecimal total,
+                                         java.util.List<AssignmentEvaluation.CriterionScore> scores) {
+        BigDecimal assignmentMax = assignment.getMaxScore() == null ? BigDecimal.TEN : assignment.getMaxScore();
+        if (total == null || total.signum() < 0 || total.compareTo(assignmentMax) > 0) {
+            throw new BadRequestException("Score must be between 0 and the assignment's maximum score (" + assignmentMax + ")");
+        }
+        java.util.List<Assignment.RubricCriterion> rubric = assignment.getRubricCriteria();
+        if (rubric == null || rubric.isEmpty()) {
+            if (scores != null && !scores.isEmpty()) throw new BadRequestException("This assignment has no structured rubric");
+            return;
+        }
+        if (scores == null || scores.size() != rubric.size()) throw new BadRequestException("A score is required for every rubric criterion");
+        java.util.Map<String, Assignment.RubricCriterion> expected = new java.util.HashMap<>();
+        rubric.forEach(c -> expected.put(c.id(), c));
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        BigDecimal sum = BigDecimal.ZERO;
+        for (AssignmentEvaluation.CriterionScore item : scores) {
+            Assignment.RubricCriterion criterion = item == null ? null : expected.get(item.id());
+            if (criterion == null || !seen.add(item.id()) || item.score() == null || item.score().signum() < 0
+                    || item.score().compareTo(criterion.maxScore()) > 0) {
+                throw new BadRequestException("Each rubric criterion needs one valid score within its maximum");
+            }
+            sum = sum.add(item.score());
+        }
+        if (sum.subtract(total).abs().compareTo(new BigDecimal("0.01")) > 0) {
+            throw new BadRequestException("The total grade must equal the sum of criterion scores");
+        }
     }
 
     /**

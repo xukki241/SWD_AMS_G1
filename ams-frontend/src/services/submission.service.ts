@@ -7,6 +7,12 @@ export interface SubmitOptions {
   onUploadProgress?: (progressEvent: { loaded: number; total?: number }) => void;
 }
 
+export interface GradingClaim {
+  submissionId: number;
+  ownerId: number;
+  expiresAt: string;
+}
+
 export const submissionService = {
   /** Multipart submit for a course enrollment (file uploaded to Cloudinary server-side). */
   submit: async (
@@ -36,6 +42,17 @@ export const submissionService = {
   getMySubmissions: async (): Promise<Submission[]> => {
     const res = await api.get<Submission[]>('/submissions/my');
     return res.data;
+  },
+  acquireGradingClaim: async (submissionId: number): Promise<GradingClaim> => {
+    const res = await api.post<GradingClaim>(`/submissions/${submissionId}/grading-claim`);
+    return res.data;
+  },
+  renewGradingClaim: async (submissionId: number): Promise<GradingClaim> => {
+    const res = await api.post<GradingClaim>(`/submissions/${submissionId}/grading-claim/renew`);
+    return res.data;
+  },
+  releaseGradingClaim: async (submissionId: number): Promise<void> => {
+    await api.delete(`/submissions/${submissionId}/grading-claim`);
   },
   /** Unsubmit (withdraw) own non-graded submission. */
   unsubmit: async (submissionId: number): Promise<void> => {

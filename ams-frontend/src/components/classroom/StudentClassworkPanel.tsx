@@ -60,6 +60,7 @@ export function StudentClassworkPanel({ courseId }: { courseId: number }) {
                 )
               })()}
               {assignment.rubric?.trim() && <div><h4 className="text-sm font-medium">Rubric / tiêu chí chấm</h4><p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{assignment.rubric}</p></div>}
+              {assignment.rubricCriteria?.length ? <div><h4 className="text-sm font-medium">Tiêu chí và điểm tối đa</h4><ul className="mt-1 space-y-1 text-sm text-muted-foreground">{assignment.rubricCriteria.map((criterion) => <li key={criterion.id}><span className="font-medium text-foreground">{criterion.name}</span> · {criterion.maxScore} điểm{criterion.description ? ` — ${criterion.description}` : ""}</li>)}</ul></div> : null}
               {work?.score != null && <p className="text-sm font-medium">Điểm đã công bố: {work.score}/{assignment.maxScore}</p>}
               <div>{work?.workState === "NOT_STARTED" && <Button size="sm" onClick={() => setSelected(work)}>Nộp bài</Button>}{work?.workState === "UNDER_EVALUATION" && <p className="text-sm text-muted-foreground">Bài đã nộp, đang chờ giáo viên công bố điểm.</p>}{work?.workState === "SUBMITTED" || work?.workState === "LATE" ? <p className="text-sm text-muted-foreground">Bài đã nộp; không thể thay thế bài nộp cuối.</p> : null}</div>
             </article>

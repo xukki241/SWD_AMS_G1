@@ -16,7 +16,10 @@ public class SubmissionDTO {
             LocalDateTime submittedAt,
             String secureFileReference,
             String fileMetadata,
+            String answerText,
             Submission.SubmissionStatus submissionStatus,
             EvaluationDTO.EvaluationResponse evaluation
     ) {}
+
+    public record GradingClaimResponse(Long submissionId, Long ownerId, java.time.LocalDateTime expiresAt) {}
 }

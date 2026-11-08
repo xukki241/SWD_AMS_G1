@@ -81,6 +81,7 @@ public class AssignmentService {
             MultipartFile attachment
     ) {
         validateFutureDueAt(request.dueAt());
+        validateRubricCriteria(request.rubricCriteria(), request.maxScore());
         User teacher = currentUser();
 
         Course course = courseRepository.findById(courseId)
@@ -105,6 +106,7 @@ public class AssignmentService {
                 .title(request.title())
                 .instructions(request.instructions())
                 .rubric(request.rubric())
+                .rubricCriteria(request.rubricCriteria())
                 .topic(blankToNull(request.topic()))
                 .dueAt(request.dueAt())
                 .maxScore(request.maxScore() != null ? request.maxScore() : BigDecimal.TEN)
@@ -192,6 +194,15 @@ public class AssignmentService {
             assignment.setInstructions(request.instructions());
         }
         if (request.rubric() != null) assignment.setRubric(request.rubric());
+        if (request.rubricCriteria() != null) {
+            boolean criteriaChanged = !java.util.Objects.equals(request.rubricCriteria(), assignment.getRubricCriteria());
+            if (criteriaChanged && submissionRepository.findByAssignmentId(id).stream()
+                    .anyMatch(submission -> evaluationRepository.existsBySubmissionId(submission.getId()))) {
+                throw new BadRequestException("Rubric criteria cannot be changed after grading has started");
+            }
+            validateRubricCriteria(request.rubricCriteria(), request.maxScore() != null ? request.maxScore() : assignment.getMaxScore());
+            assignment.setRubricCriteria(request.rubricCriteria());
+        }
         if (request.topic() != null) {
             assignment.setTopic(blankToNull(request.topic()));
         }
@@ -201,6 +212,9 @@ public class AssignmentService {
         }
         if (request.maxScore() != null) {
             assignment.setMaxScore(request.maxScore());
+        }
+        if (assignment.getRubricCriteria() != null && request.maxScore() != null && request.rubricCriteria() == null) {
+            validateRubricCriteria(assignment.getRubricCriteria(), request.maxScore());
         }
         if (request.status() != null) assignment.setStatus(request.status());
 
@@ -262,6 +276,7 @@ public class AssignmentService {
                 a.getTitle(),
                 a.getInstructions(),
                 a.getRubric(),
+                a.getRubricCriteria(),
                 a.getTopic(),
                 a.getDueAt(),
                 a.getMaxScore(),
@@ -304,6 +319,25 @@ public class AssignmentService {
     private static void validateFutureDueAt(java.time.LocalDateTime dueAt) {
         if (dueAt == null || !dueAt.toLocalDate().isAfter(LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh")))) {
             throw new BadRequestException("Due date must be after today");
+        }
+    }
+
+    private static void validateRubricCriteria(List<Assignment.RubricCriterion> criteria, BigDecimal maxScore) {
+        if (criteria == null || criteria.isEmpty()) return;
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        BigDecimal sum = BigDecimal.ZERO;
+        for (Assignment.RubricCriterion criterion : criteria) {
+            if (criterion == null || criterion.id() == null || criterion.id().isBlank()
+                    || criterion.name() == null || criterion.name().isBlank()
+                    || criterion.maxScore() == null || criterion.maxScore().signum() <= 0
+                    || !ids.add(criterion.id())) {
+                throw new BadRequestException("Rubric criteria need unique IDs, names, and positive maximum scores");
+            }
+            sum = sum.add(criterion.maxScore());
+        }
+        BigDecimal target = maxScore == null ? BigDecimal.TEN : maxScore;
+        if (sum.subtract(target).abs().compareTo(new BigDecimal("0.01")) > 0) {
+            throw new BadRequestException("Rubric criterion maximum scores must add up to the assignment maximum score");
         }
     }
 

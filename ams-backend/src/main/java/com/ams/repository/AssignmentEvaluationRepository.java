@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface AssignmentEvaluationRepository extends JpaRepository<AssignmentEvaluation, Long> {
     Optional<AssignmentEvaluation> findBySubmissionId(Long submissionId);
+    boolean existsBySubmissionId(Long submissionId);
 }

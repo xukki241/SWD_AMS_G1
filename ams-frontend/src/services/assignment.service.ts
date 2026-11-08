@@ -6,6 +6,7 @@ import {
   CreateAssignmentRequest,
   CreateAssignmentTemplateRequest,
   Page,
+  RubricCriterion,
 } from '@/types';
 
 export const assignmentService = {
@@ -57,6 +58,7 @@ export const assignmentService = {
       title?: string;
       instructions?: string;
       rubric?: string;
+      rubricCriteria?: RubricCriterion[];
       topic?: string;
       dueAt?: string;
       maxScore?: number;

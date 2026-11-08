@@ -4,7 +4,15 @@ import {
   CreateEvaluationRequest,
   UpdateEvaluationRequest,
   Page,
+  CriterionScore,
 } from '@/types';
+
+export interface AiGradeResponse {
+  submissionId: number;
+  totalScore: number;
+  feedback: string;
+  criteria: CriterionScore[];
+}
 
 export const evaluationService = {
   getAll: async (page = 0, size = 10): Promise<Page<AssignmentEvaluation>> => {
@@ -19,6 +27,16 @@ export const evaluationService = {
   },
   create: async (data: CreateEvaluationRequest): Promise<AssignmentEvaluation> => {
     const res = await api.post<AssignmentEvaluation>('/evaluations', data);
+    return res.data;
+  },
+  gradeWithAi: async (submissionId: number): Promise<AiGradeResponse> => {
+    const res = await api.post<AiGradeResponse>(`/ai-grading/submissions/${submissionId}`);
+    return res.data;
+  },
+  gradeBatchWithAi: async (submissionIds: number[]) => {
+    const res = await api.post<{ results: { submissionId: number; status: string; message: string }[] }>(
+      '/ai-grading/batch', { submissionIds }
+    );
     return res.data;
   },
   update: async (id: number, data: UpdateEvaluationRequest): Promise<AssignmentEvaluation> => {

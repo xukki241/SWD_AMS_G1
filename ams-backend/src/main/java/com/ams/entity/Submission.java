@@ -40,6 +40,12 @@ public class Submission {
     @Column(name = "answer_text", columnDefinition = "TEXT")
     private String answerText;
 
+    @Column(name = "grading_claim_owner")
+    private Long gradingClaimOwner;
+
+    @Column(name = "grading_claim_expires_at")
+    private LocalDateTime gradingClaimExpiresAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "submission_status", nullable = false, length = 20)
     @Builder.Default

@@ -1,10 +1,13 @@
 package com.ams.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "assignments")
@@ -40,6 +43,10 @@ public class Assignment {
     @Column(columnDefinition = "TEXT")
     private String rubric;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "rubric_criteria", columnDefinition = "jsonb")
+    private List<RubricCriterion> rubricCriteria;
+
     /** Optional classwork topic for GC-style grouping (e.g. "Đồ án môn học"). */
     @Column(length = 120)
     private String topic;
@@ -64,4 +71,6 @@ public class Assignment {
     private Status status = Status.PUBLISHED;
 
     public enum Status { DRAFT, PUBLISHED }
+
+    public record RubricCriterion(String id, String name, String description, BigDecimal maxScore) {}
 }

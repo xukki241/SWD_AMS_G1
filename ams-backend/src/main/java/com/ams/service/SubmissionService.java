@@ -14,11 +14,7 @@ import com.ams.repository.AssignmentRepository;
 import com.ams.repository.CourseEnrollmentRepository;
 import com.ams.repository.SubmissionRepository;
 import com.ams.repository.UserRepository;
-import com.ams.service.ai.AiClient;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,10 +26,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SubmissionService {
+
+    private static final long GRADING_CLAIM_MINUTES = 5;
 
     private final SubmissionRepository submissionRepository;
     private final CourseEnrollmentRepository enrollmentRepository;
@@ -42,8 +39,6 @@ public class SubmissionService {
     private final UserRepository userRepository;
     private final FileUploadService fileUploadService;
     private final AuditLogService auditLogService;
-    private final AiClient aiClient;
-    private final ObjectMapper objectMapper;
 
     @Transactional
     public SubmissionDTO.SubmissionResponse submitAssignment(Long enrollmentId, Long assignmentId, MultipartFile file, String answerText) throws IOException {
@@ -106,35 +101,79 @@ public class SubmissionService {
         );
 
         submission = submissionRepository.save(submission);
-        if ((cleanAnswer != null && !cleanAnswer.isBlank()) || hasFile) createAiDraft(submission, cleanAnswer, file, hasFile);
         auditLogService.log("SUBMIT_ASSIGNMENT", "Submission", "SubId:" + submission.getId());
         return mapToResponse(submission);
     }
 
-    private void createAiDraft(Submission submission, String answerText, MultipartFile file, boolean hasFile) {
-        try {
-            Assignment assignment = submission.getAssignment();
-            String prompt = "Grade the student's submitted answer as a private draft for the teacher. "
-                    + "Return only JSON with numeric score and concise feedback. Do not write or improve the student's answer. "
-                    + "Score must be between 0 and maxScore.\nAssignment: " + assignment.getTitle()
-                    + "\nInstructions: " + assignment.getInstructions()
-                    + "\nRubric: " + assignment.getRubric()
-                    + "\nMaximum score: " + assignment.getMaxScore()
-                    + "\nStudent answer:\n" + (answerText == null ? "(See attached submitted file.)" : answerText);
-            String raw = hasFile
-                    ? aiClient.generateWithFile(prompt, file.getContentType(), file.getBytes())
-                    : aiClient.generate(prompt);
-            JsonNode result = objectMapper.readTree(raw);
-            java.math.BigDecimal score = new java.math.BigDecimal(result.path("score").asText());
-            if (score.signum() < 0 || score.compareTo(assignment.getMaxScore()) > 0) return;
-            AssignmentEvaluation evaluation = evaluationRepository.findBySubmissionId(submission.getId())
-                    .orElseGet(() -> AssignmentEvaluation.builder().submission(submission).build());
-            evaluation.setAiDraftScore(score);
-            evaluation.setAiDraftFeedback(result.path("feedback").asText(""));
-            evaluationRepository.save(evaluation);
-        } catch (Exception ex) {
-            log.warn("AI grading draft failed for submission {}: {}", submission.getId(), ex.getMessage());
+    @Transactional
+    public SubmissionDTO.GradingClaimResponse acquireGradingClaim(Long submissionId) {
+        Submission submission = getAuthorizedSubmission(submissionId);
+        Long ownerId = currentUserId();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiresAt = now.plusMinutes(GRADING_CLAIM_MINUTES);
+        int claimed = submissionRepository.acquireGradingClaim(submissionId, ownerId, now, expiresAt,
+                Submission.SubmissionStatus.GRADED);
+        if (claimed == 0) {
+            Submission current = submissionRepository.findById(submissionId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Submission not found: " + submissionId));
+            if (current.getSubmissionStatus() == Submission.SubmissionStatus.GRADED) {
+                throw new BadRequestException("This submission has already been published");
+            }
+            throw new BadRequestException("This submission is currently being reviewed by another teacher");
         }
+        return new SubmissionDTO.GradingClaimResponse(submissionId, ownerId, expiresAt);
+    }
+
+    @Transactional
+    public SubmissionDTO.GradingClaimResponse renewGradingClaim(Long submissionId) {
+        getAuthorizedSubmission(submissionId);
+        Long ownerId = currentUserId();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiresAt = now.plusMinutes(GRADING_CLAIM_MINUTES);
+        if (submissionRepository.renewGradingClaim(submissionId, ownerId, now, expiresAt) == 0) {
+            throw new BadRequestException("Your review lock expired. Close and reopen the submission to continue");
+        }
+        return new SubmissionDTO.GradingClaimResponse(submissionId, ownerId, expiresAt);
+    }
+
+    @Transactional
+    public void releaseGradingClaim(Long submissionId) {
+        getAuthorizedSubmission(submissionId);
+        submissionRepository.releaseGradingClaim(submissionId, currentUserId());
+    }
+
+    @Transactional(readOnly = true)
+    public Submission getAuthorizedSubmission(Long submissionId) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found: " + submissionId));
+        User viewer = currentUser();
+        boolean admin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        Assignment assignment = submission.getAssignment();
+        boolean authorized = admin
+                || (assignment.getTeacher() != null && assignment.getTeacher().getId().equals(viewer.getId()))
+                || (assignment.getCourse().getInstructor() != null
+                    && assignment.getCourse().getInstructor().getId().equals(viewer.getId()));
+        if (!authorized) throw new org.springframework.security.access.AccessDeniedException("Only the course teacher can review this submission");
+        return submission;
+    }
+
+    public void requireLiveGradingClaim(Submission submission, Long ownerId) {
+        if (submission.getGradingClaimOwner() == null || !submission.getGradingClaimOwner().equals(ownerId)
+                || submission.getGradingClaimExpiresAt() == null
+                || !submission.getGradingClaimExpiresAt().isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("A live review lock is required to grade this submission");
+        }
+    }
+
+    public Long currentUserId() {
+        return currentUser().getId();
+    }
+
+    private User currentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
     }
 
     @Transactional(readOnly = true)
@@ -206,7 +245,8 @@ public class SubmissionService {
                     eval.getEvaluator() == null ? "Gemini (draft)" : eval.getEvaluator().getFullName(),
                     eval.getScore(),
                     eval.getFeedback(),
-                    eval.getEvaluationStatus(), eval.getAiDraftScore(), eval.getAiDraftFeedback(), eval.isPublished(), eval.getViewedAt()
+                    eval.getEvaluationStatus(), eval.getAiDraftScore(), eval.getAiDraftFeedback(),
+                    eval.getAiDraftCriteria(), eval.getCriteriaScores(), eval.isPublished(), eval.getViewedAt()
             );
             }
         }
@@ -221,6 +261,7 @@ public class SubmissionService {
                 s.getSubmittedAt(),
                 s.getSecureFileReference(),
                 s.getFileMetadata(),
+                s.getAnswerText(),
                 s.getSubmissionStatus(),
                 evalDto
         );

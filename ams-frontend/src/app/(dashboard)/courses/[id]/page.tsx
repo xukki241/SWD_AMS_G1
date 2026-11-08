@@ -29,12 +29,15 @@ import { cn } from "@/lib/utils"
 import { TeacherClassworkPanel } from "@/components/classroom/TeacherClassworkPanel"
 import { StudentCourseContent } from "@/components/classroom/StudentCourseContent"
 import { StudentClassworkPanel } from "@/components/classroom/StudentClassworkPanel"
+import { authService } from "@/services/auth.service"
 
 function DetailsInner() {
   const params = useParams<{ id: string }>()
   const courseId = Number(params?.id)
   const { t } = useI18n()
   const { user } = useAuthStore()
+  const setAuth = useAuthStore((state) => state.setAuth)
+  const [rolesRefreshed, setRolesRefreshed] = React.useState(false)
   const roles = user?.roles ?? []
   const canManage = roles.some((role) => {
     const name = role.toUpperCase()
@@ -45,11 +48,28 @@ function DetailsInner() {
     ? t("courses.details.backToCourses")
     : t("courses.details.backToMyCourses")
 
+  React.useEffect(() => {
+    let active = true
+    authService.refresh()
+      .then((session) => {
+        if (active) setAuth(session)
+      })
+      .catch(() => {
+        // Keep the current session if the role refresh is temporarily unavailable.
+      })
+      .finally(() => {
+        if (active) setRolesRefreshed(true)
+      })
+    return () => {
+      active = false
+    }
+  }, [setAuth])
+
   const { data: course, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["course", courseId, canManage ? "manage" : "public"],
     queryFn: () =>
       canManage ? courseService.getById(courseId) : courseService.getPublicById(courseId),
-    enabled: Number.isFinite(courseId) && courseId > 0 && Boolean(user),
+    enabled: rolesRefreshed && Number.isFinite(courseId) && courseId > 0 && Boolean(user),
   })
 
   if (!Number.isFinite(courseId) || courseId <= 0) {

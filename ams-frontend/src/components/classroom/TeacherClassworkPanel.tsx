@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { CreateAssignmentDialog } from "@/components/classroom/CreateAssignmentDialog"
 import { FileChip } from "@/components/classroom/FileChip"
 import { GradeDialog } from "@/components/classroom/GradeDialog"
+import { EditRubricDialog } from "@/components/classroom/EditRubricDialog"
+import { getAiFileLimitation } from "@/components/classroom/aiGradingSupport"
 import { StatusBadge } from "@/components/classroom/StatusBadge"
 import { parseFileMeta } from "@/components/classroom/format"
 import { useI18n, formatDateTime, getApiErrorMessage } from "@/i18n"
@@ -128,6 +130,9 @@ function AssignmentCard({
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<GradeFilter>("all")
   const [search, setSearch] = useState("")
+  const [rubricOpen, setRubricOpen] = useState(false)
+  const [selectedForAi, setSelectedForAi] = useState<number[]>([])
+  const [batchResults, setBatchResults] = useState<Record<number, { status: string; message: string }>>({})
   const [editingDueAt, setEditingDueAt] = useState(false)
   const [dueAt, setDueAt] = useState(assignment.dueAt.slice(0, 16))
   const { toast } = useToast()
@@ -157,15 +162,35 @@ function AssignmentCard({
     queryFn: () => submissionService.getByAssignment(assignment.id),
   })
   const publishGrade = useMutation({
-    mutationFn: (submissionId: number) => evaluationService.publish(submissionId),
+    mutationFn: async (submissionId: number) => {
+      await submissionService.acquireGradingClaim(submissionId)
+      try {
+        return await evaluationService.publish(submissionId)
+      } finally {
+        await submissionService.releaseGradingClaim(submissionId)
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["submissions", assignment.id] }),
+  })
+  const batchGrade = useMutation({
+    mutationFn: () => evaluationService.gradeBatchWithAi(selectedForAi),
+    onSuccess: (response) => {
+      setBatchResults(Object.fromEntries(response.results.map((item) => [item.submissionId, { status: item.status, message: item.message }])) )
+      setSelectedForAi([])
+      setFilter("all")
+      setSearch("")
+      queryClient.invalidateQueries({ queryKey: ["submissions", assignment.id] })
+      const succeeded = response.results.filter((item) => item.status === "SUCCESS").length
+      toast({ title: t("classroom.grade.batchSummary", { success: succeeded, total: response.results.length }), variant: succeeded ? "success" : "destructive" })
+    },
+    onError: (error: unknown) => toast({ title: t("classroom.grade.aiFailed"), description: getApiErrorMessage(error, t("classroom.grade.aiFailedFallback")), variant: "destructive" }),
   })
 
   const pendingCount =
     submissions?.filter(
       (submission) =>
         ["SUBMITTED", "LATE"].includes(submission.submissionStatus) &&
-        submission.evaluation?.score == null
+        submission.evaluation?.published !== true
     ).length ?? 0
 
   const attachmentMeta = parseFileMeta(assignment.attachmentMetadata)
@@ -173,7 +198,7 @@ function AssignmentCard({
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return (submissions || []).filter((submission) => {
-      const graded = submission.evaluation?.score != null
+      const graded = submission.evaluation?.published === true
       const submitted = ["SUBMITTED", "LATE", "GRADED"].includes(submission.submissionStatus)
       if (filter === "graded" && !graded) return false
       if (filter === "ungraded" && graded) return false
@@ -256,6 +281,9 @@ function AssignmentCard({
                 </Button>
               </div>
             )}
+            <Button className="mt-2" size="sm" variant="outline" onClick={() => setRubricOpen(true)}>
+              {t("classroom.rubric.editTitle")}
+            </Button>
           </div>
           <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
             {t("classroom.manage.pending", { count: pendingCount })}
@@ -312,6 +340,21 @@ function AssignmentCard({
               </div>
             </div>
 
+            {assignment.rubricCriteria?.length ? (
+              <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => batchGrade.mutate()}
+                  disabled={!selectedForAi.length || selectedForAi.length > 5 || batchGrade.isPending}
+                >
+                  {batchGrade.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                  {t("classroom.grade.batchAi", { count: selectedForAi.length })}
+                </Button>
+                {selectedForAi.length > 5 && <span className="text-xs text-destructive">{t("classroom.grade.batchLimit")}</span>}
+              </div>
+            ) : null}
+
             {isLoading ? (
               <p className="text-sm text-muted-foreground">{t("classroom.manage.loading")}</p>
             ) : null}
@@ -330,14 +373,27 @@ function AssignmentCard({
             <ul className="divide-y">
               {filtered.map((submission) => {
                 const meta = parseFileMeta(submission.fileMetadata)
-                const canGrade = ["SUBMITTED", "LATE", "GRADED"].includes(
+                const canGrade = ["SUBMITTED", "LATE"].includes(
                   submission.submissionStatus
-                )
+                ) && !submission.evaluation?.published
+                const aiFileLimitation = getAiFileLimitation(submission)
                 return (
                   <li
                     key={submission.id}
                     className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-1"
                   >
+                    {assignment.rubricCriteria?.length && canGrade ? (
+                      <input
+                        type="checkbox"
+                        aria-label={t("classroom.grade.selectForAi", { student: submission.studentName })}
+                        checked={selectedForAi.includes(submission.id)}
+                        disabled={aiFileLimitation !== null}
+                        onChange={(event) => setSelectedForAi((current) => event.target.checked
+                          ? [...current, submission.id]
+                          : current.filter((id) => id !== submission.id))}
+                        className="h-4 w-4 accent-primary"
+                      />
+                    ) : null}
                     <div className="min-w-0 space-y-1">
                       <p className="truncate text-sm font-medium">{submission.studentName}</p>
                       <p className="text-xs text-muted-foreground">
@@ -356,6 +412,12 @@ function AssignmentCard({
                           </span>
                         )}
                       </div>
+                      {batchResults[submission.id] && (
+                        <p className={batchResults[submission.id].status === "SUCCESS" ? "text-xs text-emerald-700" : "text-xs text-destructive"}>
+                          {batchResults[submission.id].message}
+                        </p>
+                      )}
+                      {assignment.rubricCriteria?.length && aiFileLimitation ? <p className="text-xs text-muted-foreground">{t("classroom.grade.aiFileUnsupported", { format: aiFileLimitation })}</p> : null}
                       {meta && (
                         <FileChip
                           name={meta.name}
@@ -406,6 +468,7 @@ function AssignmentCard({
           </div>
         )}
       </CardContent>
+      <EditRubricDialog assignment={assignment} open={rubricOpen} onClose={() => setRubricOpen(false)} />
     </Card>
   )
 }

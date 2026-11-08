@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class AssignmentDTO {
 
@@ -38,6 +39,7 @@ public class AssignmentDTO {
             String title,
             String instructions,
             String rubric,
+            List<Assignment.RubricCriterion> rubricCriteria,
             String topic,
             LocalDateTime dueAt,
             BigDecimal maxScore,
@@ -51,6 +53,7 @@ public class AssignmentDTO {
             @NotBlank String title,
             String instructions,
             String rubric,
+            List<Assignment.RubricCriterion> rubricCriteria,
             String topic,
             @NotNull LocalDateTime dueAt,
             BigDecimal maxScore,
@@ -61,6 +64,7 @@ public class AssignmentDTO {
             String title,
             String instructions,
             String rubric,
+            List<Assignment.RubricCriterion> rubricCriteria,
             String topic,
             LocalDateTime dueAt,
             BigDecimal maxScore,

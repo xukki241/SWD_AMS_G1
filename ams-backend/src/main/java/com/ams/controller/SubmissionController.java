@@ -55,4 +55,24 @@ public class SubmissionController {
         submissionService.unsubmit(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/grading-claim")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    public ResponseEntity<SubmissionDTO.GradingClaimResponse> acquireGradingClaim(@PathVariable Long id) {
+        return ResponseEntity.ok(submissionService.acquireGradingClaim(id));
+    }
+
+    @PostMapping("/{id}/grading-claim/renew")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    public ResponseEntity<SubmissionDTO.GradingClaimResponse> renewGradingClaim(@PathVariable Long id) {
+        return ResponseEntity.ok(submissionService.renewGradingClaim(id));
+    }
+
+    @DeleteMapping("/{id}/grading-claim")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    public ResponseEntity<Void> releaseGradingClaim(@PathVariable Long id) {
+        submissionService.releaseGradingClaim(id);
+        return ResponseEntity.noContent().build();
+    }
+
 }

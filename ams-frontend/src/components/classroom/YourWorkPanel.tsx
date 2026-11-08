@@ -242,6 +242,16 @@ export function YourWorkPanel({
             </blockquote>
           )}
 
+          {graded && mySubmission?.evaluation?.criteriaScores?.length ? (
+            <div className="space-y-2 rounded-lg bg-muted/50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("classroom.work.rubricBreakdown")}</p>
+              {mySubmission.evaluation.criteriaScores.map((item) => {
+                const criterion = assignment.rubricCriteria?.find((entry) => entry.id === item.id)
+                return <div key={item.id} className="flex items-start justify-between gap-3 text-sm"><div><p className="font-medium">{criterion?.name || item.id}</p>{item.feedback && <p className="text-xs text-muted-foreground">{item.feedback}</p>}</div><span className="shrink-0 font-medium">{item.score}{criterion ? ` / ${criterion.maxScore}` : ""}</span></div>
+              })}
+            </div>
+          ) : null}
+
           {!turnedIn && (
             <div className="space-y-3 border-t pt-4">
               <UploadDropzone

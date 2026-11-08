@@ -28,7 +28,7 @@ Assignment Management System (AMS) is a course-based learning platform POC for S
 - Assignments per course: submit → grade flow with student work-state overview
 - Payments: SePay and PayOS (hosted checkout + webhook/IPN), VNPay Sandbox, VietQR sandbox confirm
 - Roles: `ADMIN`, `TEACHER`, `STUDENT` with JWT auth
-- Flyway-managed PostgreSQL schema (V1–V11) and seed data for demos
+- Flyway-managed PostgreSQL schema (V1–V15) and seed data for demos
 - Hand-in SQL scripts under [`database/`](database/) (`01_create_schema.sql`, `02_insert_data.sql`)
 
 ## Tech stack
@@ -104,7 +104,7 @@ Compose notes:
 - Backend receives `DB_URL=jdbc:postgresql://postgres:5432/ams_db` inside the network (not the host port).
 - Frontend build/runtime uses `NEXT_PUBLIC_API_URL=http://localhost:8080/api` so the **browser** talks to the published backend port.
 - Secrets should come from your local `.env`. Do not commit `.env`. Compose may still ship demo defaults for some payment vars; override them in `.env` for real merchant credentials.
-- Flyway runs on **backend startup** (`V1`–`V12`). Seeds load with the API — not a separate seed container. Schema + demo dataset (roles, 23 users, courses, enrollments, payments, submissions). New accounts pick **Student** (join only) or **Teacher** (create/manage only) once at `/choose-role` — never both.
+- Flyway runs on **backend startup** (`V1`–`V15`). Seeds load with the API — not a separate seed container. Schema + demo dataset (roles, 23 users, courses, enrollments, payments, submissions). New accounts pick **Student** (join only) or **Teacher** (create/manage only) once at `/choose-role` — never both.
 - Hand-in SQL: [`database/01_create_schema.sql`](database/01_create_schema.sql) + [`database/02_insert_data.sql`](database/02_insert_data.sql) (+ optional [`03_exclusive_roles_cleanup.sql`](database/03_exclusive_roles_cleanup.sql)). See [`database/README.md`](database/README.md). Do **not** auto-run those into the Compose volume while Flyway also migrates.
 - A **fresh Postgres volume** gets the full demo via Flyway. After role/SQL changes: `docker compose down -v && docker compose up --build`, then sign in again so the JWT matches cleaned roles.
 
@@ -300,7 +300,7 @@ SWD_AMS_G1/
 │       │   └── service/
 │       └── resources/
 │           ├── application.yml
-│           └── db/migration/    Flyway V1–V3
+│           └── db/migration/    Flyway V1–V15
 ├── ams-frontend/                Next.js App Router UI
 │   ├── Dockerfile
 │   ├── e2e/                     Playwright specs
