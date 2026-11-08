@@ -19,6 +19,7 @@ import type { CourseEnrollment, CourseSummary } from "@/types"
 import {
   Home,
   CheckSquare,
+  ClipboardList,
   CreditCard,
   Users,
   ShieldCheck,
@@ -150,7 +151,11 @@ export function Sidebar({
     : isStudent
       ? [
           { name: t("dashboard.nav.courseCatalog"), href: "/catalog", icon: BookOpen },
-          { name: "Bài đã nộp & phản hồi", href: "/student/submissions", icon: CheckSquare },
+          {
+            name: t("dashboard.nav.submissionsFeedback"),
+            href: "/student/submissions",
+            icon: CheckSquare,
+          },
           {
             name: t("dashboard.nav.myCourses"),
             href: "/student/courses",
@@ -176,9 +181,14 @@ export function Sidebar({
               icon: Home,
             },
             {
-              name: t("dashboard.nav.toDo"),
+              name: t("dashboard.nav.manageAssignments"),
               href: "/teacher/work",
-              icon: CheckSquare,
+              icon: ClipboardList,
+            },
+            {
+              name: t("dashboard.nav.myPayments"),
+              href: "/teacher/payments",
+              icon: CreditCard,
             },
             {
               name: t("dashboard.nav.manageCourses"),

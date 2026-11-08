@@ -152,6 +152,21 @@ export interface PaymentTransaction {
   createdAt: string;
 }
 
+export interface TeacherPayment {
+  id: number;
+  courseEnrollmentId: number;
+  courseCode: string;
+  courseTitle: string;
+  studentName: string;
+  studentUsername: string;
+  provider: string;
+  providerReference?: string;
+  amount: number;
+  transactionStatus: 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
+  direction: 'RECEIVED' | 'OUTGOING';
+  createdAt: string;
+}
+
 export interface PaymentUrlResponse {
   paymentUrl: string;
   transactionRef: string;

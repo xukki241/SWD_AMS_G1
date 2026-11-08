@@ -41,6 +41,23 @@ public class PaymentDTO {
             LocalDateTime createdAt
     ) {}
 
+    /** Teacher view: tuition received on their courses (and refunds as outgoing). */
+    public record TeacherPaymentResponse(
+            Long id,
+            Long courseEnrollmentId,
+            String courseCode,
+            String courseTitle,
+            String studentName,
+            String studentUsername,
+            String provider,
+            String providerReference,
+            BigDecimal amount,
+            PaymentTransaction.TransactionStatus transactionStatus,
+            /** RECEIVED = student paid teacher course; OUTGOING = refunded */
+            String direction,
+            LocalDateTime createdAt
+    ) {}
+
     public record VnPayIpnResponse(
             String RspCode,
             String Message

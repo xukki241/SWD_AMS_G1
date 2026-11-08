@@ -94,6 +94,13 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.getMyPayments());
     }
 
+    @GetMapping("/teacher")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Tuition received / refunded on courses taught by the current teacher")
+    public ResponseEntity<List<PaymentDTO.TeacherPaymentResponse>> getTeacherPayments() {
+        return ResponseEntity.ok(paymentService.getTeacherPayments());
+    }
+
     @GetMapping("/vnpay-return")
     @Operation(summary = "Handle VNPay return callback (validate secure hash)")
     public ResponseEntity<Map<String, Object>> vnpayReturn(@RequestParam Map<String, String> allParams) {

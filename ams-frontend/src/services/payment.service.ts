@@ -1,5 +1,11 @@
 import api from '@/lib/axios';
-import { PaymentTransaction, PaymentUrlResponse, PayOSCheckoutResponse, SePayCheckoutResponse } from '@/types';
+import {
+  PaymentTransaction,
+  PaymentUrlResponse,
+  PayOSCheckoutResponse,
+  SePayCheckoutResponse,
+  TeacherPayment,
+} from '@/types';
 
 export const paymentService = {
   /** VNPay redirect for a course enrollment. */
@@ -25,6 +31,10 @@ export const paymentService = {
   },
   getMyPayments: async (): Promise<PaymentTransaction[]> => {
     const res = await api.get<PaymentTransaction[]>('/payment/my');
+    return res.data;
+  },
+  getTeacherPayments: async (): Promise<TeacherPayment[]> => {
+    const res = await api.get<TeacherPayment[]>('/payment/teacher');
     return res.data;
   },
   handleVnpayReturn: async (params: Record<string, string>): Promise<{ success: boolean; message: string }> => {

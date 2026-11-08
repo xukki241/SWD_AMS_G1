@@ -55,10 +55,7 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public List<PaymentDTO.PaymentTransactionResponse> getMyPayments() {
-        User user = userRepository.findByUsername(
-                        SecurityContextHolder.getContext().getAuthentication().getName())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: "
-                        + SecurityContextHolder.getContext().getAuthentication().getName()));
+        User user = requireCurrentUser();
         List<Long> enrollmentIds = enrollmentRepository.findByStudentId(user.getId()).stream()
                 .map(CourseEnrollment::getId)
                 .toList();
@@ -73,6 +70,38 @@ public class PaymentService {
                         t.getTransactionStatus(),
                         t.getCreatedAt()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentDTO.TeacherPaymentResponse> getTeacherPayments() {
+        User teacher = requireCurrentUser();
+        return paymentRepository.findByCourseInstructorId(teacher.getId()).stream()
+                .map(t -> {
+                    CourseEnrollment e = t.getCourseEnrollment();
+                    String direction = t.getTransactionStatus() == PaymentTransaction.TransactionStatus.REFUNDED
+                            ? "OUTGOING"
+                            : "RECEIVED";
+                    return new PaymentDTO.TeacherPaymentResponse(
+                            t.getId(),
+                            e.getId(),
+                            e.getCourse().getCode(),
+                            e.getCourse().getTitle(),
+                            e.getStudent().getFullName(),
+                            e.getStudent().getUsername(),
+                            t.getProvider(),
+                            t.getProviderReference(),
+                            t.getAmount(),
+                            t.getTransactionStatus(),
+                            direction,
+                            t.getCreatedAt());
+                })
+                .toList();
+    }
+
+    private User requireCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
     }
 
     @Transactional
