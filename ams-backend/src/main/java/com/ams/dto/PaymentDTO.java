@@ -14,13 +14,21 @@ public class PaymentDTO {
             BigDecimal amount
     ) {}
 
-    /** SePay hosted-checkout form: the browser POSTs formFields to checkoutUrl. */
+    /** SePay checkout: supports both direct VietQR transfer and hosted-checkout. */
     public record SePayCheckoutResponse(
             String checkoutUrl,
             Map<String, String> formFields,
             String transactionRef,
-            BigDecimal amount
-    ) {}
+            BigDecimal amount,
+            String qrUrl,
+            String bankName,
+            String accountNumber,
+            String accountName
+    ) {
+        public SePayCheckoutResponse(String checkoutUrl, Map<String, String> formFields, String transactionRef, BigDecimal amount) {
+            this(checkoutUrl, formFields, transactionRef, amount, null, null, null, null);
+        }
+    }
 
     /** PayOS payment link: the browser is redirected to {@code checkoutUrl}. */
     public record PayOSCheckoutResponse(

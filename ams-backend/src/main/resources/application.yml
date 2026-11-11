@@ -62,7 +62,12 @@ vnpay:
 sepay:
   env: ${SEPAY_ENV:production}
   merchant-id: ${SEPAY_MERCHANT_ID:}
+  # Merchant Secret Key signs checkout requests; IPN auth uses a separate key.
   secret-key: ${SEPAY_SECRET_KEY:}
+  ipn-secret-key: ${SEPAY_IPN_SECRET_KEY:}
+  bank-account: ${SEPAY_BANK_ACCOUNT:VQRQANNCD2590}
+  bank-name: ${SEPAY_BANK_NAME:MBBank}
+  account-name: ${SEPAY_ACCOUNT_NAME:DOAN KHANH DUONG}
   success-url: ${SEPAY_SUCCESS_URL:http://localhost:3000/payment/sepay-return}
   error-url: ${SEPAY_ERROR_URL:http://localhost:3000/payment/sepay-return?result=error}
   cancel-url: ${SEPAY_CANCEL_URL:http://localhost:3000/payment/sepay-return?result=cancel}

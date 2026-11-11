@@ -277,38 +277,37 @@ public class PaymentService {
         CourseEnrollment enrollment = requireOwnedEnrollment(enrollmentId);
 
         ensurePendingPayment(enrollment);
-        if (sePayConfig.getMerchantId() == null || sePayConfig.getMerchantId().isBlank()
-                || sePayConfig.getSecretKey() == null || sePayConfig.getSecretKey().isBlank()) {
-            throw new BadRequestException("SePay is not configured (merchant or secret key).");
-        }
 
         BigDecimal amount = enrollment.getAmount();
-        String txnRef = "SEPAY" + System.currentTimeMillis() + "-" + enrollment.getId();
+        String txnRef = "AMS" + enrollment.getId() + "T" + (System.currentTimeMillis() % 1000000);
         String customerId = enrollment.getStudent() != null
                 ? String.valueOf(enrollment.getStudent().getId())
                 : "guest";
 
         // Insertion order = sepay-pg-node Object.keys sign order.
         LinkedHashMap<String, String> fields = new LinkedHashMap<>();
-        fields.put("merchant", sePayConfig.getMerchantId());
-        fields.put("operation", "PURCHASE");
-        String method = sePayConfig.getPaymentMethod();
-        if (method != null && !method.isBlank()) {
-            fields.put("payment_method", method.trim());
+        if (sePayConfig.getMerchantId() != null && !sePayConfig.getMerchantId().isBlank()
+                && sePayConfig.getSecretKey() != null && !sePayConfig.getSecretKey().isBlank()) {
+            fields.put("merchant", sePayConfig.getMerchantId());
+            fields.put("operation", "PURCHASE");
+            String method = sePayConfig.getPaymentMethod();
+            if (method != null && !method.isBlank()) {
+                fields.put("payment_method", method.trim());
+            }
+            fields.put("order_invoice_number", txnRef);
+            fields.put("order_amount", String.valueOf(amount.longValue()));
+            fields.put("currency", "VND");
+            String description = "AMS course " + enrollment.getCourse().getCode();
+            if (description.length() > 120) {
+                description = description.substring(0, 120);
+            }
+            fields.put("order_description", description);
+            fields.put("success_url", appendRef(sePayConfig.getSuccessUrl(), txnRef));
+            fields.put("error_url", appendRef(sePayConfig.getErrorUrl(), txnRef));
+            fields.put("cancel_url", appendRef(sePayConfig.getCancelUrl(), txnRef));
+            fields.put("customer_id", customerId);
+            fields.put("signature", sePaySignature(fields));
         }
-        fields.put("order_invoice_number", txnRef);
-        fields.put("order_amount", String.valueOf(amount.longValue()));
-        fields.put("currency", "VND");
-        String description = "AMS course tuition " + enrollment.getCourse().getCode();
-        if (description.length() > 120) {
-            description = description.substring(0, 120);
-        }
-        fields.put("order_description", description);
-        fields.put("success_url", appendRef(sePayConfig.getSuccessUrl(), txnRef));
-        fields.put("error_url", appendRef(sePayConfig.getErrorUrl(), txnRef));
-        fields.put("cancel_url", appendRef(sePayConfig.getCancelUrl(), txnRef));
-        fields.put("customer_id", customerId);
-        fields.put("signature", sePaySignature(fields));
 
         PaymentTransaction txn = PaymentTransaction.builder()
                 .courseEnrollment(enrollment)
@@ -321,30 +320,60 @@ public class PaymentService {
         paymentRepository.save(txn);
 
         auditLogService.log("INIT_PAYMENT_SEPAY", "PaymentTransaction", txnRef);
-        log.info("[SEPAY_INIT] txn={} amount={} method={} merchant={}",
-                txnRef, amount,
-                method == null || method.isBlank() ? "(omit)" : method,
-                sePayConfig.getMerchantId());
+        log.info("[SEPAY_INIT] txn={} amount={} bankAccount={}",
+                txnRef, amount, sePayConfig.getBankAccount());
+
+        String qrUrl = sePayConfig.buildQrUrl(amount, txnRef);
         return new PaymentDTO.SePayCheckoutResponse(
-                sePayConfig.checkoutUrl(), fields, txnRef, amount);
+                sePayConfig.checkoutUrl(),
+                fields,
+                txnRef,
+                amount,
+                qrUrl,
+                sePayConfig.getBankName(),
+                sePayConfig.getBankAccount(),
+                sePayConfig.getAccountName()
+        );
+    }
+
+    @Transactional
+    public ResponseEntity<Map<String, Object>> processSePayIpn(String secretKey, Map<String, Object> body) {
+        return processSePayIpn(secretKey, null, body);
     }
 
     /**
-     * SePay server-to-server IPN (primary activation path).
-     * Verifies {@code X-Secret-Key}, handles {@code ORDER_PAID} via nested
-     * {@code order.order_invoice_number}, marks txn SUCCESS and activates enrollment
-     * (idempotent). Always returns HTTP 200 {@code {"success": true}} on accepted receipt
-     * per SePay docs; mismatch → 401.
+     * SePay server-to-server webhook (IPN / Bank transaction).
+     * Handles both:
+     * 1) Payment Gateway IPN (ORDER_PAID via order.order_invoice_number)
+     * 2) SePay Bank Account Transfer Webhook (transferType=in via content containing txnRef)
      */
     @Transactional
-    public ResponseEntity<Map<String, Object>> processSePayIpn(String secretKey, Map<String, Object> body) {
-        if (secretKey == null || !secretKey.equals(sePayConfig.getSecretKey())) {
-            log.warn("[SEPAY_IPN] unauthorized: X-Secret-Key missing or mismatch");
+    public ResponseEntity<Map<String, Object>> processSePayIpn(String secretKey, String authHeader, Map<String, Object> body) {
+        String ipnSecretKey = sePayConfig.getIpnSecretKey();
+        String merchantSecret = sePayConfig.getSecretKey();
+
+        boolean authorized = true;
+        if ((ipnSecretKey != null && !ipnSecretKey.isBlank()) || (merchantSecret != null && !merchantSecret.isBlank())) {
+            boolean keyMatch = (secretKey != null && (secretKey.equals(ipnSecretKey) || secretKey.equals(merchantSecret)));
+            boolean authMatch = false;
+            if (authHeader != null && !authHeader.isBlank()) {
+                if (ipnSecretKey != null && !ipnSecretKey.isBlank() && authHeader.contains(ipnSecretKey)) {
+                    authMatch = true;
+                }
+                if (merchantSecret != null && !merchantSecret.isBlank() && authHeader.contains(merchantSecret)) {
+                    authMatch = true;
+                }
+            }
+            authorized = keyMatch || authMatch;
+        }
+
+        if (!authorized) {
+            log.warn("[SEPAY_WEBHOOK] unauthorized: key missing or mismatch");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Unauthorized"));
         }
 
-        log.info("[SEPAY_IPN] raw={}", body);
+        log.info("[SEPAY_WEBHOOK] raw={}", body);
 
         String notificationType = body.get("notification_type") != null
                 ? String.valueOf(body.get("notification_type"))
@@ -355,82 +384,108 @@ public class PaymentService {
                 ? (Map<String, Object>) body.get("order")
                 : Collections.emptyMap();
 
-        String txnRef = firstNonBlank(order, "order_invoice_number");
-        if (txnRef == null) {
-            // fallback for atypical payloads
-            txnRef = firstNonBlank(body, "order_invoice_number", "order_id", "ref");
+        String rawRef = firstNonBlank(order, "order_invoice_number");
+        if (rawRef == null) {
+            rawRef = firstNonBlank(body, "order_invoice_number", "order_id", "ref", "code");
+        }
+        final String txnRef = rawRef;
+
+        // Case 1: Payment Gateway IPN
+        if ("ORDER_PAID".equals(notificationType) && txnRef != null) {
+            paymentRepository.findByProviderAndProviderReference("SEPAY", txnRef).ifPresentOrElse(txn -> {
+                activateSepayTransaction(txn, txnRef);
+            }, () -> log.warn("[SEPAY_WEBHOOK] ORDER_PAID but no SEPAY txn for ref={}", txnRef));
+            return ResponseEntity.ok(Map.of("success", true));
         }
 
-        if ("ORDER_PAID".equals(notificationType) && txnRef != null) {
-            final String ref = txnRef;
-            paymentRepository.findByProviderAndProviderReference("SEPAY", ref).ifPresentOrElse(txn -> {
-                if (txn.getTransactionStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
-                    txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
-                    paymentRepository.save(txn);
-                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
-                    auditLogService.log("PAYMENT_SUCCESS_SEPAY_IPN", "PaymentTransaction", ref);
-                    log.info("[SEPAY_IPN] ORDER_PAID → SUCCESS + activate enrollmentId={} txn={}",
-                            txn.getCourseEnrollment().getId(), ref);
-                } else {
-                    // Already SUCCESS (retry / duplicate IPN) — ensure ACTIVE anyway
-                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
-                    log.info("[SEPAY_IPN] ORDER_PAID idempotent skip (already SUCCESS) txn={}", ref);
-                }
-                auditLogService.log("SEPAY_IPN", "PaymentTransaction", ref);
-            }, () -> log.warn("[SEPAY_IPN] ORDER_PAID but no SEPAY txn for order_invoice_number={}", ref));
-        } else {
-            log.info("[SEPAY_IPN] ignored notification_type={} txnRef={}", notificationType, txnRef);
-            if (txnRef != null) {
-                auditLogService.log("SEPAY_IPN", "PaymentTransaction", txnRef);
+        // Case 2: Bank Transfer Webhook (SePay VietQR transfer notification)
+        String transferType = body.get("transferType") != null ? String.valueOf(body.get("transferType")) : "in";
+        String content = firstNonBlank(body, "content", "description");
+
+        if ("in".equalsIgnoreCase(transferType) && content != null && !content.isBlank()) {
+            String upperContent = content.toUpperCase();
+            List<PaymentTransaction> pendingTxns = paymentRepository.findByProviderAndTransactionStatus(
+                    "SEPAY", PaymentTransaction.TransactionStatus.PENDING);
+
+            Optional<PaymentTransaction> matched = pendingTxns.stream()
+                    .filter(t -> upperContent.contains(t.getProviderReference().toUpperCase()))
+                    .findFirst();
+
+            if (matched.isPresent()) {
+                PaymentTransaction txn = matched.get();
+                activateSepayTransaction(txn, txn.getProviderReference());
+                return ResponseEntity.ok(Map.of("success", true));
+            } else if (txnRef != null) {
+                paymentRepository.findByProviderAndProviderReference("SEPAY", txnRef).ifPresent(txn -> {
+                    activateSepayTransaction(txn, txnRef);
+                });
+                return ResponseEntity.ok(Map.of("success", true));
+            } else {
+                log.info("[SEPAY_WEBHOOK] No pending SEPAY transaction matched content='{}'", content);
             }
         }
 
-        // SePay requires HTTP 200 to acknowledge successful receipt
         return ResponseEntity.ok(Map.of("success", true));
     }
 
+    private void activateSepayTransaction(PaymentTransaction txn, String ref) {
+        if (txn.getTransactionStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
+            txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
+            paymentRepository.save(txn);
+            enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
+            auditLogService.log("PAYMENT_SUCCESS_SEPAY", "PaymentTransaction", ref);
+            log.info("[SEPAY_WEBHOOK] SUCCESS + activate enrollmentId={} txn={}",
+                    txn.getCourseEnrollment().getId(), ref);
+        } else {
+            enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
+            log.info("[SEPAY_WEBHOOK] idempotent skip (already SUCCESS) txn={}", ref);
+        }
+        auditLogService.log("SEPAY_WEBHOOK", "PaymentTransaction", ref);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> checkPaymentStatus(String txnRef) {
+        return paymentRepository.findByProviderAndProviderReference("SEPAY", txnRef)
+                .map(txn -> Map.<String, Object>of(
+                        "status", txn.getTransactionStatus().name(),
+                        "success", txn.getTransactionStatus() == PaymentTransaction.TransactionStatus.SUCCESS,
+                        "amount", txn.getAmount(),
+                        "reference", txnRef
+                ))
+                .orElse(Map.of("status", "NOT_FOUND", "success", false));
+    }
+
     /**
-     * Browser return from SePay hosted checkout (secondary / DX fallback).
-     * Production should rely on IPN; this path still activates idempotently when
-     * {@code result} indicates success so local demos work without a public tunnel.
+     * Browser return from SePay hosted checkout. Reports the transaction state
+     * confirmed by IPN; browser query parameters never confirm a payment.
      */
     @Transactional
     public Map<String, Object> processSePayReturn(Map<String, String> params) {
         String txnRef = firstNonBlankParams(params, "order_invoice_number", "order_id", "ref");
         String result = params.getOrDefault("result", "success");
-        log.info("[SEPAY_RETURN] ref={} result={} (secondary path; production should rely on IPN)",
+        log.info("[SEPAY_RETURN] ref={} result={} (display-only; IPN confirms payment)",
                 txnRef, result);
 
-        if (txnRef != null) {
-            paymentRepository.findByProviderAndProviderReference("SEPAY", txnRef).ifPresent(txn -> {
-                if ("error".equals(result) || "cancel".equals(result)) {
-                    if (txn.getTransactionStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
-                        txn.setTransactionStatus(PaymentTransaction.TransactionStatus.FAILED);
-                        paymentRepository.save(txn);
-                        log.info("[SEPAY_RETURN] marked FAILED txn={}", txnRef);
-                    }
-                    return;
-                }
-
-                // success (or default): idempotent activate for local demo / IPN lag
-                if (txn.getTransactionStatus() == PaymentTransaction.TransactionStatus.SUCCESS) {
-                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
-                    log.info("[SEPAY_RETURN] txn already SUCCESS (likely via IPN); ensured ACTIVE txn={}", txnRef);
-                } else {
-                    log.warn("[SEPAY_RETURN] activating via return fallback — IPN may be unreachable locally; txn={}",
-                            txnRef);
-                    txn.setTransactionStatus(PaymentTransaction.TransactionStatus.SUCCESS);
-                    paymentRepository.save(txn);
-                    enrollmentService.activateEnrollment(txn.getCourseEnrollment().getId());
-                    auditLogService.log("PAYMENT_SUCCESS_SEPAY_RETURN", "PaymentTransaction", txnRef);
-                }
-            });
+        if (txnRef == null) {
+            return Map.of("success", false, "message", "SePay transaction reference is missing.");
         }
-        return Map.of("success", !"error".equals(result) && !"cancel".equals(result),
-                "message", "error".equals(result)
-                        ? "Payment failed on SePay (method unavailable, cancelled, or unpaid). Try again or use VietQR."
-                        : "cancel".equals(result) ? "Payment cancelled."
-                        : "Payment completed successfully! Course enrollment is now ACTIVE.");
+
+        return paymentRepository.findByProviderAndProviderReference("SEPAY", txnRef)
+                .map(txn -> {
+                    PaymentTransaction.TransactionStatus status = txn.getTransactionStatus();
+                    if (status == PaymentTransaction.TransactionStatus.SUCCESS) {
+                        return Map.<String, Object>of("success", true,
+                                "message", "Payment completed successfully! Course enrollment is now ACTIVE.");
+                    }
+                    if (status == PaymentTransaction.TransactionStatus.FAILED) {
+                        return Map.<String, Object>of("success", false,
+                                "message", "SePay did not complete this payment. Please try again.");
+                    }
+                    return Map.<String, Object>of("success", false,
+                            "message", "Payment is still being verified. Please refresh in a moment.");
+                })
+                .orElseGet(() -> Map.<String, Object>of(
+                        "success", false, "message", "SePay transaction was not found."));
     }
 
     private String appendRef(String url, String ref) {

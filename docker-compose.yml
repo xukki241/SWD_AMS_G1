@@ -57,10 +57,14 @@ services:
       SEPAY_ENV: ${SEPAY_ENV:-production}
       SEPAY_MERCHANT_ID: ${SEPAY_MERCHANT_ID:-}
       SEPAY_SECRET_KEY: ${SEPAY_SECRET_KEY:-}
+      SEPAY_IPN_SECRET_KEY: ${SEPAY_IPN_SECRET_KEY:-}
+      SEPAY_BANK_NAME: ${SEPAY_BANK_NAME:-MBBank}
+      SEPAY_BANK_ACCOUNT: ${SEPAY_BANK_ACCOUNT:-VQRQANNCD2590}
+      SEPAY_ACCOUNT_NAME: ${SEPAY_ACCOUNT_NAME:-DOAN KHANH DUONG}
       SEPAY_SUCCESS_URL: ${SEPAY_SUCCESS_URL:-http://localhost:3000/payment/sepay-return}
       SEPAY_ERROR_URL: ${SEPAY_ERROR_URL:-http://localhost:3000/payment/sepay-return?result=error}
       SEPAY_CANCEL_URL: ${SEPAY_CANCEL_URL:-http://localhost:3000/payment/sepay-return?result=cancel}
-      SEPAY_IPN_URL: ${SEPAY_IPN_URL:-http://host.docker.internal:8080/api/payment/sepay-ipn}
+      SEPAY_IPN_URL: ${SEPAY_IPN_URL:-http://host.docker.internal:8080/api/payment/sepay-webhook}
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
       PAYOS_API_KEY: ${PAYOS_API_KEY:-}
       PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}

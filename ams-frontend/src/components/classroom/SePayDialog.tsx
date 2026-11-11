@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { paymentService } from "@/services/payment.service"
 import {
@@ -12,15 +12,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Loader2, Wallet, ExternalLink } from "lucide-react"
+import { Loader2, Wallet, CheckCircle2, Copy, Check, QrCode } from "lucide-react"
 import { formatVnd } from "@/components/classroom/format"
-import { useI18n } from "@/i18n"
+import { useToast } from "@/lib/use-toast"
 
 export type SePayCheckout = {
   checkoutUrl: string
   formFields: Record<string, string>
   transactionRef: string
   amount: number
+  qrUrl?: string
+  bankName?: string
+  accountNumber?: string
+  accountName?: string
 }
 
 export function SePayDialog({
@@ -40,10 +44,10 @@ export function SePayDialog({
   const [checkout, setCheckout] = useState<SePayCheckout | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [redirecting, setRedirecting] = useState(false)
-  const autoSubmittedRef = useRef(false)
+  const [isPaid, setIsPaid] = useState(false)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const queryClient = useQueryClient()
-  const { t } = useI18n()
+  const { toast } = useToast()
 
   // Reset state when dialog closes or enrollment changes.
   useEffect(() => {
@@ -51,12 +55,12 @@ export function SePayDialog({
       setCheckout(null)
       setLoading(false)
       setError(null)
-      setRedirecting(false)
-      autoSubmittedRef.current = false
+      setIsPaid(false)
+      setCopiedKey(null)
     }
   }, [open])
 
-  // Load signed checkout when the dialog opens for an enrollment.
+  // Load checkout info when dialog opens.
   useEffect(() => {
     if (!open || !enrollment?.id) return
 
@@ -64,8 +68,7 @@ export function SePayDialog({
     setLoading(true)
     setError(null)
     setCheckout(null)
-    setRedirecting(false)
-    autoSubmittedRef.current = false
+    setIsPaid(false)
 
     paymentService
       .createSePayPayment(enrollment.id)
@@ -74,7 +77,7 @@ export function SePayDialog({
       })
       .catch((err: any) => {
         if (!cancelled) {
-          setError(err.response?.data?.message || t("payments.sepay.createError"))
+          setError(err.response?.data?.message || "Không thể tạo mã thanh toán SePay.")
         }
       })
       .finally(() => {
@@ -86,35 +89,83 @@ export function SePayDialog({
     }
   }, [open, enrollment?.id])
 
-  const submitToSePay = (data: SePayCheckout) => {
-    const form = document.createElement("form")
-    form.method = "POST"
-    form.action = data.checkoutUrl
-    for (const [name, value] of Object.entries(data.formFields)) {
-      const input = document.createElement("input")
-      input.type = "hidden"
-      input.name = name
-      input.value = value
-      form.appendChild(input)
-    }
-    document.body.appendChild(form)
-    form.submit()
-    document.body.removeChild(form)
-    queryClient.invalidateQueries({ queryKey: ["student-payments"] })
-    queryClient.invalidateQueries({ queryKey: ["student-enrollments"] })
-    queryClient.invalidateQueries({ queryKey: ["sidebar-my-enrollments"] })
+  // Poll transaction status every 2.5 seconds.
+  useEffect(() => {
+    if (!open || !checkout?.transactionRef || isPaid) return
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await paymentService.checkPaymentStatus(checkout.transactionRef)
+        if (res.success) {
+          setIsPaid(true)
+          queryClient.invalidateQueries({ queryKey: ["student-enrollments"] })
+          queryClient.invalidateQueries({ queryKey: ["student-payments"] })
+          queryClient.invalidateQueries({ queryKey: ["sidebar-my-enrollments"] })
+          queryClient.invalidateQueries({ queryKey: ["student-dashboard"] })
+          toast({
+            title: "Thanh toán thành công!",
+            description: "Khóa học của bạn đã được kích hoạt.",
+            variant: "success",
+          })
+        }
+      } catch {
+        // silent polling ignore
+      }
+    }, 2500)
+
+    return () => clearInterval(interval)
+  }, [open, checkout?.transactionRef, isPaid, queryClient, toast])
+
+  const copyToClipboard = (text: string, key: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedKey(key)
+    toast({
+      title: "Đã sao chép",
+      description: `${label}: ${text}`,
+    })
+    setTimeout(() => {
+      setCopiedKey((prev) => (prev === key ? null : prev))
+    }, 2000)
   }
 
-  // Auto-submit the hidden POST form once checkout is ready.
-  useEffect(() => {
-    if (!checkout || autoSubmittedRef.current) return
-    autoSubmittedRef.current = true
-    setRedirecting(true)
-    submitToSePay(checkout)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkout])
+  const manualCheck = async () => {
+    if (!checkout?.transactionRef) return
+    try {
+      const res = await paymentService.checkPaymentStatus(checkout.transactionRef)
+      if (res.success) {
+        setIsPaid(true)
+        queryClient.invalidateQueries({ queryKey: ["student-enrollments"] })
+        queryClient.invalidateQueries({ queryKey: ["student-payments"] })
+        queryClient.invalidateQueries({ queryKey: ["sidebar-my-enrollments"] })
+        queryClient.invalidateQueries({ queryKey: ["student-dashboard"] })
+        toast({
+          title: "Thanh toán thành công!",
+          description: "Khóa học của bạn đã được kích hoạt.",
+          variant: "success",
+        })
+      } else {
+        toast({
+          title: "Chưa ghi nhận thanh toán",
+          description: "Giao dịch đang chờ ngân hàng xác nhận. Vui lòng thử lại sau vài giây.",
+        })
+      }
+    } catch {
+      toast({
+        title: "Lỗi kiểm tra",
+        description: "Chưa thể kiểm tra trạng thái lúc này.",
+        variant: "destructive",
+      })
+    }
+  }
 
-  const amount = checkout?.amount ?? enrollment?.amount
+  const amount = checkout?.amount ?? enrollment?.amount ?? 0
+  const bankAccount = checkout?.accountNumber || "VQRQANNCD2590"
+  const bankName = checkout?.bankName || "MBBank"
+  const accountName = checkout?.accountName || "DOAN KHANH DUONG"
+  const refCode = checkout?.transactionRef || ""
+  const qrImage =
+    checkout?.qrUrl ||
+    `https://qr.sepay.vn/img?acc=${bankAccount}&bank=${bankName}&amount=${amount}&des=${refCode}`
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -122,16 +173,12 @@ export function SePayDialog({
         <DialogHeader>
           <div className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
-            <DialogTitle>{t("payments.sepay.title")}</DialogTitle>
+            <DialogTitle>Thanh toán học phí qua SePay (VietQR)</DialogTitle>
           </div>
           <DialogDescription>
-            {redirecting ? (
-              <>{t("payments.sepay.redirecting")}</>
-            ) : (
-              <>
-                {t("payments.sepay.description", { amount: formatVnd(amount) })}
-              </>
-            )}
+            {isPaid
+              ? "Giao dịch đã hoàn tất thành công."
+              : "Quét mã VietQR bằng app ngân hàng để kích hoạt tự động."}
           </DialogDescription>
         </DialogHeader>
 
@@ -139,46 +186,105 @@ export function SePayDialog({
           <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
           </div>
-        ) : redirecting || loading ? (
-          <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {redirecting ? t("payments.sepay.redirecting") : t("payments.sepay.preparing")}
+        ) : loading ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span>Đang tạo mã QR thanh toán...</span>
+          </div>
+        ) : isPaid ? (
+          <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+            <div className="rounded-full bg-emerald-500/10 p-3 text-emerald-600">
+              <CheckCircle2 className="h-12 w-12" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-lg text-foreground">Thanh toán thành công!</h3>
+              <p className="text-sm text-muted-foreground">
+                Khóa học <span className="font-medium text-foreground">{enrollment?.courseTitle}</span> đã được kích hoạt.
+              </p>
+            </div>
           </div>
         ) : checkout ? (
-          <div className="space-y-2 rounded-lg bg-muted/50 p-3 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("payments.dialog.gateway")}</span>
-              <span className="font-medium">{t("payments.sepay.gatewayValue")}</span>
+          <div className="space-y-3">
+            {/* VietQR Code */}
+            <div className="flex flex-col items-center justify-center rounded-xl border bg-white p-3 shadow-sm">
+              <img
+                src={qrImage}
+                alt="VietQR MBBank"
+                className="h-56 w-56 object-contain rounded-lg"
+              />
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground animate-pulse">
+                <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                <span>Đang chờ chuyển khoản tự động...</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("payments.dialog.order")}</span>
-              <span className="font-mono text-primary">
-                {checkout.formFields.order_invoice_number}
-              </span>
+
+            {/* Transfer details */}
+            <div className="space-y-1.5 rounded-lg bg-muted/60 p-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Ngân hàng:</span>
+                <span className="font-semibold text-foreground">{bankName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Chủ tài khoản:</span>
+                <span className="font-medium text-foreground">{accountName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Số tài khoản VA:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-semibold text-foreground">{bankAccount}</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(bankAccount, "acc", "Số tài khoản")}
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Sao chép"
+                  >
+                    {copiedKey === "acc" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Số tiền:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-emerald-600">{formatVnd(amount)}</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(String(amount), "amount", "Số tiền")}
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Sao chép"
+                  >
+                    {copiedKey === "amount" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between rounded bg-amber-500/10 p-1.5 text-amber-800">
+                <span>Nội dung chuyển khoản:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-bold">{refCode}</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(refCode, "ref", "Nội dung CK")}
+                    className="text-amber-800 hover:text-amber-950"
+                    title="Sao chép"
+                  >
+                    {copiedKey === "ref" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("payments.dialog.amount")}</span>
-              <span className="font-semibold text-emerald-600">
-                {formatVnd(Number(checkout.formFields.order_amount))}
-              </span>
-            </div>
+
+            <p className="text-[11px] text-muted-foreground text-center">
+              ⚠️ Vui lòng giữ nguyên <span className="font-semibold text-foreground">nội dung chuyển khoản</span> để hệ thống nhận diện và kích hoạt tự động.
+            </p>
           </div>
         ) : null}
 
-        <DialogFooter>
+        <DialogFooter className="flex gap-2 sm:justify-between">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t("common.actions.close")}
+            {isPaid ? "Đóng" : "Hủy"}
           </Button>
-          {checkout && (
-            <Button
-              onClick={() => {
-                setRedirecting(true)
-                submitToSePay(checkout)
-              }}
-              disabled={loading}
-            >
-              <ExternalLink className="h-4 w-4 mr-1.5" />
-              {t("payments.sepay.open")}
+          {!isPaid && checkout && (
+            <Button size="sm" onClick={manualCheck}>
+              Tôi đã chuyển khoản
             </Button>
           )}
         </DialogFooter>
@@ -186,5 +292,3 @@ export function SePayDialog({
     </Dialog>
   )
 }
-
-export default SePayDialog

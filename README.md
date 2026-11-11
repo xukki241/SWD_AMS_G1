@@ -425,7 +425,8 @@ Payment statuses: `PENDING` | `SUCCESS` | `FAILED` | `REFUNDED`.
 | `VNPAY_TMN_CODE` / `VNPAY_HASH_SECRET` | For VNPay | Sandbox merchant credentials |
 | `VNPAY_RETURN_URL` / `VNPAY_IPN_URL` | For VNPay | Browser return + IPN |
 | `SEPAY_ENV` | For SePay | e.g. `production` |
-| `SEPAY_MERCHANT_ID` / `SEPAY_SECRET_KEY` | For SePay | From SePay portal — **do not commit** |
+| `SEPAY_MERCHANT_ID` / `SEPAY_SECRET_KEY` | For SePay checkout | Merchant credentials from SePay — **do not commit** |
+| `SEPAY_IPN_SECRET_KEY` | For SePay IPN | Independent IPN authentication key from SePay — **do not commit** |
 | `SEPAY_SUCCESS_URL` / `SEPAY_ERROR_URL` / `SEPAY_CANCEL_URL` | For SePay | Frontend return URLs |
 | `SEPAY_IPN_URL` | For SePay IPN | Public HTTPS IPN endpoint |
 | `GEMINI_API_KEY` | For AI outlines | Google AI Studio key — never commit it |
@@ -534,7 +535,7 @@ Render constraints: bind `0.0.0.0:$PORT`, ephemeral filesystem (use Postgres + o
 3. Start: `java -jar target/ams-backend-0.0.1-SNAPSHOT.jar` (confirm JAR name under `target/` after build)
 4. Attach managed Postgres; set `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`.
 5. Set `PORT` from the platform, `JWT_SECRET`, payment, and Cloudinary vars from a **secret store** — not from committed files.
-6. Point SePay IPN at `https://<backend>/api/payment/sepay-ipn` with matching `SEPAY_SECRET_KEY`.
+6. Point SePay IPN at `https://<backend>/api/payment/sepay-ipn`; configure its independent IPN Secret Key as `SEPAY_IPN_SECRET_KEY`. `SEPAY_SECRET_KEY` is the Merchant Secret Key used to sign checkout requests.
 7. Set VNPay/SePay return URLs to the production frontend origins.
 
 ### Docker images
@@ -571,7 +572,7 @@ Production should not rely on Compose demo defaults for merchant secrets.
 ### SePay payment succeeds but enrollment stays `PENDING_PAYMENT`
 
 - IPN URL must be public HTTPS and registered in SePay portal.
-- Header `X-Secret-Key` must match `SEPAY_SECRET_KEY`.
+- Header `X-Secret-Key` must match `SEPAY_IPN_SECRET_KEY` (not the Merchant Secret Key).
 - Tunnel hostnames change on restart — update portal + `.env`. See [docs/SEPAY_SETUP.md](docs/SEPAY_SETUP.md).
 
 ### JWT / 401 on every request

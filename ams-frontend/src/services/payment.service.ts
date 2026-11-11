@@ -41,4 +41,8 @@ export const paymentService = {
     const res = await api.get<{ success: boolean; message: string }>('/payment/vnpay-return', { params });
     return res.data;
   },
+  checkPaymentStatus: async (txnRef: string): Promise<{ status: string; success: boolean; amount?: number }> => {
+    const res = await api.get<{ status: string; success: boolean; amount?: number }>(`/payment/status/${txnRef}`);
+    return res.data;
+  },
 };

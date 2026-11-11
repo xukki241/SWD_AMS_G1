@@ -13,6 +13,7 @@ import java.util.Optional;
 public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long> {
     List<PaymentTransaction> findByCourseEnrollmentId(Long courseEnrollmentId);
     Optional<PaymentTransaction> findByProviderAndProviderReference(String provider, String providerReference);
+    List<PaymentTransaction> findByProviderAndTransactionStatus(String provider, PaymentTransaction.TransactionStatus transactionStatus);
 
     @Query("""
             SELECT t FROM PaymentTransaction t

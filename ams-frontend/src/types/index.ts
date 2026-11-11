@@ -197,6 +197,10 @@ export interface SePayCheckoutResponse {
   formFields: Record<string, string>;
   transactionRef: string;
   amount: number;
+  qrUrl?: string;
+  bankName?: string;
+  accountNumber?: string;
+  accountName?: string;
 }
 
 export interface PayOSCheckoutResponse {

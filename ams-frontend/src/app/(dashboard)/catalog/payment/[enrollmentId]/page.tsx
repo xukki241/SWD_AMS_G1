@@ -4,8 +4,8 @@ import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { enrollmentService } from "@/services/enrollment.service"
-import { paymentService } from "@/services/payment.service"
 import { Button } from "@/components/ui/button"
+import { SePayDialog } from "@/components/classroom/SePayDialog"
 
 export default function EnrollmentPaymentPage() {
   const id = Number(useParams<{ enrollmentId: string }>().enrollmentId)
@@ -13,31 +13,12 @@ export default function EnrollmentPaymentPage() {
   const qc = useQueryClient()
   const [accepted, setAccepted] = useState(false)
   const [error, setError] = useState("")
+  const [showSepay, setShowSepay] = useState(false)
 
   const { data: e, isLoading } = useQuery({
     queryKey: ["enrollment", id],
     queryFn: () =>
       enrollmentService.getMyEnrollments().then((list) => list.find((x) => x.id === id) || null),
-  })
-
-  const checkout = useMutation({
-    mutationFn: () => paymentService.createSePayPayment(id),
-    onSuccess: (result) => {
-      const form = document.createElement("form")
-      form.method = "POST"
-      form.action = result.checkoutUrl
-      for (const [name, value] of Object.entries(result.formFields)) {
-        const input = document.createElement("input")
-        input.type = "hidden"
-        input.name = name
-        input.value = value
-        form.appendChild(input)
-      }
-      document.body.appendChild(form)
-      form.submit()
-    },
-    onError: (err: unknown) =>
-      setError(err instanceof Error ? err.message : "Không tạo được yêu cầu thanh toán SePay."),
   })
 
   const cancel = useMutation({
@@ -95,22 +76,41 @@ export default function EnrollmentPaymentPage() {
         )}
         <div className="flex flex-wrap gap-2">
           <Button
-            disabled={!accepted || checkout.isPending}
+            disabled={!accepted}
             onClick={() => {
               setError("")
-              checkout.mutate()
+              setShowSepay(true)
             }}
           >
-            {checkout.isPending ? "Đang chuyển đến SePay…" : "Thanh toán bằng SePay"}
+            Thanh toán bằng SePay (VietQR)
           </Button>
           <Button variant="outline" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
             Hủy đăng ký
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Giữ trang SePay mở đến khi giao dịch được xác nhận. Quyền học được mở sau IPN thành công.
+          Quét mã VietQR trên app ngân hàng. Quyền học được tự động kích hoạt sau khi chuyển khoản thành công.
         </p>
       </section>
+
+      {showSepay && e && (
+        <SePayDialog
+          open={showSepay}
+          onOpenChange={(open) => {
+            setShowSepay(open)
+            if (!open) {
+              qc.invalidateQueries({ queryKey: ["enrollment", id] })
+              qc.invalidateQueries({ queryKey: ["my-enrollments"] })
+            }
+          }}
+          enrollment={{
+            id: e.id,
+            registrationReference: e.registrationReference || String(e.id),
+            courseTitle: e.courseTitle,
+            amount: e.amount,
+          }}
+        />
+      )}
     </main>
   )
 }

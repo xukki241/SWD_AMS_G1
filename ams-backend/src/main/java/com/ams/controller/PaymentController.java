@@ -72,17 +72,24 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.processPayOSReturn(params));
     }
 
-    @PostMapping("/sepay-ipn")
-    @Operation(summary = "SePay server-to-server IPN webhook (ORDER_PAID → SUCCESS + activate)")
+    @PostMapping({"/sepay-ipn", "/sepay-webhook"})
+    @Operation(summary = "SePay webhook (Bank transfer / IPN → SUCCESS + activate)")
     public ResponseEntity<Map<String, Object>> sepayIpn(
             @RequestHeader(value = "X-Secret-Key", required = false) String secretKey,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestBody Map<String, Object> body
     ) {
-        return paymentService.processSePayIpn(secretKey, body);
+        return paymentService.processSePayIpn(secretKey, authHeader, body);
+    }
+
+    @GetMapping("/status/{txnRef}")
+    @Operation(summary = "Check payment transaction status for polling")
+    public ResponseEntity<Map<String, Object>> checkPaymentStatus(@PathVariable String txnRef) {
+        return ResponseEntity.ok(paymentService.checkPaymentStatus(txnRef));
     }
 
     @GetMapping("/sepay-return")
-    @Operation(summary = "SePay browser return (secondary/idempotent activate; IPN is primary)")
+    @Operation(summary = "SePay browser return (reports IPN-confirmed payment status)")
     public ResponseEntity<Map<String, Object>> sepayReturn(@RequestParam Map<String, String> params) {
         return ResponseEntity.ok(paymentService.processSePayReturn(params));
     }
