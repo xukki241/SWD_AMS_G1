@@ -71,7 +71,7 @@ services:
       FILE_STORAGE_PATH: /app/storage/files
       FILE_STORAGE_BASE_URL: http://localhost:8080
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-lite}
       GEMINI_TIMEOUT_SECONDS: ${GEMINI_TIMEOUT_SECONDS:-30}
       PORT: 8080
     depends_on:

@@ -33,7 +33,7 @@ public class GeminiAiClient implements AiClient {
 
     public GeminiAiClient(
             @Value("${gemini.api-key:}") String apiKey,
-            @Value("${gemini.model:gemini-3.6-flash}") String model,
+            @Value("${gemini.model:gemini-3.1-flash-lite}") String model,
             @Value("${gemini.base-url:https://generativelanguage.googleapis.com}") String baseUrl,
             @Value("${gemini.timeout-seconds:30}") int timeoutSeconds,
             ObjectMapper objectMapper) {
@@ -81,16 +81,11 @@ public class GeminiAiClient implements AiClient {
         );
 
         try {
-            // Read the raw bytes instead of relying on a message converter:
-            // Gemini/gateways sometimes answer with application/octet-stream,
-            // which Spring cannot convert to JsonNode or String.
-            RawResponse raw = restClient.post()
-                    .uri(baseUrl + "/v1beta/models/{model}:generateContent?key={key}", model, apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(payload)
-                    .exchange((request, response) -> new RawResponse(
-                            response.getStatusCode().value(),
-                            new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8)));
+            RawResponse raw = callGemini(model, payload);
+            if (raw.status() == 503 && !model.equals("gemini-3.1-flash-lite")) {
+                log.warn("Gemini model {} returned 503; falling back to gemini-3.1-flash-lite", model);
+                raw = callGemini("gemini-3.1-flash-lite", payload);
+            }
 
             int status = raw.status();
             if (status == 429) {
@@ -102,7 +97,7 @@ public class GeminiAiClient implements AiClient {
             }
             if (status == 404) {
                 throw new AiGenerationException(
-                        "The configured Gemini model was not found. Set GEMINI_MODEL to an available model, such as gemini-3.6-flash.");
+                        "The configured Gemini model was not found. Set GEMINI_MODEL to an available model, such as gemini-3.1-flash-lite.");
             }
             if (status < 200 || status >= 300) {
                 log.warn("Gemini request failed with status {}", status);
@@ -127,6 +122,16 @@ public class GeminiAiClient implements AiClient {
             log.warn("Gemini request could not be completed: {}", ex.getMessage());
             throw new AiGenerationException("Could not reach the AI service. Please try again.", ex);
         }
+    }
+
+    private RawResponse callGemini(String targetModel, Map<String, Object> payload) {
+        return restClient.post()
+                .uri(baseUrl + "/v1beta/models/{model}:generateContent?key={key}", targetModel, apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .exchange((request, response) -> new RawResponse(
+                        response.getStatusCode().value(),
+                        new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8)));
     }
 
     private record RawResponse(int status, String body) {
